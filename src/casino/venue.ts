@@ -6,6 +6,7 @@ import type { Collision } from '../world/collision';
 import type { TableBase } from './table';
 import { lotFrontPoint, type Lot } from '../world/layout';
 import { mulberry32 } from '../core/noise';
+import { mergeStatic } from '../render/mergeStatic';
 
 /**
  * A casino (or bar, or club) building you can walk into: an exterior with a neon sign, a
@@ -371,6 +372,11 @@ export class Venue {
     const wp = this.toWorld(x, z);
     this.collision.addCircle({ x: wp.x, z: wp.z, r: table.kind === 'craps' ? 1.6 : table.kind === 'roulette' ? 1.4 : table.kind === 'slots' || table.kind === 'videopoker' ? 0.45 : 1.15, minY: this.floorY - 1, maxY: this.floorY + 1, tag: this.tag });
     return p;
+  }
+
+  /** Merge every table's static parts into a few meshes (call after placing tables). */
+  finalize(): void {
+    mergeStatic(this.interior, this.interior);
   }
 
   update(night: number, near: boolean): void {

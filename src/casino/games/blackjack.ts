@@ -9,6 +9,7 @@ import type { Card } from '../types';
 import { tweens } from '../../core/tween';
 import { money } from '../../ui/dom';
 import { feltCanvas, arcText } from '../felt';
+import { markStatic } from '../../render/mergeStatic';
 
 /**
  * Blackjack, Las Vegas rules: six decks dealt from a shoe down to the cut card, dealer
@@ -20,6 +21,14 @@ import { feltCanvas, arcText } from '../felt';
  */
 
 const C = { x: 0, z: -0.35 };
+const FELT_TEX = new Map<string, THREE.CanvasTexture>();
+const FELT_MATS = new Map<string, THREE.MeshLambertMaterial>();
+/** One felt material per colour, shared by every table of that colour (so they can merge). */
+function feltMaterial(color: string, make: () => THREE.Texture): THREE.MeshLambertMaterial {
+  let m = FELT_MATS.get(color);
+  if (!m) FELT_MATS.set(color, (m = new THREE.MeshLambertMaterial({ map: make() })));
+  return m;
+}
 const R = 1.15;
 const SEAT_ANGLES = [0.98, 0.49, 0, -0.49, -0.98];
 
@@ -91,7 +100,8 @@ export class BlackjackTable extends TableBase {
   private build(feltColor: string): void {
     const y = this.surfaceY;
     // Felt: a half disc with the printed layout.
-    const tex = this.feltTexture(feltColor);
+    const tex = FELT_TEX.get(feltColor) ?? this.feltTexture(feltColor);
+    FELT_TEX.set(feltColor, tex);
     const pos: number[] = [];
     const uv: number[] = [];
     const idx: number[] = [];
@@ -111,7 +121,7 @@ export class BlackjackTable extends TableBase {
     g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     g.setIndex(idx);
     g.computeVertexNormals();
-    this.felt = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: tex }));
+    this.felt = new THREE.Mesh(g, feltMaterial(feltColor, () => tex));
     this.felt.receiveShadow = true;
     this.group.add(this.felt);
     this.pickables.push(this.felt);
@@ -130,7 +140,9 @@ export class BlackjackTable extends TableBase {
       const col = [0xf4f4f0, 0xd8202f, 0x1f9a4c, 0x18181c, 0x6a2fb8, 0xf2c230, 0xd8202f, 0x1f9a4c][i];
       k.cyl(0.0195, 0.0195, 0.12, col, { x: -0.27 + i * 0.077, y: y + 0.045, z: C.z + 0.1, rz: Math.PI / 2 }, 'matte', 14);
     }
-    this.group.add(k.bake({ shadows: true }));
+    const body = k.bake({ shadows: true });
+    markStatic(body);
+    this.group.add(body);
     // The shoe (cards inside, a red cut card poking out).
     const sk = new Kit();
     sk.box(0.13, 0.09, 0.2, 0x1b1b20, { y: 0.045 }, 'shiny');
@@ -144,6 +156,7 @@ export class BlackjackTable extends TableBase {
     const dk = new Kit();
     dk.box(0.1, 0.12, 0.13, 0x1b1b20, { y: 0.06 }, 'glass');
     const discardHolder = dk.bake();
+    markStatic(discardHolder);
     discardHolder.position.set(-0.78, y, C.z + 0.14);
     discardHolder.rotation.y = 0.6;
     this.group.add(discardHolder);
@@ -157,6 +170,7 @@ export class BlackjackTable extends TableBase {
     this.display.mesh.rotation.set(-0.35, 0.25, 0);
     this.group.add(this.display.mesh);
     const stand = new Kit().box(0.44, 0.15, 0.02, 0x111114, { x: -0.46, y: y + 0.1, z: C.z + 0.01, rx: -0.35, ry: 0.25 }, 'shiny').bake();
+    markStatic(stand);
     this.group.add(stand);
     // Stools and seats.
     const st = new Kit();
@@ -166,7 +180,9 @@ export class BlackjackTable extends TableBase {
       stoolParts(st, x, z, yaw);
       this.seats.push({ x, z, yaw, who: null, eye: 1.24 });
     });
-    this.group.add(st.bake({ shadows: true }));
+    const stools = st.bake({ shadows: true });
+    markStatic(stools);
+    this.group.add(stools);
     this.addDealer(0, C.z - 0.42);
     this.dealerLabel.sprite.position.set(0, y + 0.14, C.z + 0.27);
     this.group.add(this.dealerLabel.sprite);
@@ -360,11 +376,11 @@ export class BlackjackTable extends TableBase {
       const cap = which === 'main' ? this.maxBet : Math.min(100, this.maxBet);
       const add = Math.min(chip, cap - my[which]);
       if (add <= 0) {
-        this.host.toast(`Table limit on that spot is ${money(cap)}`, 'bad');
+        this.speech.say(`Limit there is ${money(cap)}`);
         return;
       }
       if (!this.host.take(add)) {
-        this.host.toast('Not enough money for that chip', 'bad');
+        this.speech.say("You're short for that chip.");
         return;
       }
       my[which] += add;
@@ -401,11 +417,11 @@ export class BlackjackTable extends TableBase {
           my.p213 = this.lastBets.p213;
           this.refreshPiles(this.mySeat);
           h.sound('chips', 0.7);
-        } else h.toast('Not enough money to rebet', 'bad');
+        } else this.speech.say("You're short for a rebet.");
       } else if (id === 'deal' && my.main >= this.minBet) {
         this.lastBets = { main: my.main, pp: my.pp, p213: my.p213 };
         void this.round();
-      } else if (id === 'deal') h.toast(`Minimum bet is $${this.minBet}`, 'bad');
+      } else if (id === 'deal') this.speech.say(`Minimum bet is $${this.minBet}.`);
       this.refreshOptions();
       return;
     }
@@ -508,12 +524,12 @@ export class BlackjackTable extends TableBase {
               h.paid = h.bet * 2;
               h.done = true;
               h.label.set('EVEN MONEY', '#7dff9a');
-              host.toast(`Even money: +${money(h.bet)}`, 'money');
+              this.speech.say('Even money paid.');
             } else if (host.take(half)) {
               p.insurance = half;
               this.setPile(i, 'ins', half);
               host.sound('chips', 0.6);
-            } else host.toast('Not enough money for insurance', 'bad');
+            } else this.speech.say("You're short for insurance.");
           }
           this.phase = 'dealing';
         } else if (this.rng() < 0.12) {
@@ -580,7 +596,7 @@ export class BlackjackTable extends TableBase {
             });
             move = chosen as BjMove;
             if ((move === 'double' || move === 'split') && !host.take(hand.bet)) {
-              host.toast('Not enough money for that', 'bad');
+              this.speech.say("You're short for that.");
               continue;
             }
           } else {
@@ -760,7 +776,7 @@ export class BlackjackTable extends TableBase {
       this.setPile(seat, which === 'pp' ? 'win2' : 'win3', win);
       this.payHand(seat, stake + win);
       if (seat === this.mySeat && host) {
-        host.toast(`${which === 'pp' ? 'Perfect Pairs' : '21+3'}: ${name}! +${money(win)}`, 'money');
+        this.display.show(`${which === 'pp' ? 'PERFECT PAIRS' : '21+3'}: ${name.toUpperCase()}`, `+${money(win)}`, '#7dff9a');
         host.sound('win', 0.7);
         if (pays >= 25) host.celebrate('big', win);
       }

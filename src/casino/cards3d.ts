@@ -383,3 +383,11 @@ export class Card3D {
 export function cardName(c: Card): string {
   return `${RANK_LABEL[c.rank]}${SUIT_CHARS[c.suit]}`;
 }
+
+/** Draw a card (or a back when null) into any 2D canvas, e.g. a video poker screen. */
+export function drawCard(g: CanvasRenderingContext2D, card: Card | null, x: number, y: number, w: number, h: number, back = 1): void {
+  const img = cardAtlas().image as HTMLCanvasElement;
+  const col = card ? card.rank : back;
+  const row = card ? card.suit : 4;
+  g.drawImage(img, col * CW, row * CH, CW, CH, x, y, w, h);
+}

@@ -3,6 +3,12 @@ import type { TableBase } from '../casino/table';
 import type { Terrain } from './terrain';
 import type { Collision } from './collision';
 import { BlackjackTable } from '../casino/games/blackjack';
+import { SlotMachine } from '../casino/games/slots';
+import { RouletteTable } from '../casino/games/roulette';
+import { BaccaratTable } from '../casino/games/baccarat';
+import { ThreeCardTable } from '../casino/games/threecard';
+import { VideoPokerMachine } from '../casino/games/videopoker';
+import { CrapsTable } from '../casino/games/craps';
 import type { Lot } from './layout';
 
 /**
@@ -15,6 +21,12 @@ export type TableFactory = (seed: number, opts: { min: number; max: number; felt
 
 export const FACTORIES: Partial<Record<string, TableFactory>> = {
   blackjack: (seed, o) => new BlackjackTable(seed, { min: o.min, max: o.max, felt: o.felt }),
+  slots: (seed, o) => new SlotMachine(seed, { min: o.min, max: o.max }),
+  roulette: (seed, o) => new RouletteTable(seed, { min: o.min, max: o.max, felt: o.felt }),
+  baccarat: (seed, o) => new BaccaratTable(seed, { min: o.min, max: o.max }),
+  threecard: (seed, o) => new ThreeCardTable(seed, { min: o.min, max: o.max }),
+  videopoker: (seed, o) => new VideoPokerMachine(seed, { min: o.min, max: o.max }),
+  craps: (seed, o) => new CrapsTable(seed, { min: o.min, max: o.max, felt: o.felt }),
 };
 
 export interface VenueDef {
@@ -45,8 +57,9 @@ export const VENUES: VenueDef[] = [
       ['baccarat', 8, -21, Math.PI, 100, 50000],
       ['craps', 17, -21, Math.PI, 10, 10000],
       ['threecard', 0, -30, Math.PI, 10, 2500],
-      ...grid('slots', -24, -8, 1, 6, 0, 3.2, Math.PI / 2, 1, 100),
-      ...grid('slots', 24, -8, 1, 6, 0, 3.2, -Math.PI / 2, 1, 100),
+      ...grid('slots', -25.5, -6, 1, 12, 0, 1.0, Math.PI / 2, 1, 100),
+      ...grid('slots', 25.5, -6, 1, 12, 0, 1.0, -Math.PI / 2, 5, 500),
+      ...grid('slots', -25.5, -22, 1, 12, 0, 1.0, Math.PI / 2, 25, 2500),
       ...grid('videopoker', -6, -38.5, 6, 1, 2.0, 0, 0, 1, 25),
     ],
   },
@@ -59,8 +72,8 @@ export const VENUES: VenueDef[] = [
       ['craps', 13, -21, Math.PI, 5, 5000],
       ['threecard', 13, -12, Math.PI, 5, 1000],
       ['baccarat', -4, -30, Math.PI, 25, 10000],
-      ...grid('slots', -21, -6, 1, 7, 0, 3.2, Math.PI / 2, 1, 50),
-      ...grid('slots', 21, -6, 1, 7, 0, 3.2, -Math.PI / 2, 1, 50),
+      ...grid('slots', -22.5, -6, 1, 12, 0, 1.0, Math.PI / 2, 1, 50),
+      ...grid('slots', 22.5, -6, 1, 12, 0, 1.0, -Math.PI / 2, 1, 50),
     ],
   },
   {
@@ -72,7 +85,8 @@ export const VENUES: VenueDef[] = [
       ['roulette', -10, -21, Math.PI, 50, 100000],
       ['craps', 6, -21, Math.PI, 25, 50000],
       ['threecard', 0, -30, Math.PI, 50, 10000],
-      ...grid('slots', -22, -6, 1, 7, 0, 3.2, Math.PI / 2, 5, 500),
+      ...grid('slots', -23.5, -6, 1, 12, 0, 1.0, Math.PI / 2, 5, 500),
+      ...grid('slots', 23.5, -6, 1, 12, 0, 1.0, -Math.PI / 2, 25, 2500),
       ...grid('videopoker', -5, -36.5, 5, 1, 2.0, 0, 0, 5, 100),
     ],
   },
@@ -80,7 +94,7 @@ export const VENUES: VenueDef[] = [
     key: 'driftwood', name: 'Driftwood Tavern', theme: 'tavern', width: 22, depth: 18, felt: '#2f5a2f', font: 'Lilita One',
     layout: [
       ['blackjack', 3, -9, Math.PI, 5, 500],
-      ...grid('slots', 9.4, -4, 1, 3, 0, 3.0, -Math.PI / 2, 1, 10),
+      ...grid('slots', 9.6, -4, 1, 5, 0, 1.0, -Math.PI / 2, 1, 10),
       ...grid('videopoker', -9.4, -9, 1, 2, 0, 2.2, Math.PI / 2, 1, 5),
     ],
   },
@@ -98,8 +112,9 @@ export function buildVenues(terrain: Terrain, collision: Collision): Venue[] {
       if (!f) continue;
       const t = f(seed++, { min, max, felt: def.felt });
       venue.addTable(t, x, z, yaw);
-      t.populate(def.key === 'driftwood' ? 0.4 : 0.55);
+      t.populate(kind === 'slots' || kind === 'videopoker' ? 0.35 : def.key === 'driftwood' ? 0.4 : 0.55);
     }
+    venue.finalize();
     out.push(venue);
   }
   return out;
