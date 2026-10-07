@@ -1,0 +1,27 @@
+{
+  "name": "casino-simulator-2",
+  "private": true,
+  "version": "2.0.0",
+  "description": "Casino Simulator 2: Jackpot Island. A 3D open-world casino tycoon on a huge island, with a story mode, first-person gambling at real tables and machines, building lots, and a military base.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "build:artifact": "vite build && node scripts/build-artifact.mjs",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fontsource/bungee": "^5.3.0",
+    "@fontsource/lilita-one": "^5.3.0",
+    "@fontsource/nunito": "^5.3.0",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.186.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
+  }
+}
