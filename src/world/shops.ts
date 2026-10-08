@@ -28,7 +28,7 @@ interface ShopDef {
 const DEFS: ShopDef[] = [
   { key: 'gunShop', name: 'Bullseye Guns', sign: 'BULLSEYE GUNS', color: 0x4a3a2a, neon: '#ff5a6a', floors: 1, icon: '🔫', label: 'Browse Bullseye Guns', sub: 'Pistols, rifles, shotguns', action: (g) => g.ui.gunShop() },
   { key: 'carDealer', name: 'Island Motors', sign: 'ISLAND MOTORS', color: 0xe8ecf2, neon: '#3aa7ff', floors: 1, icon: '🚗', label: 'Buy a car', sub: 'Island Motors showroom', action: (g) => g.ui.carDealer() },
-  { key: 'realEstate', name: 'Paradise Realty', sign: 'PARADISE REALTY', color: 0xf4efe2, neon: '#3ddc84', floors: 2, icon: '🏢', label: 'Talk to Rosa at Paradise Realty', sub: 'Every lot for sale on the island', action: (g) => g.ui.realtyPanel() },
+  { key: 'realEstate', name: 'Paradise Realty', sign: 'PARADISE REALTY', color: 0xf4efe2, neon: '#3ddc84', floors: 2, icon: '🏢', label: 'Browse Paradise Realty', sub: 'Every lot for sale on the island', action: (g) => g.ui.realtyPanel() },
   { key: 'clothing', name: 'Drip Locker', sign: 'DRIP LOCKER', color: 0x2a1a3a, neon: '#d68bff', floors: 1, icon: '👕', label: 'Shop at Drip Locker', sub: 'Outfits', action: (g) => g.ui.wardrobe(true) },
   { key: 'hospital', name: 'Mercy Island Hospital', sign: 'MERCY HOSPITAL', color: 0xf4f4f4, neon: '#ff6b6b', floors: 4, icon: '➕', label: 'Hospital', sub: 'Free check-up', action: (g) => g.ui.hospital() },
   { key: 'police', name: 'Police Station', sign: 'POLICE', color: 0xd8dce4, neon: '#3a7bd5', floors: 2, icon: '🚓', label: 'Turn yourself in', sub: 'Clears your wanted level, for a fine', action: (g) => g.turnIn() },

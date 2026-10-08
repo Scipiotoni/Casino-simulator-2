@@ -2,7 +2,7 @@
   "name": "casino-simulator-2",
   "private": true,
   "version": "2.0.0",
-  "description": "Casino Simulator 2: Jackpot Island. A 3D open-world crime-and-casino tycoon in the browser: a GTA V-sized island, story mode with cutscenes, first-person gambling with real casino rules, lots you buy and build on, side activities, and a military base.",
+  "description": "Casino Simulator 2: Jackpot Island. A 3D open-world casino game in the browser: a big island, first-person gambling with real casino rules, lots you buy and build on, side activities, multiplayer and a military base.",
   "type": "module",
   "scripts": {
     "dev": "vite",
