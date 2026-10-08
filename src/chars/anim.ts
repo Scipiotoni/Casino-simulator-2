@@ -273,10 +273,11 @@ export class Animator {
         break;
       }
       case 'aimPistol':
+        // Two-handed: the gun arm straight out, the other reaching across to cup the grip.
         t.upperArmR = [-1.5, 0.15, -0.1];
         t.foreArmR = [-0.1, 0, 0];
-        t.upperArmL = [-1.4, -0.4, 0.15];
-        t.foreArmL = [-0.35, 0, 0];
+        t.upperArmL = [-1.415, 0, -0.63];
+        t.foreArmL = [-0.12, 0, 0];
         t.handR = [0, 0, 0];
         t.spine = [0, 0.1, 0];
         relaxedLegs(t);

@@ -42,8 +42,8 @@ def rest_pose(f):
     hip = 0.098 if f else 0.094
     return {
         'root': (0, 0, 0), 'hips': (0, 0.96, 0), 'spine': (0, 1.1, 0), 'chest': (0, 1.28, 0), 'neck': (0, 1.49, 0), 'head': (0, 1.57, 0.005),
-        'upperArmL': (sh, 1.43, 0), 'foreArmL': (sh + 0.02, 1.15, -0.005), 'handL': (sh + 0.035, 0.89, 0.01),
-        'upperArmR': (-sh, 1.43, 0), 'foreArmR': (-sh - 0.02, 1.15, -0.005), 'handR': (-sh - 0.035, 0.89, 0.01),
+        'upperArmL': (sh, 1.43, 0), 'foreArmL': (sh + 0.03, 1.15, -0.005), 'handL': (sh + 0.058, 0.89, 0.01),
+        'upperArmR': (-sh, 1.43, 0), 'foreArmR': (-sh - 0.03, 1.15, -0.005), 'handR': (-sh - 0.058, 0.89, 0.01),
         'thighL': (hip, 0.93, 0), 'shinL': (hip + 0.005, 0.51, 0.012), 'footL': (hip + 0.008, 0.085, -0.01),
         'thighR': (-hip, 0.93, 0), 'shinR': (-hip - 0.005, 0.51, 0.012), 'footR': (-hip - 0.008, 0.085, -0.01),
     }
@@ -81,7 +81,8 @@ def sculpt_body(f):
     R = rest_pose(f)
     torso = Sculpt('Torso')
     if f:
-        torso.ellipsoid((0, 0.93, -0.008), (0.172, 0.105, 0.115))
+        # Hips curvy but clear of the hands hanging beside them.
+        torso.ellipsoid((0, 0.93, -0.008), (0.16, 0.105, 0.115))
         torso.ellipsoid((0, 1.06, 0), (0.122, 0.085, 0.086))
         torso.ellipsoid((0, 1.17, 0.004), (0.132, 0.075, 0.092))
         torso.ellipsoid((0, 1.29, 0.004), (0.128, 0.095, 0.1))
@@ -133,7 +134,7 @@ def sculpt_body(f):
         th = R['thigh' + side]
         kn = R['shin' + side]
         an = R['foot' + side]
-        rt = 0.094 if f else 0.092
+        rt = 0.088 if f else 0.092
         # The top of the thigh reaches up inside the pelvis so the hip join is deep.
         leg.ellipsoid((th[0] + sg * 0.004, th[1] - 0.02, th[2]), (rt * 0.95, 0.09, rt * 0.95))
         leg.taper((th[0], th[1] - 0.06, th[2]), kn, rt, rt * 0.7)

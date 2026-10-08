@@ -38,8 +38,8 @@ function restPose(f: boolean): Record<BoneName, V3> {
   const hip = f ? 0.098 : 0.094;
   return {
     root: [0, 0, 0], hips: [0, 0.96, 0], spine: [0, 1.1, 0], chest: [0, 1.28, 0], neck: [0, 1.49, 0], head: [0, 1.57, 0.005],
-    upperArmL: [sh, 1.43, 0], foreArmL: [sh + 0.02, 1.15, -0.005], handL: [sh + 0.035, 0.89, 0.01],
-    upperArmR: [-sh, 1.43, 0], foreArmR: [-sh - 0.02, 1.15, -0.005], handR: [-sh - 0.035, 0.89, 0.01],
+    upperArmL: [sh, 1.43, 0], foreArmL: [sh + 0.03, 1.15, -0.005], handL: [sh + 0.058, 0.89, 0.01],
+    upperArmR: [-sh, 1.43, 0], foreArmR: [-sh - 0.03, 1.15, -0.005], handR: [-sh - 0.058, 0.89, 0.01],
     thighL: [hip, 0.93, 0], shinL: [hip + 0.005, 0.51, 0.012], footL: [hip + 0.008, 0.085, -0.01],
     thighR: [-hip, 0.93, 0], shinR: [-hip - 0.005, 0.51, 0.012], footR: [-hip - 0.008, 0.085, -0.01],
   };
@@ -401,7 +401,9 @@ function buildBody(a: Appearance): { geometry: THREE.BufferGeometry; face: THREE
       case REGION.hand:
         return o.gloves ? o.c2 : skin;
       case REGION.thigh:
-        return o.top === 'coat' ? o.c1 : lg >= 1 ? pants(x, y, z) : skin;
+        // Under a skirt the tops of the thighs take its colour (the hips can touch it).
+        if (lg === 0) return o.top === 'dress' ? o.c1 : o.pants;
+        return o.top === 'coat' ? o.c1 : pants(x, y, z);
       case REGION.lowthigh:
         return o.top === 'coat' ? o.c1 : lg >= 2 ? pants(x, y, z) : skin;
       case REGION.shin:
