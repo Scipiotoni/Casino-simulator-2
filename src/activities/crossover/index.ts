@@ -55,12 +55,19 @@ export function mainlandName(): string | null {
 export function goToMainland(g: Game): void {
   g.save();
   audio.play('whoosh');
-  const fade = el('div', 'crossing', '<div class="t1">INTERSTATE 15</div><div class="t2">To the mainland · Casino Simulator: Jackpot Tycoon</div>');
-  g.uiRoot.appendChild(fade);
-  requestAnimationFrame(() => fade.classList.add('on'));
   const url = new URL(MAINLAND_URL, location.href);
   url.searchParams.set('from', 'island');
-  setTimeout(() => location.assign(url.toString()), 1400);
+  // A plain link too, for hosts that don't let a page navigate itself.
+  const fade = el('div', 'crossing', `<div class="t1">INTERSTATE 15</div><div class="t2">To the mainland · Casino Simulator: Jackpot Tycoon</div><a class="go" href="${esc(url.toString())}" target="_blank" rel="noopener">Continue to the mainland ▸</a>`);
+  g.uiRoot.appendChild(fade);
+  requestAnimationFrame(() => fade.classList.add('on'));
+  setTimeout(() => {
+    try {
+      location.assign(url.toString());
+    } catch {
+      // Blocked: the link stays on screen.
+    }
+  }, 1400);
 }
 
 export class Crossover implements Activity {

@@ -5,3 +5,4 @@
 .title-link { pointer-events: auto; border: none; background: none; box-shadow: none; padding: 6px 10px; color: #9fe8ff; font-family: var(--ui-font); font-size: 17px; letter-spacing: 0.04em; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; }
 .title-link:hover { color: #fff; }
 .title-hello { font-weight: 800; color: var(--yellow); font-size: 15px; text-align: center; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.5); }
+.crossing .go { margin-top: 18px; color: #9fe8ff; font-size: 18px; letter-spacing: 0.04em; opacity: 0; animation: fadeIn 0.4s 2.4s forwards; }
