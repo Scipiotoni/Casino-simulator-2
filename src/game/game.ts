@@ -35,6 +35,8 @@ import { money as fmtMoney } from '../ui/dom';
 import type { Venue } from '../casino/venue';
 import type { Activity } from '../activities/activity';
 import { createActivities } from '../activities';
+import { Multiplayer } from '../net/multiplayer';
+import { Chat } from '../ui/chat';
 
 export type GameMode = 'loading' | 'title' | 'play' | 'cutscene' | 'seated' | 'menu' | 'build';
 
@@ -64,8 +66,11 @@ export class Game {
   shops: ShopSite[] = [];
   /** Side activities (shoplifting, docks, collectibles, jobs…). */
   activities: Activity[] = [];
-  /** Multiplayer hooks (not connected in this build). */
+  /** Multiplayer hooks for shared lots (not used yet). */
   net: { publishLots(): void } | null = null;
+  /** Everyone else on the island, and the chat. */
+  mp!: Multiplayer;
+  chat!: Chat;
   mode: GameMode = 'loading';
   private last = performance.now();
   /** Game clock: one game hour per real minute. */
@@ -149,6 +154,8 @@ export class Game {
     await step(0.98, 'Drawing the map');
     this.map = new IslandMap(this.world.terrain);
     this.minimap = new Minimap(this, this.uiRoot, this.map);
+    this.mp = new Multiplayer(this);
+    this.chat = new Chat(this, this.uiRoot);
     this.registerSeats();
     window.addEventListener('pointerdown', () => audio.unlock());
     window.addEventListener('keydown', () => audio.unlock());
@@ -180,6 +187,7 @@ export class Game {
       this.mode = 'play';
       this.input.wantLock = true;
       this.hud.banner('WELCOME BACK', save.name.toUpperCase(), 2600);
+      this.mp.start();
       return;
     }
     // New game: frame the player on the bridge's welcome plaza while they choose a look.
@@ -205,6 +213,7 @@ export class Game {
     this.hud.setVisible(true);
     this.minimap.setVisible(true);
     this.hud.setMoney(this.money, true);
+    this.mp.start();
     await this.director.play((d) => playIntro(this, d));
     this.save();
   }
@@ -229,6 +238,7 @@ export class Game {
     if (q.has('chars')) this.debugLineup(q.get('chars') ?? '');
     this.started = q.has('save');
     this.mode = 'play';
+    if (q.has('mp')) this.mp.start();
   }
 
   // ---------------------------------------------------------------- saving
@@ -617,6 +627,7 @@ export class Game {
       this.crowd.update(dt);
       this.traffic.update(dt);
       for (const a of this.activities) a.update(dt);
+      this.mp.update(dt);
     }
     const cam = this.renderer.camera;
     const focusPos = this.camera.mode === 'free' || this.mode === 'title' ? cam.position : driving ? driving.pos : this.player.pos;

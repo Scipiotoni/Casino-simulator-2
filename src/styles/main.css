@@ -307,3 +307,18 @@ body.cine-on .hud-dialog { bottom: calc(11vh + 14px); }
 .bt-item .nm { font-family: var(--ui-font); font-size: 14px; }
 .bt-item .pr { color: var(--yellow); font-family: var(--ui-font); font-size: 14px; }
 .bt-stats { display: flex; gap: 16px; font-weight: 800; font-size: 13px; color: #c8d8f8; }
+
+/* ---------------------------------------------------------------- chat (block-game style) */
+.mc-chat { position: absolute; left: 16px; bottom: 90px; width: min(560px, calc(100vw - 32px)); z-index: 12; pointer-events: none; font-family: var(--body-font); }
+.mc-log { display: flex; flex-direction: column; align-items: flex-start; max-height: 40vh; overflow: hidden; }
+.mc-chat.open .mc-log { overflow-y: auto; pointer-events: auto; }
+.mc-line { padding: 2px 8px; background: rgba(0, 0, 0, 0.42); color: #fff; font-weight: 800; font-size: 15px; line-height: 1.35; text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.6); transition: opacity 1s; overflow-wrap: anywhere; }
+.mc-line.old { opacity: 0; }
+.mc-chat.open .mc-line.old { opacity: 1; }
+.mc-line.sys { color: #ffe066; }
+.mc-name { color: #ffffff; }
+.mc-line.me .mc-name { color: #9fe8ff; }
+.mc-bar { display: none; margin-top: 4px; pointer-events: auto; }
+.mc-chat.open .mc-bar { display: block; }
+.mc-input { width: 100%; padding: 8px 10px; border: none; border-radius: 0; background: rgba(0, 0, 0, 0.6); color: #fff; font: 800 15px var(--body-font); outline: 2px solid rgba(255, 255, 255, 0.15); }
+.mc-input:focus { outline-color: rgba(255, 255, 255, 0.4); }

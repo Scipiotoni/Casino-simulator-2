@@ -31,7 +31,7 @@ export interface RelayPeer {
   presence: Record<string, unknown>;
 }
 
-const PRESENCE_TTL = 8000;
+const PRESENCE_TTL = 15000;
 const HEARTBEAT = 2500;
 
 export class Relay {
