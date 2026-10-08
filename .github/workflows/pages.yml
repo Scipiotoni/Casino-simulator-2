@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [main, claude/casino-simulator-2-v2-z9maqp]
   workflow_dispatch:
 
 permissions:
