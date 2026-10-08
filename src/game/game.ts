@@ -148,7 +148,7 @@ export class Game {
     this.activities = createActivities(this);
     await step(0.98, 'Drawing the map');
     this.map = new IslandMap(this.world.terrain);
-    this.minimap = new Minimap(this.uiRoot, this.map);
+    this.minimap = new Minimap(this, this.uiRoot, this.map);
     this.registerSeats();
     window.addEventListener('pointerdown', () => audio.unlock());
     window.addEventListener('keydown', () => audio.unlock());
@@ -567,10 +567,11 @@ export class Game {
     tweens.update(this.realDt);
     this.director.update(dt);
     // Menus: Esc closes the open panel; Esc / P / M open the pause menu and the map.
-    if (this.mode === 'menu' && inp.pressed('Escape')) Panel.open?.close();
+    if (this.mode === 'menu' && this.minimap.big && (inp.pressed('Escape') || inp.pressed('KeyM'))) this.minimap.setBig(false);
+    else if (this.mode === 'menu' && inp.pressed('Escape')) Panel.open?.close();
     else if (this.mode === 'play' && !this.hud.dialogOpen) {
       if (inp.pressed('KeyP') || (inp.pressed('Escape') && !inp.locked)) this.ui.pauseMenu();
-      else if (inp.pressed('KeyM')) this.ui.mapPanel();
+      else if (inp.pressed('KeyM')) this.minimap.setBig(true);
     }
     const driving = this.vehicles.driving;
     if (this.mode === 'title') {
@@ -626,11 +627,11 @@ export class Game {
     audio.listener.yaw = this.camera.yaw;
     const showHud = this.mode === 'play' || this.mode === 'menu';
     this.waypoint.update(cam, this.player.pos, showHud);
-    if (showHud && this.mode === 'play') {
+    if (showHud && (this.mode === 'play' || this.minimap.big)) {
       const heading = driving ? driving.heading : this.player.yaw;
       this.minimap.update(dt, focusPos.x, focusPos.z, heading, this.mapMarkers(false), driving ? Math.abs(driving.speed) : 0);
     }
-    this.minimap.setVisible(this.mode === 'play');
+    this.minimap.setVisible(this.mode === 'play' || this.minimap.big);
     this.hud.setClock(this.day, this.hours);
     this.hud.setMoney(this.money);
     this.hud.update(dt);

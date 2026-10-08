@@ -7,7 +7,6 @@ import { districtName, defaultName, type Business } from '../business/business';
 import { GUNS } from '../combat/guns';
 import { VEHICLES } from '../vehicles/models';
 import { SKINS, RARITY_COLORS, SKIN_TONES, HAIR_COLORS, appearanceFromSkin, skinById, type Appearance, type Hair } from '../chars/skins';
-import { drawMarker } from './map';
 import { audio } from '../core/audio';
 import type { Quality } from '../render/renderer';
 import { arrivedFromMainland, goToMainland, mainlandName } from '../activities/crossover';
@@ -383,58 +382,6 @@ export class GameUI {
     p.footer.append(btn('Thanks', 'primary', () => p.close()));
   }
 
-  // ---------------------------------------------------------------- map
-
-  mapPanel(): void {
-    const g = this.g;
-    const p = this.panel({ title: 'Jackpot Island', subtitle: 'Click anywhere to set a waypoint', wide: true, accent: '#3aa7ff' });
-    const wrap = el('div', 'bigmap');
-    const c = document.createElement('canvas');
-    const m = g.map;
-    c.width = m.w;
-    c.height = m.h;
-    const ctx = c.getContext('2d')!;
-    ctx.drawImage(m.base, 0, 0);
-    const k = m.w / m.base.width;
-    for (const mk of g.mapMarkers(true)) {
-      const q = m.toMap(mk.x, mk.z);
-      drawMarker(ctx, q.x * k, q.y * k, mk, mk.big ? 18 : 13);
-      if (mk.label && mk.big) {
-        ctx.font = '700 13px Nunito, sans-serif';
-        ctx.fillStyle = '#fff';
-        ctx.strokeStyle = 'rgba(0,0,0,0.7)';
-        ctx.lineWidth = 3;
-        ctx.textAlign = 'center';
-        ctx.strokeText(mk.label, q.x * k, q.y * k - 16);
-        ctx.fillText(mk.label, q.x * k, q.y * k - 16);
-      }
-    }
-    // You.
-    const me = m.toMap(g.player.pos.x, g.player.pos.z);
-    ctx.fillStyle = '#fff';
-    ctx.strokeStyle = '#0b1a3a';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(me.x * k, me.y * k, 7, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    c.addEventListener('click', (e) => {
-      const r = c.getBoundingClientRect();
-      const px = ((e.clientX - r.left) / r.width) * m.w;
-      const py = ((e.clientY - r.top) / r.height) * m.h;
-      const w = m.toWorld(px, py);
-      g.setUserWaypoint(w.x, w.z, 'Waypoint');
-      p.close();
-    });
-    wrap.appendChild(c);
-    const legend = el('div', 'maplegend', g.mapMarkers(true).filter((x) => x.big && x.label).slice(0, 0).map(() => '').join('') + '<span>🎰 Casinos</span><span>🏠 Yours</span><span>💲 For sale</span><span>🔫 Guns</span><span>🚗 Cars</span><span>👕 Clothes</span><span>⭐ Objective</span>');
-    p.body.append(wrap, legend);
-    p.footer.append(btn('Clear waypoint', '', () => {
-      g.clearUserWaypoint();
-      p.close();
-    }));
-  }
-
   // ---------------------------------------------------------------- pause and settings
 
   pauseMenu(): void {
@@ -451,7 +398,7 @@ export class GameUI {
       btn('Resume', 'primary', () => p.close()),
       btn('Map (M)', '', () => {
         p.close();
-        this.mapPanel();
+        g.minimap.setBig(true);
       }),
       btn('Wardrobe', '', () => {
         p.close();

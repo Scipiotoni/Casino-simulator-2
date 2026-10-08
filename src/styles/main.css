@@ -237,11 +237,18 @@ body.cine-on .hud-dialog { bottom: calc(11vh + 14px); }
 .bigmap canvas { display: block; width: 100%; height: auto; cursor: crosshair; image-rendering: auto; }
 .maplegend { display: flex; flex-wrap: wrap; gap: 12px; font-weight: 800; font-size: 13px; color: #c8d8f8; }
 
-/* ---------------------------------------------------------------- minimap */
-.minimap { position: absolute; right: 16px; top: 14px; width: 176px; height: 176px; border-radius: 50%; border: 4px solid #fff; box-shadow: 0 6px 0 rgba(0, 0, 0, 0.35), 0 0 0 2px #0b1a45; overflow: hidden; pointer-events: none; z-index: 9; background: #2a7fb8; }
-.minimap canvas { width: 100%; height: 100%; display: block; }
-.minimap .mm-n { position: absolute; top: 2px; left: 50%; transform: translateX(-50%); font-family: var(--ui-font); font-size: 14px; color: #fff; -webkit-text-stroke: 1px #0b1a45; }
-@media (max-width: 700px) { .minimap { width: 120px; height: 120px; } }
+/* ---------------------------------------------------------------- minimap (the first game's look) */
+.minimap { position: absolute; right: 16px; top: 14px; z-index: 9; padding: 6px; border-radius: 14px; background: rgba(23, 21, 31, 0.82); border: 1px solid rgba(255, 255, 255, 0.14); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4); pointer-events: auto; }
+.minimap.big { right: 50%; top: 50%; transform: translate(50%, -50%); z-index: 30; }
+.mm-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 0 2px 4px; }
+.mm-title { font-family: var(--ui-font); font-size: 11px; letter-spacing: 0.08em; color: #ffc53d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+.minimap.big .mm-title { max-width: none; font-size: 13px; }
+.mm-btns { display: flex; gap: 4px; }
+.mm-toggle { width: 22px; height: 22px; padding: 0; border: none; border-radius: 6px; background: rgba(255, 255, 255, 0.1); color: #fff; font-size: 13px; line-height: 1; cursor: pointer; }
+.mm-toggle:hover { background: rgba(255, 255, 255, 0.2); }
+.mm-toggle.mm-compass.on { background: rgba(255, 197, 61, 0.3); }
+.mm-canvas { display: block; border-radius: 8px; cursor: crosshair; touch-action: none; }
+@media (max-width: 700px) { .minimap:not(.big) { transform: scale(0.72); transform-origin: top right; } }
 
 /* ---------------------------------------------------------------- combat */
 .combat-hud { position: absolute; right: 16px; bottom: 18px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; pointer-events: none; z-index: 9; font-family: var(--ui-font); }
@@ -254,7 +261,7 @@ body.cine-on .hud-dialog { bottom: calc(11vh + 14px); }
 .combat-hud .ammo b { font-size: 34px; font-weight: 400; }
 .combat-hud .ammo span { font-size: 18px; opacity: 0.7; }
 .combat-hud .ammo em { font-style: normal; font-size: 14px; color: var(--yellow); margin-left: 8px; }
-.stars { position: absolute; right: 200px; top: 16px; font-size: 30px; color: #ffd23d; -webkit-text-stroke: 2px #0b1a45; letter-spacing: 2px; pointer-events: none; z-index: 9; font-family: var(--ui-font); }
+.stars { position: absolute; right: 250px; top: 16px; font-size: 30px; color: #ffd23d; -webkit-text-stroke: 2px #0b1a45; letter-spacing: 2px; pointer-events: none; z-index: 9; font-family: var(--ui-font); }
 .stars i { font-style: normal; color: rgba(255, 255, 255, 0.25); }
 .stars.flash { animation: starFlash 0.4s 4; }
 @keyframes starFlash { 50% { color: #ff4d5e; transform: scale(1.12); } }
