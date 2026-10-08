@@ -11,6 +11,8 @@ import { Vegetation } from '../world/vegetation';
 import { Bridge, mainlandY } from '../world/bridge';
 import { buildVenues } from '../world/venues';
 import type { Venue } from '../casino/venue';
+import type { FortHammerhead } from '../world/base';
+import { LANDMARKS } from '../world/layout';
 
 export type Progress = (fraction: number, message: string) => Promise<void>;
 
@@ -27,6 +29,9 @@ export class World {
   vegetation!: Vegetation;
   bridge!: Bridge;
   venues: Venue[] = [];
+  /** Fort Hammerhead (built by the game once characters can exist). */
+  base!: FortHammerhead;
+  readonly landmarks = LANDMARKS;
   elapsed = 0;
 
   constructor(private r: Renderer) {
@@ -71,6 +76,18 @@ export class World {
     if (f !== null && f > t) return f;
     if (x > 6150) return Math.max(t, mainlandY(x, z));
     return t;
+  }
+
+  /** A venue built after the world (your own businesses). */
+  addVenue(v: Venue): void {
+    this.venues.push(v);
+    this.group.add(v.group);
+  }
+
+  removeVenue(v: Venue): void {
+    const i = this.venues.indexOf(v);
+    if (i >= 0) this.venues.splice(i, 1);
+    v.dispose();
   }
 
   /** The venue a point is inside, if any. */

@@ -29,11 +29,13 @@ interface Tween {
 export class Tweens {
   private list: Tween[] = [];
   private timers: { t: number; done: () => void; group: string }[] = [];
+  /** Groups being fast-forwarded (a skipped cutscene): anything new in them completes at once. */
+  readonly skipping = new Set<string>();
 
   /** Run fn(k) for k from 0 to 1 over `dur` seconds. */
   run(dur: number, fn: (k: number) => void, e: Ease = ease.inOut, group = ''): Promise<void> {
     return new Promise((done) => {
-      if (dur <= 0) {
+      if (dur <= 0 || this.skipping.has(group)) {
         fn(1);
         done();
         return;
@@ -43,6 +45,7 @@ export class Tweens {
   }
 
   wait(seconds: number, group = ''): Promise<void> {
+    if (this.skipping.has(group)) return Promise.resolve();
     return new Promise((done) => this.timers.push({ t: seconds, done, group }));
   }
 

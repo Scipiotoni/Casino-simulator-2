@@ -72,6 +72,8 @@ export class Player {
       return;
     }
     if (this.mode === 'driving' || this.mode === 'dead') {
+      this.anim.speed = 0;
+      this.anim.pose = this.mode === 'dead' ? 'ko' : this.poseOverride ?? 'drive';
       this.place(dt);
       return;
     }

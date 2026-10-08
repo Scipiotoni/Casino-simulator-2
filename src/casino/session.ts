@@ -117,7 +117,7 @@ export class GamblingSession {
     const p = g.player;
     p.mode = 'walk';
     p.poseOverride = null;
-    p.setHeadVisible(true);
+    p.setHeadVisible(!p.firstPerson);
     p.setVisible(true);
     // Step back from the seat.
     const s = t.seats[this.seatIndex];

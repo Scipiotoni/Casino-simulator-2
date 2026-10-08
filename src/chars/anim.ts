@@ -20,6 +20,8 @@ const BONE_LIST: BoneName[] = [
   'thighL', 'shinL', 'footL', 'thighR', 'shinR', 'footR',
 ];
 
+const UPPER: BoneName[] = ['chest', 'upperArmL', 'foreArmL', 'handL', 'upperArmR', 'foreArmR', 'handR'];
+
 const S = Math.sin;
 const C = Math.cos;
 
@@ -57,6 +59,8 @@ export class Animator {
   private hips = { x: 0, y: 0, z: 0 };
   /** How quickly poses blend (higher = snappier). */
   blend = 12;
+  /** An upper-body pose layered over walking and running (aiming a gun). */
+  upper: Pose | null = null;
 
   constructor(private model: CharacterModel) {
     for (const b of BONE_LIST) this.cur.set(b, [0, 0, 0]);
@@ -83,6 +87,15 @@ export class Animator {
       this.posed(tg, t);
       locomote = false;
     }
+    if (this.upper && locomote) {
+      const up: Targets = {};
+      const was = this.pose;
+      this.pose = this.upper;
+      this.posed(up, t);
+      this.pose = was;
+      for (const b of UPPER) if (up[b]) tg[b] = up[b];
+      if (sp > 0.15) tg.spine = [(tg.spine?.[0] ?? 0) * 0.3, 0.1, 0];
+    }
     // Look: spread the head turn over neck and chest.
     const ly = this.lookYaw;
     const lp = this.lookPitch;
@@ -90,7 +103,7 @@ export class Animator {
     const neck = tg.neck ?? [0, 0, 0];
     tg.head = [head[0] - lp * 0.5, head[1] + ly * 0.5, head[2]];
     tg.neck = [neck[0] - lp * 0.3, neck[1] + ly * 0.3, neck[2]];
-    if (this.pose === 'aimPistol' || this.pose === 'aimRifle') {
+    if (this.pose === 'aimPistol' || this.pose === 'aimRifle' || (locomote && (this.upper === 'aimPistol' || this.upper === 'aimRifle'))) {
       const ch = tg.chest ?? [0, 0, 0];
       tg.chest = [ch[0] - lp * 0.45, ch[1], ch[2]];
     }

@@ -36,6 +36,10 @@ export class CameraRig {
   readonly cineLook = new THREE.Vector3();
   cineFov = 55;
   shake = 0;
+  /** A gun is drawn (tighter over-the-shoulder view) and how far you're aiming down the sights (0..1). */
+  armed = false;
+  aim = 0;
+  aimFov = 50;
   private tmp = new THREE.Vector3();
 
   constructor(private cam: THREE.PerspectiveCamera) {}
@@ -117,8 +121,10 @@ export class CameraRig {
         const cy = Math.cos(this.pitch);
         const back = this.tmp.set(Math.sin(this.yaw) * cy, -Math.sin(this.pitch), Math.cos(this.yaw) * cy);
         const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
-        const pivot = new THREE.Vector3().copy(focus).addScaledVector(right, this.shoulder * Math.min(1, this.distance / 4));
-        let want = this.distance;
+        const baseDist = this.armed ? 2.7 - this.aim * 1.1 : this.distance;
+        const shoulder = this.armed ? 0.72 : this.shoulder * Math.min(1, this.distance / 4);
+        const pivot = new THREE.Vector3().copy(focus).addScaledVector(right, shoulder);
+        let want = baseDist;
         const hit = world.collision.raycast(pivot.x, pivot.y, pivot.z, back.x, back.y, back.z, want + 0.3);
         if (hit < want + 0.3) want = Math.max(0.6, hit - 0.35);
         // Terrain: march along the ray.
@@ -137,6 +143,7 @@ export class CameraRig {
         cam.lookAt(pivot.x - back.x, pivot.y - back.y, pivot.z - back.z);
       }
     }
+    if ((this.mode === 'first' || this.mode === 'third') && this.aim > 0) fov += (this.aimFov - fov) * this.aim;
     if (this.shake > 0) {
       this.shake = Math.max(0, this.shake - dt * 2.5);
       const a = this.shake * 0.06;

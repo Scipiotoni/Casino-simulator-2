@@ -106,6 +106,8 @@ export interface VenueOpts {
   bar?: boolean;
   cashier?: boolean;
   seed?: number;
+  /** Extra furnishings (bars, restaurants, clubs, shops, lobbies). */
+  decor?: (v: Venue, k: Kit, glow: Kit) => void;
 }
 
 /** A building with an interior. Tables are added after construction. */
@@ -113,6 +115,10 @@ export class Venue {
   readonly group = new THREE.Group();
   /** Interior contents (hidden when you're far away). */
   readonly interior = new THREE.Group();
+  /** Tables and machines (rebuilt as a whole when your floor changes). */
+  readonly tablesRoot = new THREE.Group();
+  /** Ceiling, roof and tower: hidden for the top-down floor editor. */
+  readonly top = new THREE.Group();
   readonly tables: PlacedTable[] = [];
   readonly W: number;
   readonly D: number;
@@ -141,6 +147,8 @@ export class Venue {
     this.group.position.set(fx, 0, fz);
     this.group.rotation.y = fp.yaw;
     this.group.add(this.interior);
+    this.interior.add(this.tablesRoot);
+    this.group.add(this.top);
     this.group.updateMatrixWorld(true);
     const corners = [new THREE.Vector3(-this.W / 2, 0, 0), new THREE.Vector3(this.W / 2, 0, 0), new THREE.Vector3(-this.W / 2, 0, -this.D), new THREE.Vector3(this.W / 2, 0, -this.D)].map((v) => this.group.localToWorld(v));
     this.bounds.minX = Math.min(...corners.map((c) => c.x));
@@ -169,6 +177,8 @@ export class Venue {
     const y = this.floorY;
     const ext = new Kit();
     const int = new Kit();
+    const top = new Kit();
+    const topGlow = new Kit();
     const doorW = 8;
     const wallT = 0.4;
     // Floor slab and carpet.
@@ -201,12 +211,12 @@ export class Venue {
       int.box(w, 0.12, d + 0.04, th.trim, { x, y: y + H - 0.3, z }, 'shiny');
     }
     // Ceiling with glowing coffers and chandeliers.
-    int.box(W, 0.3, D, th.ceiling, { x: 0, y: y + H + 0.15, z: -D / 2 });
+    top.box(W, 0.3, D, th.ceiling, { x: 0, y: y + H + 0.15, z: -D / 2 });
     const glow = new Kit();
     for (let gx = -W / 2 + 4; gx <= W / 2 - 4; gx += 6) {
       for (let gz = -D + 4; gz <= -3; gz += 6) {
-        glow.box(3.2, 0.06, 3.2, 0xfff1d0, { x: gx, y: y + H - 0.02, z: gz }, 'glow');
-        int.box(3.6, 0.2, 3.6, th.trim, { x: gx, y: y + H - 0.05, z: gz }, 'shiny');
+        topGlow.box(3.2, 0.06, 3.2, 0xfff1d0, { x: gx, y: y + H - 0.02, z: gz }, 'glow');
+        top.box(3.6, 0.2, 3.6, th.trim, { x: gx, y: y + H - 0.05, z: gz }, 'shiny');
       }
     }
     const chandeliers = Math.max(1, Math.floor(W / 14));
@@ -236,8 +246,10 @@ export class Venue {
     // Bar along the back-left, cashier at the back-right.
     if (this.opts.bar !== false) this.buildBar(int, glow, -W / 2 + 7, -D + 3.2);
     if (this.opts.cashier !== false) this.buildCashier(int, glow, W / 2 - 6, -D + 2.2);
+    this.opts.decor?.(this, int, glow);
     // Exterior shell: facade boxes outside the walls, roof, canopy, marquee, sign.
-    this.buildExterior(ext, glow);
+    this.buildExterior(ext, glow, top, topGlow);
+    this.top.add(top.bake({ shadows: true }), topGlow.bake());
     const exterior = ext.bake({ shadows: true });
     this.group.add(exterior);
     this.interior.add(int.bake({ shadows: false }));
@@ -288,7 +300,7 @@ export class Venue {
     this.collision.addBox({ minX: wp.x - (rot ? 0.4 : 3.6), maxX: wp.x + (rot ? 0.4 : 3.6), minZ: wp.z - (rot ? 3.6 : 0.4), maxZ: wp.z + (rot ? 3.6 : 0.4), minY: y - 1, maxY: y + 3, tag: this.tag });
   }
 
-  private buildExterior(ext: Kit, glow: Kit): void {
+  private buildExterior(ext: Kit, glow: Kit, top: Kit, topGlow: Kit): void {
     const { W, D, H } = this;
     const th = this.opts.theme;
     const y = this.floorY;
@@ -303,7 +315,7 @@ export class Venue {
     ext.box(0.3, H + 1, D, skin, { x: -W / 2 - 0.35, y: y + (H + 1) / 2, z: -D / 2 });
     ext.box(0.3, H + 1, D, skin, { x: W / 2 + 0.35, y: y + (H + 1) / 2, z: -D / 2 });
     ext.box(W + 1, H + 1, 0.3, skin, { x: 0, y: y + (H + 1) / 2, z: -D - 0.35 });
-    ext.box(W + 1, 0.4, D + 1, 0xb8b4ac, { x: 0, y: y + H + 0.5, z: -D / 2 });
+    top.box(W + 1, 0.4, D + 1, 0xb8b4ac, { x: 0, y: y + H + 0.5, z: -D / 2 });
     // Gold doorframe and glass doors (open).
     ext.box(doorW + 0.6, 0.5, 0.6, th.trim, { x: 0, y: y + 3.6, z: 0.3 }, 'shiny');
     for (const s of [-1, 1]) {
@@ -344,9 +356,9 @@ export class Venue {
       const tower = new THREE.Mesh(new THREE.BoxGeometry(tw, tH, td), tmat);
       tower.position.set(0, y + H + 1 + tH / 2, -D + td / 2 + 2);
       tower.castShadow = true;
-      this.group.add(tower);
+      this.top.add(tower);
       this.towerMat = tmat;
-      glow.box(tw + 0.4, 1.2, td + 0.4, th.accent, { x: 0, y: y + H + 1 + tH - 0.6, z: -D + td / 2 + 2 }, 'glow');
+      topGlow.box(tw + 0.4, 1.2, td + 0.4, th.accent, { x: 0, y: y + H + 1 + tH - 0.6, z: -D + td / 2 + 2 }, 'glow');
       const wp = this.toWorld(0, -D + td / 2 + 2);
       const rot = Math.abs(Math.sin(this.yaw)) > 0.5;
       this.collision.addBox({ minX: wp.x - (rot ? td : tw) / 2, maxX: wp.x + (rot ? td : tw) / 2, minZ: wp.z - (rot ? tw : td) / 2, maxZ: wp.z + (rot ? tw : td) / 2, minY: y + H, maxY: y + H + 1 + tH, tag: this.tag });
@@ -364,19 +376,45 @@ export class Venue {
   addTable(table: TableBase, x: number, z: number, yaw: number): PlacedTable {
     table.group.position.set(x, this.floorY, z);
     table.group.rotation.y = yaw;
-    this.interior.add(table.group);
+    this.tablesRoot.add(table.group);
     this.interior.updateMatrixWorld(true);
     const p = { table, x, z, yaw };
     this.tables.push(p);
     // A rough collider for the table body.
     const wp = this.toWorld(x, z);
-    this.collision.addCircle({ x: wp.x, z: wp.z, r: table.kind === 'craps' ? 1.6 : table.kind === 'roulette' ? 1.4 : table.kind === 'slots' || table.kind === 'videopoker' ? 0.45 : 1.15, minY: this.floorY - 1, maxY: this.floorY + 1, tag: this.tag });
+    this.collision.addCircle({ x: wp.x, z: wp.z, r: table.kind === 'craps' ? 1.6 : table.kind === 'roulette' ? 1.4 : table.kind === 'slots' || table.kind === 'videopoker' ? 0.45 : 1.15, minY: this.floorY - 1, maxY: this.floorY + 1, tag: `${this.tag}:tables` });
     return p;
+  }
+
+  /** Take every table and machine away (before rebuilding a floor). */
+  clearTables(): void {
+    for (const t of this.tables) if (t.table.host) t.table.exit();
+    this.tables.length = 0;
+    for (const c of [...this.tablesRoot.children]) {
+      c.removeFromParent();
+      c.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (m.isMesh && m.userData.merged) m.geometry.dispose();
+      });
+    }
+    this.collision.removeTagged(`${this.tag}:tables`);
+  }
+
+  /** Remove the whole building (and its colliders). */
+  dispose(): void {
+    this.clearTables();
+    this.group.removeFromParent();
+    this.collision.removeTagged(this.tag);
   }
 
   /** Merge every table's static parts into a few meshes (call after placing tables). */
   finalize(): void {
-    mergeStatic(this.interior, this.interior);
+    mergeStatic(this.tablesRoot, this.tablesRoot);
+  }
+
+  /** Lift the lid off (ceiling, roof, tower) so the floor can be seen from above. */
+  setCutaway(on: boolean): void {
+    this.top.visible = !on;
   }
 
   update(night: number, near: boolean): void {
