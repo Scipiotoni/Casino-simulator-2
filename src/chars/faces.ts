@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 
 /**
- * Painted faces: big expressive eyes with highlights, bold brows and a mouth, drawn into an
- * atlas of expressions (one atlas per eye colour). Each character's face decal picks its
+ * Painted faces in a clean game-character style (almond eyes with a catch-light, shaped
+ * brows, a simple mouth), drawn into an atlas of expressions (one atlas per eye colour). Each character's face decal picks its
  * expression by shifting the texture offset, so a smile or a blink costs nothing.
  */
 
@@ -11,7 +11,7 @@ export type Expression = (typeof EXPRESSIONS)[number];
 
 const COLS = 4;
 const ROWS = 3;
-const CELL = 128;
+const CELL = 160;
 
 export const EYE_COLORS: Record<string, string> = {
   brown: '#6b3e1f',
@@ -23,213 +23,235 @@ export const EYE_COLORS: Record<string, string> = {
   violet: '#8a4fd8',
 };
 
-function eye(g: CanvasRenderingContext2D, cx: number, cy: number, iris: string, open: number, lookX = 0, lash = true, right = false): void {
-  const w = 19;
-  const h = 20 * open;
-  if (open < 0.15) {
-    // Closed: a curved lash line.
-    g.strokeStyle = '#1b1210';
-    g.lineWidth = 3.5;
-    g.lineCap = 'round';
+/**
+ * The face patch on the modelled head spans x -100..100 mm and y 1535..1790 mm (heights
+ * above the ground in the rest pose), so features are placed in millimetres on the real
+ * head: eyes on the 1676 line, brows at 1706, the mouth at 1594.
+ */
+const X0 = -100;
+const X1 = 100;
+const Y0 = 1535;
+const Y1 = 1790;
+const px = (x: number) => ((x - X0) / (X1 - X0)) * CELL;
+const py = (y: number) => ((Y1 - y) / (Y1 - Y0)) * CELL;
+/** Millimetres to pixels (horizontally / vertically: the patch is taller than it is wide). */
+const sx = (mm: number) => (mm / (X1 - X0)) * CELL;
+const sy = (mm: number) => (mm / (Y1 - Y0)) * CELL;
+
+const INK = '#1b1210';
+const BROW = '#3a2416';
+
+interface Look {
+  open: number;
+  leftOpen: number;
+  lookX: number;
+  /** Brow lift (mm) and tilt (mm the inner end drops; negative raises it, sad). */
+  browY: number;
+  browTilt: number;
+  mouth: 'flat' | 'smile' | 'grin' | 'sad' | 'o' | 'smirk' | 'grit' | 'shout';
+}
+
+function look(e: Expression): Look {
+  const l: Look = { open: 1, leftOpen: 1, lookX: 0, browY: 0, browTilt: 0, mouth: 'flat' };
+  switch (e) {
+    case 'happy': return { ...l, mouth: 'smile', browY: 1.5 };
+    case 'grin': return { ...l, mouth: 'grin', browY: 2, open: 0.85 };
+    case 'sad': return { ...l, mouth: 'sad', browTilt: -3.5, open: 0.8 };
+    case 'angry': return { ...l, mouth: 'grit', browTilt: 4.5, browY: -1.5, open: 0.75 };
+    case 'surprised': return { ...l, mouth: 'o', browY: 5, open: 1.25 };
+    case 'blink': return { ...l, open: 0 };
+    case 'smirk': return { ...l, mouth: 'smirk', browTilt: 1, open: 0.85, lookX: 0.5 };
+    case 'focused': return { ...l, browTilt: 2, browY: -1, open: 0.62 };
+    case 'wink': return { ...l, mouth: 'grin', leftOpen: 0, browY: 1 };
+    case 'shout': return { ...l, mouth: 'shout', browTilt: 3.5, open: 0.95 };
+    case 'sleep': return { ...l, open: 0 };
+    default: return l;
+  }
+}
+
+/** One eye: an almond of white, the iris and pupil with a catch-light, a dark lash line. */
+function eye(g: CanvasRenderingContext2D, side: number, iris: string, open: number, lookX: number): void {
+  const cx = side * 34;
+  const cy = 1676;
+  const hw = 17;
+  const inner = cx - side * hw;
+  const outer = cx + side * hw;
+  const up = 11 * open;
+  const down = 6.5 * Math.min(1, open);
+  g.lineCap = 'round';
+  g.lineJoin = 'round';
+  if (open < 0.12) {
+    g.strokeStyle = INK;
+    g.lineWidth = sy(2.2);
     g.beginPath();
-    g.moveTo(cx - w, cy);
-    g.quadraticCurveTo(cx, cy + 7, cx + w, cy);
+    g.moveTo(px(inner), py(cy));
+    g.quadraticCurveTo(px(cx), py(cy - 3.5), px(outer), py(cy + 0.5));
     g.stroke();
     return;
   }
+  const almond = () => {
+    g.beginPath();
+    g.moveTo(px(inner), py(cy - 0.5));
+    g.quadraticCurveTo(px(cx - side * 2), py(cy + up * 1.5), px(outer), py(cy + 1.5));
+    g.quadraticCurveTo(px(cx + side * 1), py(cy - down * 1.5), px(inner), py(cy - 0.5));
+    g.closePath();
+  };
   g.save();
-  g.beginPath();
-  g.ellipse(cx, cy, w, h, 0, 0, Math.PI * 2);
-  g.fillStyle = '#ffffff';
+  almond();
+  g.fillStyle = '#fbf8f4';
   g.fill();
   g.clip();
-  // Iris with a darker rim, pupil and two highlights.
-  const ix = cx + lookX * 5;
-  const ir = 12.5;
-  const grad = g.createRadialGradient(ix, cy + 2, 2, ix, cy, ir);
-  grad.addColorStop(0, iris);
-  grad.addColorStop(0.75, iris);
-  grad.addColorStop(1, '#1a1410');
-  g.fillStyle = grad;
+  // Iris, pupil and the highlight, tucked a little under the upper lid.
+  const ix = cx + lookX * 3.2;
+  const iy = cy + 0.5;
+  g.fillStyle = iris;
   g.beginPath();
-  g.arc(ix, cy + 1, ir, 0, Math.PI * 2);
+  g.ellipse(px(ix), py(iy), sx(7.4), sy(7.4), 0, 0, Math.PI * 2);
   g.fill();
-  g.fillStyle = '#0d0a08';
+  g.fillStyle = 'rgba(0,0,0,0.25)';
   g.beginPath();
-  g.arc(ix, cy + 1, 5.8, 0, Math.PI * 2);
+  g.ellipse(px(ix), py(iy + 2.5), sx(7.4), sy(3.8), 0, Math.PI, Math.PI * 2);
   g.fill();
-  g.fillStyle = 'rgba(255,255,255,0.95)';
+  g.fillStyle = '#0d0907';
   g.beginPath();
-  g.arc(ix - 4, cy - 4, 3.6, 0, Math.PI * 2);
+  g.ellipse(px(ix), py(iy), sx(3.2), sy(3.2), 0, 0, Math.PI * 2);
   g.fill();
+  g.fillStyle = '#ffffff';
   g.beginPath();
-  g.arc(ix + 4, cy + 5, 1.6, 0, Math.PI * 2);
+  g.ellipse(px(ix - 2.2), py(iy + 2.6), sx(1.8), sy(1.8), 0, 0, Math.PI * 2);
   g.fill();
-  // Upper lid shadow.
+  // Lid shadow across the top of the eye.
   g.fillStyle = 'rgba(80,40,30,0.18)';
-  g.fillRect(cx - w, cy - h, w * 2, h * 0.35);
+  g.fillRect(px(Math.min(inner, outer)), py(cy + up * 1.6), sx(hw * 2), sy(2.5));
   g.restore();
-  // Upper lid line and a flick of lashes.
-  g.strokeStyle = '#1b1210';
-  g.lineWidth = 4;
-  g.lineCap = 'round';
+  // Upper lash line, heavier at the outer corner with a small flick.
+  g.strokeStyle = INK;
+  g.lineWidth = sy(2.1);
   g.beginPath();
-  g.ellipse(cx, cy, w + 0.5, h + 0.5, 0, Math.PI * 1.05, Math.PI * 1.95);
+  g.moveTo(px(inner), py(cy - 0.5));
+  g.quadraticCurveTo(px(cx - side * 2), py(cy + up * 1.5), px(outer), py(cy + 1.5));
+  g.lineTo(px(outer + side * 2.5), py(cy + 3.2));
   g.stroke();
-  if (lash) {
-    const s = right ? 1 : -1;
-    g.lineWidth = 3;
-    g.beginPath();
-    g.moveTo(cx + s * (w - 2), cy - h * 0.55);
-    g.lineTo(cx + s * (w + 6), cy - h * 0.9);
-    g.stroke();
-  }
+  // A soft lower lid.
+  g.strokeStyle = 'rgba(90,45,35,0.35)';
+  g.lineWidth = sy(0.9);
+  g.beginPath();
+  g.moveTo(px(inner + side * 2), py(cy - 1.5));
+  g.quadraticCurveTo(px(cx), py(cy - down * 1.45), px(outer - side * 1.5), py(cy + 0.8));
+  g.stroke();
 }
 
-function brow(g: CanvasRenderingContext2D, cx: number, cy: number, angle: number, right: boolean, color: string): void {
-  g.save();
-  g.translate(cx, cy);
-  g.rotate(right ? -angle : angle);
-  g.fillStyle = color;
+function brow(g: CanvasRenderingContext2D, side: number, lift: number, tilt: number): void {
+  const y = 1706 + lift;
+  const inner = side * 17;
+  const outer = side * 51;
+  g.fillStyle = BROW;
   g.beginPath();
-  g.moveTo(-19, 4);
-  g.quadraticCurveTo(0, -8, 19, -1);
-  g.lineTo(18, 5);
-  g.quadraticCurveTo(0, 0, -18, 10);
+  g.moveTo(px(inner), py(y - tilt + 2.6));
+  g.quadraticCurveTo(px(side * 36), py(y + 5.5), px(outer), py(y + 0.5));
+  g.quadraticCurveTo(px(side * 36), py(y + 2.2), px(inner), py(y - tilt - 2.2));
   g.closePath();
   g.fill();
-  g.restore();
 }
 
-function mouth(g: CanvasRenderingContext2D, kind: string, cx: number, cy: number): void {
+function mouth(g: CanvasRenderingContext2D, kind: Look['mouth']): void {
+  const y = 1594;
+  const w = 17;
+  const lip = 'rgba(160,70,62,0.55)';
   g.lineCap = 'round';
-  g.lineJoin = 'round';
-  const lip = '#6e2a22';
+  g.strokeStyle = '#5a2620';
+  g.lineWidth = sy(1.8);
+  const curve = (lift: number, w2 = w) => {
+    g.beginPath();
+    g.moveTo(px(-w2), py(y + lift));
+    g.quadraticCurveTo(px(0), py(y - lift), px(w2), py(y + lift));
+    g.stroke();
+  };
+  const open = (top: number, bottom: number, w2: number, teeth: boolean) => {
+    g.fillStyle = '#5a1f1a';
+    g.beginPath();
+    g.moveTo(px(-w2), py(y + top * 0.3));
+    g.quadraticCurveTo(px(0), py(y + top), px(w2), py(y + top * 0.3));
+    g.quadraticCurveTo(px(0), py(y - bottom), px(-w2), py(y + top * 0.3));
+    g.fill();
+    if (teeth) {
+      g.save();
+      g.clip();
+      g.fillStyle = '#fbf8f4';
+      g.fillRect(px(-w2), py(y + top + 1), sx(w2 * 2), sy(top + 1.5));
+      g.restore();
+    }
+  };
   switch (kind) {
     case 'smile':
-      g.strokeStyle = lip;
-      g.lineWidth = 3.5;
-      g.beginPath();
-      g.moveTo(cx - 14, cy - 2);
-      g.quadraticCurveTo(cx, cy + 9, cx + 14, cy - 2);
-      g.stroke();
+      curve(3);
       break;
-    case 'grin': {
-      g.fillStyle = '#5a1c18';
-      g.beginPath();
-      g.moveTo(cx - 17, cy - 4);
-      g.quadraticCurveTo(cx, cy + 20, cx + 17, cy - 4);
-      g.closePath();
-      g.fill();
-      g.fillStyle = '#ffffff';
-      g.beginPath();
-      g.moveTo(cx - 15, cy - 3);
-      g.quadraticCurveTo(cx, cy + 3, cx + 15, cy - 3);
-      g.lineTo(cx + 13, cy + 1);
-      g.quadraticCurveTo(cx, cy + 5, cx - 13, cy + 1);
-      g.closePath();
-      g.fill();
-      g.fillStyle = '#e8737a';
-      g.beginPath();
-      g.ellipse(cx, cy + 9, 7, 3.5, 0, 0, Math.PI * 2);
-      g.fill();
+    case 'grin':
+      open(2.5, 7, w + 1, true);
       break;
-    }
     case 'sad':
-      g.strokeStyle = lip;
-      g.lineWidth = 3.5;
-      g.beginPath();
-      g.moveTo(cx - 12, cy + 5);
-      g.quadraticCurveTo(cx, cy - 4, cx + 12, cy + 5);
-      g.stroke();
-      break;
-    case 'flat':
-      g.strokeStyle = lip;
-      g.lineWidth = 3.5;
-      g.beginPath();
-      g.moveTo(cx - 10, cy + 1);
-      g.lineTo(cx + 10, cy);
-      g.stroke();
+      curve(-2.8, w - 2);
       break;
     case 'o':
-      g.fillStyle = '#5a1c18';
+      g.fillStyle = '#5a1f1a';
       g.beginPath();
-      g.ellipse(cx, cy + 3, 7, 9, 0, 0, Math.PI * 2);
+      g.ellipse(px(0), py(y - 2), sx(6), sy(7), 0, 0, Math.PI * 2);
       g.fill();
-      break;
-    case 'shout':
-      g.fillStyle = '#5a1c18';
-      g.beginPath();
-      g.ellipse(cx, cy + 4, 13, 10, 0, 0, Math.PI * 2);
-      g.fill();
-      g.fillStyle = '#ffffff';
-      g.fillRect(cx - 10, cy - 4, 20, 4);
       break;
     case 'smirk':
-      g.strokeStyle = lip;
-      g.lineWidth = 3.5;
       g.beginPath();
-      g.moveTo(cx - 10, cy + 2);
-      g.quadraticCurveTo(cx + 4, cy + 4, cx + 14, cy - 4);
+      g.moveTo(px(-w + 3), py(y));
+      g.quadraticCurveTo(px(4), py(y - 1), px(w), py(y + 3.5));
       g.stroke();
       break;
     case 'grit':
-      g.fillStyle = '#ffffff';
-      g.strokeStyle = lip;
-      g.lineWidth = 2.5;
-      g.beginPath();
-      g.rect(cx - 12, cy - 3, 24, 8);
-      g.fill();
-      g.stroke();
-      g.beginPath();
-      g.moveTo(cx - 12, cy + 1);
-      g.lineTo(cx + 12, cy + 1);
-      g.stroke();
+      g.fillStyle = '#fbf8f4';
+      g.fillRect(px(-w + 3), py(y + 2.5), sx(2 * w - 6), sy(5));
+      g.strokeStyle = '#5a2620';
+      g.strokeRect(px(-w + 3), py(y + 2.5), sx(2 * w - 6), sy(5));
       break;
+    case 'shout':
+      open(4, 12, w - 2, true);
+      break;
+    default:
+      curve(0.6);
+  }
+  // Lips: a touch of colour under the line.
+  if (kind === 'flat' || kind === 'smile' || kind === 'smirk' || kind === 'sad') {
+    g.fillStyle = lip;
+    g.beginPath();
+    g.ellipse(px(0), py(y - 3), sx(w * 0.62), sy(2.4), 0, 0, Math.PI * 2);
+    g.fill();
   }
 }
 
 function drawFace(g: CanvasRenderingContext2D, x: number, y: number, e: Expression, iris: string): void {
   g.save();
   g.translate(x, y);
-  // Eyes sit a little above the middle of the cell, mouth below.
-  const ex = 31;
-  const ey = 62;
-  const my = 104;
-  const browC = '#3a2416';
-  const o = (n: number) => n;
-  let open = 1;
-  let browA = 0;
-  let browY = 0;
-  let m = 'smile';
-  let lookX = 0;
-  let leftOpen = 1;
-  switch (e) {
-    case 'neutral': m = 'flat'; break;
-    case 'happy': m = 'smile'; browY = -3; break;
-    case 'grin': m = 'grin'; browY = -4; open = 0.85; break;
-    case 'sad': m = 'sad'; browA = -0.35; browY = 0; open = 0.8; break;
-    case 'angry': m = 'grit'; browA = 0.42; browY = 4; open = 0.75; break;
-    case 'surprised': m = 'o'; browY = -8; open = 1.15; break;
-    case 'blink': m = 'flat'; open = 0; break;
-    case 'smirk': m = 'smirk'; browA = 0.12; open = 0.85; lookX = 0.6; break;
-    case 'focused': m = 'flat'; browA = 0.2; browY = 2; open = 0.7; break;
-    case 'wink': m = 'grin'; leftOpen = 0; browY = -2; break;
-    case 'shout': m = 'shout'; browA = 0.35; browY = 2; open = 0.95; break;
-    case 'sleep': m = 'flat'; open = 0; break;
-  }
-  void o;
-  eye(g, 64 - ex, ey, iris, open * leftOpen, lookX, true, false);
-  eye(g, 64 + ex, ey, iris, open, lookX, true, true);
-  brow(g, 64 - ex, ey - 31 + browY, browA, false, browC);
-  brow(g, 64 + ex, ey - 31 + browY, browA, true, browC);
-  // Soft cheek blush and a hint of a nose.
-  g.fillStyle = 'rgba(230,110,100,0.16)';
+  const l = look(e);
+  eye(g, 1, iris, l.open * l.leftOpen, l.lookX);
+  eye(g, -1, iris, l.open, l.lookX);
+  brow(g, 1, l.browY, l.browTilt);
+  brow(g, -1, l.browY, l.browTilt);
+  // Shading under the (modelled) nose, and the nostrils.
+  g.fillStyle = 'rgba(110,50,35,0.16)';
   g.beginPath();
-  g.ellipse(64 - 42, 88, 12, 7, 0, 0, Math.PI * 2);
-  g.ellipse(64 + 42, 88, 12, 7, 0, 0, Math.PI * 2);
+  g.ellipse(px(0), py(1627), sx(9), sy(3), 0, 0, Math.PI * 2);
   g.fill();
-  mouth(g, m, 64, my);
+  g.fillStyle = 'rgba(70,30,25,0.35)';
+  for (const s of [-1, 1]) {
+    g.beginPath();
+    g.ellipse(px(s * 4.5), py(1630), sx(1.6), sy(1.1), 0, 0, Math.PI * 2);
+    g.fill();
+  }
+  // Cheeks.
+  g.fillStyle = 'rgba(225,105,95,0.12)';
+  for (const s of [-1, 1]) {
+    g.beginPath();
+    g.ellipse(px(s * 44), py(1638), sx(11), sy(7), 0, 0, Math.PI * 2);
+    g.fill();
+  }
+  mouth(g, l.mouth);
   g.restore();
 }
 

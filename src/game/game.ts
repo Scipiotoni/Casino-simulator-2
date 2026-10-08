@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { Renderer } from '../render/renderer';
 import { Input } from '../core/input';
 import { World } from './world';
-import { CharacterModel } from '../chars/model';
+import { CharacterModel, BONES } from '../chars/model';
+import { loadBodies } from '../chars/bodies';
 import { Animator, type Pose } from '../chars/anim';
 import { SKINS, appearanceFromSkin, skinById, type Appearance } from '../chars/skins';
 import { Player } from './player';
@@ -116,6 +117,8 @@ export class Game {
       msg.textContent = m;
       await new Promise((r) => setTimeout(r, 16));
     };
+    await step(0.02, 'Dressing the locals');
+    await loadBodies((n) => (BONES as readonly string[]).indexOf(n));
     await this.world.build((f, m) => step(f * 0.85, m));
     this.uiRoot = document.createElement('div');
     this.uiRoot.className = 'ui-root';
