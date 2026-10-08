@@ -40,6 +40,8 @@ export class CameraRig {
   armed = false;
   aim = 0;
   aimFov = 50;
+  /** First person, mid-roll: extra pitch and bank (radians), set for one frame at a time. */
+  readonly tumble = { pitch: 0, bank: 0 };
   private tmp = new THREE.Vector3();
 
   constructor(private cam: THREE.PerspectiveCamera) {}
@@ -70,7 +72,7 @@ export class CameraRig {
     switch (this.mode) {
       case 'first': {
         cam.position.copy(eye);
-        cam.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
+        cam.rotation.set(this.pitch + this.tumble.pitch, this.yaw, this.tumble.bank, 'YXZ');
         break;
       }
       case 'seated': {
@@ -154,6 +156,7 @@ export class CameraRig {
       cam.fov = damp(cam.fov, fov, 6, dt);
       cam.updateProjectionMatrix();
     }
+    this.tumble.pitch = this.tumble.bank = 0;
   }
 
   /** Extra yaw from looking around while driving. */

@@ -2,13 +2,14 @@ import * as THREE from 'three';
 import type { Game } from '../game/game';
 import { Relay, type RelayPeer } from './relay';
 import { CharacterModel } from '../chars/model';
-import { Animator, type Pose } from '../chars/anim';
+import { Animator, ROLL_TIME, type Pose } from '../chars/anim';
 import { appearanceFromSkin, randomAppearance, SKIN_TONES, HAIR_COLORS, type Appearance } from '../chars/skins';
 import { Vehicle } from '../vehicles/vehicle';
 import { VEHICLES } from '../vehicles/models';
 import { labelTexture } from '../render/signs';
 import { DOMAIN } from '../world/layout';
 import { mulberry32, hashString } from '../core/noise';
+import { audio } from '../core/audio';
 
 /**
  * Everyone else on the island. Each player broadcasts a small presence message (name, look,
@@ -36,6 +37,8 @@ interface Presence {
   h: number;
   p: string;
   s: number;
+  /** How far through a dodge roll (0..1), sent with the 'roll' pose. */
+  r?: number;
   car: { d: string; c: number; h: number } | null;
   chat: { i: string; t: string }[];
 }
@@ -56,6 +59,11 @@ class Remote {
   fresh = true;
   /** When they dropped out (a short grace before "left the island": reconnects are quiet). */
   goneAt = 0;
+  /** The pose they last sent. */
+  pose: Pose = 'idle';
+  /** Their dodge roll as we play it (0..1, -1 when not rolling) and the phase they last sent (-1: none). */
+  roll = -1;
+  sentRoll = -1;
 
   constructor(private scene: THREE.Scene, a: Appearance, name: string) {
     this.model = new CharacterModel(a);
@@ -97,8 +105,10 @@ class Remote {
   }
 }
 
-const POSES = new Set<string>(['idle', 'walk', 'run', 'jump', 'fall', 'sit', 'sitTable', 'sitSlot', 'sitCards', 'drive', 'swim', 'ko', 'aimPistol', 'dance', 'dance2', 'dance3', 'wave', 'cheer']);
+const POSES = new Set<string>(['idle', 'walk', 'run', 'roll', 'fall', 'sit', 'sitTable', 'sitSlot', 'sitCards', 'drive', 'swim', 'ko', 'aimPistol', 'dance', 'dance2', 'dance3', 'wave', 'cheer']);
 const CAR_IDS = new Set(VEHICLES.map((v) => v.id));
+/** Poses a remote roll carries on through (it's over in a moment anyway). */
+const ROLL_INTO = new Set<string>(['roll', 'idle', 'walk', 'run', 'fall']);
 
 /** Keep a chat line or name printable and short. */
 export function cleanText(s: unknown, max: number): string {
@@ -210,9 +220,19 @@ export class Multiplayer {
       }
       r.target.set(num(pr.x, DOMAIN.minX, DOMAIN.maxX + 3000), num(pr.y, -20, 2000), num(pr.z, DOMAIN.minZ, DOMAIN.maxZ));
       r.targetYaw = num(pr.h, -10, 10);
-      const pose = typeof pr.p === 'string' && POSES.has(pr.p) ? pr.p : 'idle';
-      r.anim.pose = pose as Pose;
+      const pose = (typeof pr.p === 'string' && POSES.has(pr.p) ? pr.p : 'idle') as Pose;
+      r.pose = pose;
       r.anim.speed = num(pr.s, 0, 60);
+      // A roll plays out here on its own clock from the phase they sent; a new one starts when
+      // the phase jumps back (or the last message wasn't a roll).
+      if (pose === 'roll') {
+        const ph = num(pr.r, 0, 1);
+        if (r.sentRoll < 0 || ph < r.sentRoll - 0.05) {
+          r.roll = ph;
+          audio.playAt('whoosh', r.target.x, r.target.z, 0.7);
+        }
+        r.sentRoll = ph;
+      } else r.sentRoll = -1;
       // Their car, if they're driving.
       const car = pr.car && typeof pr.car === 'object' && CAR_IDS.has(pr.car.d) ? pr.car : null;
       if (car && (!r.car || r.car.def.id !== car.d)) {
@@ -271,6 +291,7 @@ export class Multiplayer {
         h: Math.round(p.yaw * 100) / 100,
         p: pose,
         s: Math.round(Math.hypot(p.vel.x, p.vel.z) * 10) / 10,
+        ...(pose === 'roll' ? { r: Math.round(p.rollPhase * 100) / 100 } : {}),
         car: v ? { d: v.def.id, c: v.color, h: Math.round(v.heading * 100) / 100 } : null,
         chat: this.out.filter((m) => Date.now() - m.at < 120_000).map((m) => ({ i: m.i, t: m.t })),
       };
@@ -309,6 +330,13 @@ export class Multiplayer {
         r.model.root.position.copy(r.pos);
         r.model.root.rotation.y = r.yaw;
       }
+      // Their roll runs to the end even if a message moves on; anything but moving about cuts it.
+      if (r.roll >= 0) {
+        r.roll += dt / ROLL_TIME;
+        if (r.roll >= 1 || r.car || !ROLL_INTO.has(r.pose)) r.roll = -1;
+      }
+      r.anim.pose = r.roll >= 0 ? 'roll' : r.pose === 'roll' ? 'idle' : r.pose;
+      r.anim.action = Math.max(0, r.roll);
       r.model.updateLod(d);
       if (r.model.lod < 2) r.anim.update(dt);
       r.tag.position.set(r.model.root.position.x, r.model.root.position.y + 2.15, r.model.root.position.z);

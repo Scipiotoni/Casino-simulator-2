@@ -4,7 +4,7 @@ import { Input } from '../core/input';
 import { World } from './world';
 import { CharacterModel, BONES } from '../chars/model';
 import { loadBodies } from '../chars/bodies';
-import { Animator, type Pose } from '../chars/anim';
+import { Animator, ROLL_TIME, rollSwell, type Pose } from '../chars/anim';
 import { SKINS, appearanceFromSkin, skinById, type Appearance } from '../chars/skins';
 import { Player } from './player';
 import { CameraRig } from './cameraRig';
@@ -90,6 +90,8 @@ export class Game {
   private focused: Interactable | null = null;
   readonly fly = { x: 2600, y: 120, z: 400, yaw: 0, pitch: -0.2 };
   private debugAnims: Animator[] = [];
+  /** ?chars=roll holds the roll at this phase (?phase=0.4); otherwise it loops. */
+  private debugPhase: number | null = null;
   private realDt = 0;
   private tmpV = new THREE.Vector3();
   private tmpE = new THREE.Vector3();
@@ -238,6 +240,7 @@ export class Game {
       if (q.has('yaw')) this.fly.yaw = Number(q.get('yaw'));
       if (q.has('pitch')) this.fly.pitch = Number(q.get('pitch'));
     }
+    if (q.has('phase')) this.debugPhase = Number(q.get('phase'));
     if (q.has('chars')) this.debugLineup(q.get('chars') ?? '');
     this.started = q.has('save');
     this.mode = 'play';
@@ -619,7 +622,9 @@ export class Game {
       this.player.update(dt, inp, this.camera.yaw, this.world, this.canMove);
       this.updatePrompts();
       const focus = this.tmpV.copy(this.player.pos);
-      focus.y += 1.62;
+      // A dodge roll dips the view a little (and tumbles it in first person).
+      focus.y += 1.62 - rollSwell(this.player.rollPhase) * 0.3;
+      Object.assign(this.camera.tumble, this.player.rollTumble(this.camera.yaw));
       this.player.eyePosition(this.tmpE);
       this.camera.update(dt, this.world, focus, this.tmpE, this.renderer.settings.fov);
     }
@@ -636,7 +641,10 @@ export class Game {
     const cam = this.renderer.camera;
     const focusPos = this.camera.mode === 'free' || this.mode === 'title' ? cam.position : driving ? driving.pos : this.player.pos;
     this.world.update(dt, this.hours, focusPos);
-    for (const a of this.debugAnims) a.update(dt);
+    for (const a of this.debugAnims) {
+      if (a.pose === 'roll') a.action = this.debugPhase ?? Math.min(1, (now % (ROLL_TIME + 0.5)) / ROLL_TIME);
+      a.update(dt);
+    }
     audio.listener.x = cam.position.x;
     audio.listener.z = cam.position.z;
     audio.listener.yaw = this.camera.yaw;

@@ -6,6 +6,7 @@ import { Gunman } from './gunman';
 import { randomAppearance } from '../chars/skins';
 import { mulberry32 } from '../core/noise';
 import { audio } from '../core/audio';
+import { dampAngle } from '../core/math';
 import { el } from '../ui/dom';
 
 /** Anything bullets can hit (soldiers, police, people on the street). */
@@ -143,15 +144,16 @@ export class Combat {
     if (def) {
       p.anim.upper = 'aimPistol';
       p.anim.lookPitch = g.camera.pitch + 0.12;
-      // Face where the camera looks.
-      p.yaw = g.camera.yaw + Math.PI;
+      // Face where the camera looks (a dodge roll keeps its own heading, then turns back).
+      if (!p.rolling) p.yaw = dampAngle(p.yaw, g.camera.yaw + Math.PI, 30, dt);
       this.cooldown -= dt;
       if (this.reloadT > 0) {
         this.reloadT -= dt;
         if (this.reloadT <= 0) this.ammo[def.id] = def.mag;
       }
       if (inputOn && inp.pressed('KeyR') && this.reloadT <= 0 && (this.ammo[def.id] ?? 0) < def.mag) this.reload(def);
-      const down = inputOn && (inp.mouseDown[0] || inp.clicks.some((c) => c.button === 0)) && (inp.locked || g.input.touchMode);
+      // No shooting mid-roll.
+      const down = inputOn && !p.rolling && (inp.mouseDown[0] || inp.clicks.some((c) => c.button === 0)) && (inp.locked || g.input.touchMode);
       if (down && (def.auto || !this.trigger)) this.fire(def);
       this.trigger = down;
     }
@@ -269,7 +271,8 @@ export class Combat {
     const t = rayCapsule(from, dir, p.pos, 0.42, 1.8);
     const end = from.clone().addScaledVector(dir, t !== null && t < wall ? t : Math.min(wall, 60));
     this.tracer(from, end, 0xffb070);
-    if (t !== null && t < wall && this.targetable) {
+    // Mid-roll you're a tucked, tumbling target: the shot goes past.
+    if (t !== null && t < wall && this.targetable && !p.dodging) {
       this.damagePlayer(dmg, from.x, from.z);
       wall = t;
     } else if (end.distanceTo(p.pos) < 6) audio.play('whiz', { volume: 0.5 });

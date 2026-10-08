@@ -41,7 +41,7 @@ on, gambling, buying lots and building on them, and getting into trouble.
 | W A S D | Walk / drive |
 | Mouse | Look |
 | Shift | Run / boost |
-| Space | Jump / handbrake |
+| Space | Dodge roll (on foot) / handbrake (driving) |
 | E | Use: doors, seats, shelves, counters, cars, boats; get out |
 | 1–7 | Draw a weapon (Q to put it away), left click to shoot, right click to aim, R to reload |
 | V | First / third person |

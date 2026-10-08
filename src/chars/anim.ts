@@ -1,4 +1,5 @@
 import type { BoneName, CharacterModel } from './model';
+import { clamp, smoothstep } from '../core/math';
 
 /**
  * Procedural animation: every pose is a small function of time that returns bone angles.
@@ -7,7 +8,7 @@ import type { BoneName, CharacterModel } from './model';
  */
 
 export type Pose =
-  | 'idle' | 'walk' | 'run' | 'jump' | 'fall' | 'sit' | 'sitTable' | 'sitSlot' | 'sitCards' | 'drive' | 'deal' | 'dealCards'
+  | 'idle' | 'walk' | 'run' | 'roll' | 'fall' | 'sit' | 'sitTable' | 'sitSlot' | 'sitCards' | 'drive' | 'deal' | 'dealCards'
   | 'aimPistol' | 'aimRifle' | 'cheer' | 'clap' | 'wave' | 'dance' | 'dance2' | 'dance3' | 'talk' | 'point' | 'phone'
   | 'shrug' | 'facepalm' | 'sad' | 'angry' | 'ko' | 'swim' | 'crouch' | 'think' | 'handsUp' | 'drink' | 'lean' | 'sweep'
   | 'salute' | 'lay' | 'pushButton' | 'pullLever' | 'rollDice' | 'spinWheel' | 'bow' | 'sleep' | 'punch' | 'kneel';
@@ -24,6 +25,59 @@ const UPPER: BoneName[] = ['chest', 'upperArmL', 'foreArmL', 'handL', 'upperArmR
 
 const S = Math.sin;
 const C = Math.cos;
+
+// ---- the dodge roll: timing curves shared by the player, the animation and remote players
+
+/** A dodge roll takes this long (seconds); the owner runs `action` from 0 to 1 through it. */
+export const ROLL_TIME = 0.65;
+
+/** How far round the body has turned at roll phase u: one full turn forward, 0 to 2π. */
+export function rollAngle(u: number): number {
+  return Math.PI * 2 * smoothstep(0.04, 0.84, u);
+}
+
+/**
+ * The share of the roll's distance covered by phase u (0 to 1). A steady glide plus a surge
+ * while the body turns, so the tucked body rolls along the ground rather than spinning in place.
+ */
+export function rollProgress(u: number): number {
+  const c = clamp(u, 0, 1);
+  return 0.8 * c + 0.2 * smoothstep(0.04, 0.84, c);
+}
+
+/** How fast rollProgress grows at phase u: the roll's speed as a multiple of its average. */
+export function rollSpeed(u: number): number {
+  const t = clamp((u - 0.04) / 0.8, 0, 1);
+  return 0.8 + (0.2 * 6 * t * (1 - t)) / 0.8;
+}
+
+/** 0 standing, 1 balled up: in fast, held through the turn, out as you stand. */
+export function rollTuck(u: number): number {
+  return smoothstep(0, 0.16, u) * (1 - smoothstep(0.7, 1, u));
+}
+
+/** A smooth 0 → 1 → 0 swell over the roll (the first-person camera dip rides on it). */
+export function rollSwell(u: number): number {
+  return S(Math.PI * smoothstep(0, 0.9, u));
+}
+
+/** The point the body turns about, from the hip joint: the middle of the tucked ball. */
+const ROLL_PIVOT = { y: 0.05, z: 0.2 };
+
+/**
+ * What the rolling body touches the ground with: spheres (bone, centre y and z in the bone's
+ * frame, radius) fitted to the modelled body's surface through the roll. Limbs are listed once
+ * and used on both sides.
+ */
+const CONTACTS: [BoneName, number, number, number][] = [
+  ['hips', 0.048, 0.026, 0.135], ['spine', 0.086, -0.012, 0.109], ['chest', 0.093, 0.007, 0.135],
+  ['neck', 0.034, -0.011, 0.05], ['head', 0.107, 0, 0.137],
+  ...(['L', 'R'] as const).flatMap((s): [BoneName, number, number, number][] => [
+    [`foot${s}`, 0.037, 0.043, 0.127], [`foot${s}`, -0.055, 0.15, 0.03], [`shin${s}`, -0.26, -0.056, 0.18],
+    [`thigh${s}`, -0.157, 0.011, 0.2], [`upperArm${s}`, -0.086, -0.03, 0.12], [`foreArm${s}`, -0.104, 0.016, 0.125],
+    [`hand${s}`, -0.088, 0.017, 0.084],
+  ]),
+];
 
 /** Arms hanging naturally, slightly out from the body. */
 function relaxed(t: Targets, k = 1): void {
@@ -107,8 +161,11 @@ export class Animator {
       const ch = tg.chest ?? [0, 0, 0];
       tg.chest = [ch[0] - lp * 0.45, ch[1], ch[2]];
     }
-    // Blend towards the targets.
-    const k = 1 - Math.exp(-this.blend * dt);
+    // Blend towards the targets (a roll is quick, so it blends in faster).
+    const rolling = this.pose === 'roll';
+    const k = 1 - Math.exp(-(rolling ? Math.max(this.blend, 24) : this.blend) * dt);
+    // The roll's turn is applied on top, never blended: easing an angle from 0 to 2π would unwind it.
+    const turn = rolling ? rollAngle(this.action) : 0;
     const bones = this.model.bones;
     for (const b of BONE_LIST) {
       const target = tg[b] ?? [0, 0, 0];
@@ -116,15 +173,47 @@ export class Animator {
       c[0] += (target[0] - c[0]) * k;
       c[1] += (target[1] - c[1]) * k;
       c[2] += (target[2] - c[2]) * k;
-      bones[b].rotation.set(c[0], c[1], c[2]);
+      bones[b].rotation.set(b === 'hips' ? c[0] + turn : c[0], c[1], c[2]);
     }
     const r = this.model.rest.hips;
     const pr = this.model.rest.root;
     this.hips.x += ((tg.hipsX ?? 0) - this.hips.x) * k;
     this.hips.y += ((tg.hipsY ?? 0) - this.hips.y) * k;
     this.hips.z += ((tg.hipsZ ?? 0) - this.hips.z) * k;
-    bones.hips.position.set(r[0] - pr[0] + this.hips.x, r[1] - pr[1] + this.hips.y, r[2] - pr[2] + this.hips.z);
+    let hy = r[1] - pr[1] + this.hips.y;
+    let hz = r[2] - pr[2] + this.hips.z;
+    if (turn) {
+      // Swing the hip joint round the middle of the tucked body, so the whole ball turns about
+      // its centre (low over the ground) instead of cartwheeling about the hips.
+      const py = hy + ROLL_PIVOT.y;
+      const pz = hz + ROLL_PIVOT.z;
+      const cs = C(turn);
+      const sn = S(turn);
+      const dy = hy - py;
+      const dz = hz - pz;
+      hy = py + dy * cs - dz * sn;
+      hz = pz + dy * sn + dz * cs;
+    }
+    bones.hips.position.set(r[0] - pr[0] + this.hips.x, hy, hz);
+    if (rolling) bones.hips.position.y += this.groundLift();
     this.model.updateFace(dt);
+  }
+
+  /**
+   * Mid-roll: how far to raise (or lower) the body so its lowest part just touches the ground
+   * (the tucked body isn't a perfect ball: shoulders, then seat, then feet take the weight).
+   */
+  private groundLift(): number {
+    const m = this.model;
+    m.root.updateMatrixWorld(true);
+    const base = m.root.matrixWorld.elements[13];
+    const s = m.mesh.scale.y;
+    let low = Infinity;
+    for (const [b, y, z, r] of CONTACTS) {
+      const e = m.bones[b].matrixWorld.elements;
+      low = Math.min(low, (e[5] * y + e[9] * z + e[13] - base) / s - r);
+    }
+    return -low;
   }
 
   /** Snap straight to the target pose (no blend), e.g. when sitting down instantly. */
@@ -188,17 +277,32 @@ export class Animator {
   private posed(t: Targets, time: number): void {
     const a = this.action;
     switch (this.pose) {
-      case 'jump':
-        t.thighL = [-0.9, 0, 0.05];
-        t.thighR = [-0.2, 0, -0.05];
-        t.shinL = [1.3, 0, 0];
-        t.shinR = [0.6, 0, 0];
-        t.upperArmL = [-0.6, 0, 0.6];
-        t.upperArmR = [-0.4, 0, -0.6];
-        t.foreArmL = [-0.8, 0, 0];
-        t.foreArmR = [-0.8, 0, 0];
-        t.spine = [0.1, 0, 0];
+      case 'roll': {
+        // Forward roll: reach for the ground, ball up (knees to the chest, chin down, hands
+        // round the shins) for the turn, which update() adds, then stand back up.
+        const k = rollTuck(a);
+        const reach = smoothstep(0, 0.08, a) * (1 - smoothstep(0.12, 0.3, a));
+        const th = -1.9 * k;
+        const sh = 2.4 * k;
+        t.thighL = [th, 0, 0.12 * k];
+        t.thighR = [th, 0, -0.12 * k];
+        t.shinL = [sh, 0, 0];
+        t.shinR = [sh, 0, 0];
+        // Feet flat (to the pelvis), so they plant going in and coming out.
+        t.footL = [-(th + sh), 0, 0];
+        t.footR = [-(th + sh), 0, 0];
+        // Hips as low as the bent legs put them (update() then sets the ball on the ground).
+        t.hipsY = 0.42 * C(th) + 0.425 * C(th + sh) - 0.845;
+        t.spine = [0.65 * k, 0, 0];
+        t.chest = [0.45 * k, 0, 0];
+        t.neck = [0.5 * k, 0, 0];
+        t.head = [0.7 * k, 0, 0];
+        t.upperArmL = [-1.2 * k - 0.4 * reach, 0, 0.1 + 0.15 * k];
+        t.upperArmR = [-1.2 * k - 0.4 * reach, 0, -0.1 - 0.15 * k];
+        t.foreArmL = [-0.15 - 0.85 * k + 0.75 * reach, 0, 0];
+        t.foreArmR = [-0.15 - 0.85 * k + 0.75 * reach, 0, 0];
         break;
+      }
       case 'fall':
         t.thighL = [-0.5, 0, 0.1];
         t.thighR = [-0.2, 0, -0.1];

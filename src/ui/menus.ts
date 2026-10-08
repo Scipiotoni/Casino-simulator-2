@@ -423,7 +423,7 @@ export class GameUI {
   controls(): void {
     const p = this.panel({ title: 'Controls' });
     const lines: [string, string][] = [
-      ['Move', 'W A S D'], ['Look', 'Mouse'], ['Sprint', 'Shift'], ['Jump', 'Space'], ['Use / talk / sit', 'E'], ['First / third person', 'V'],
+      ['Move', 'W A S D'], ['Look', 'Mouse'], ['Sprint', 'Shift'], ['Dodge roll', 'Space'], ['Use / talk / sit', 'E'], ['First / third person', 'V'],
       ['Map', 'M'], ['Pause', 'Esc / P'], ['Drive', 'W S, A D steer, Space handbrake, Shift boost'], ['Get out', 'E'],
       ['Guns', '1–7 draw, Q holster, LMB fire, RMB aim, R reload'], ['At a table', 'Mouse to look, click chips and buttons, Esc to stand'],
     ];
