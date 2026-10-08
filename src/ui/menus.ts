@@ -10,6 +10,7 @@ import { SKINS, RARITY_COLORS, SKIN_TONES, HAIR_COLORS, appearanceFromSkin, skin
 import { drawMarker } from './map';
 import { audio } from '../core/audio';
 import type { Quality } from '../render/renderer';
+import { arrivedFromMainland, goToMainland, mainlandName } from '../activities/crossover';
 
 /**
  * Every menu outside the gambling tables: the realtor and lots, building and running your
@@ -573,6 +574,10 @@ export class GameUI {
         this.confirm('Start over?', 'Your saved game will be replaced when the new one saves.', 'New game', () => go('new'), true);
       }));
       menu.appendChild(btn('Settings', 'pbtn big', () => this.settings()));
+      // The first game is across Interstate 15.
+      const back = mainlandName();
+      if (arrivedFromMainland()) menu.prepend(el('div', 'title-hello', esc(`Welcome across Interstate 15${back ? `, ${back}` : ''}! On the island everyone starts from zero.`)));
+      menu.appendChild(btn('◂ Back to the mainland: Casino Simulator 1', 'title-link', () => goToMainland(g)));
       g.uiRoot.appendChild(t);
     });
   }

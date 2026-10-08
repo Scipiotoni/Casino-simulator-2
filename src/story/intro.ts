@@ -48,7 +48,7 @@ export async function playIntro(g: Game, d: Director): Promise<void> {
   d.cut([6450, 70, 250], [4600, 40, -300], 52);
   await d.wait(0.4);
   void d.fade(false, 2.2);
-  d.caption('INTERSTATE 15 · THE MAINLAND SIDE · 7:04 PM', 5);
+  d.caption('INTERSTATE 15 · LEAVING THE MAINLAND · 7:04 PM', 5);
   // Shot 1: wide and high, the bridge and the island skyline with the sun going down.
   void drive(6650, 6350, 7);
   await d.dolly([[6480, 75, 260], [4400, 60, -300]], [[6330, 45, 120], [3300, 60, -300]], 7, 48);
@@ -59,7 +59,7 @@ export async function playIntro(g: Game, d: Director): Promise<void> {
   await d.wait(1.2);
   audio.play('ping');
   await d.say('UNCLE SAL', 'Kid! You on the bridge yet? Tell me you made it to the bridge.', '#ff9f2e');
-  await d.say('YOU', "I'm on it, Uncle Sal. Jackpot Island, dead ahead. Everything I own is in this car.", '#3aa7ff');
+  await d.say('YOU', "I'm on it, Uncle Sal. The desert strip's in the mirror, Jackpot Island dead ahead. Everything I own is in this car.", '#3aa7ff');
   await d.say('UNCLE SAL', 'Everything you own fits in that glovebox. Good! That means there\'s nowhere to go but up.', '#ff9f2e');
   await d.say('UNCLE SAL', "This island, nobody cares where you came from. Everybody starts with nothing. What you build is what you're worth.", '#ff9f2e');
   // Shot 3: in front, low, the car coming at us with the pylon above.

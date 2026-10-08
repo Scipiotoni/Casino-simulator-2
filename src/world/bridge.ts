@@ -295,6 +295,70 @@ export class Bridge {
     this.group.add(sh);
     const post = new Kit().cyl(0.15, 0.15, 5, 0x8a8f96, { x: sh.position.x - 0.1, y: sh.position.y - 3, z: sh.position.z }, 'shiny').bake();
     this.group.add(post);
+    this.buildGantry();
+  }
+
+  /** The overhead highway sign on the mainland approach: the island one way, the mainland strip the other. */
+  private buildGantry(): void {
+    const x = BRIDGE.mainland + 140;
+    const y = mainlandY(x, BRIDGE.z);
+    const hw = BRIDGE.width / 2 + 2;
+    const k = new Kit();
+    for (const s of [-1, 1]) {
+      k.box(0.7, 8.4, 0.7, 0x8a8f96, { x, y: y + 4.2, z: BRIDGE.z + s * hw }, 'shiny');
+      k.box(1.4, 0.4, 1.4, 0x6a6f76, { x, y: y + 0.2, z: BRIDGE.z + s * hw });
+    }
+    // Box truss across the road.
+    for (const dy of [7.2, 8.6]) for (const dx of [-0.5, 0.5]) k.box(0.18, 0.18, hw * 2 + 0.7, 0x9aa0a8, { x: x + dx, y: y + dy, z: BRIDGE.z }, 'shiny');
+    for (let zz = -hw; zz <= hw; zz += 2.4) k.box(1.0, 1.4, 0.08, 0x9aa0a8, { x, y: y + 7.9, z: BRIDGE.z + zz, rx: 0.6 }, 'shiny');
+    this.group.add(k.bake({ shadows: true }));
+    const panel = (text: string, sub: string, face: 1 | -1, dz: number) => {
+      const c = document.createElement('canvas');
+      c.width = 1024;
+      c.height = 360;
+      const g = c.getContext('2d')!;
+      g.fillStyle = '#0d6b3a';
+      g.fillRect(0, 0, 1024, 360);
+      g.strokeStyle = '#ffffff';
+      g.lineWidth = 10;
+      g.strokeRect(14, 14, 996, 332);
+      // Interstate shield.
+      g.save();
+      g.translate(150, 180);
+      g.fillStyle = '#1d3f9e';
+      g.beginPath();
+      g.moveTo(-90, -100);
+      g.lineTo(90, -100);
+      g.quadraticCurveTo(100, 60, 0, 120);
+      g.quadraticCurveTo(-100, 60, -90, -100);
+      g.fill();
+      g.fillStyle = '#c8202f';
+      g.fillRect(-90, -100, 180, 46);
+      g.fillStyle = '#ffffff';
+      g.font = '28px "Lilita One", sans-serif';
+      g.textAlign = 'center';
+      g.fillText('INTERSTATE', 0, -66);
+      g.font = '96px "Lilita One", sans-serif';
+      g.fillText('15', 0, 50);
+      g.restore();
+      g.fillStyle = '#ffffff';
+      g.textAlign = 'left';
+      g.font = '84px "Lilita One", sans-serif';
+      g.fillText(text, 280, 170);
+      g.font = '44px "Lilita One", sans-serif';
+      g.fillStyle = '#ffe9a0';
+      g.fillText(sub, 284, 250);
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = 4;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(11, 3.9), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
+      m.position.set(x + face * 0.62, y + 7.9, BRIDGE.z + dz);
+      m.rotation.y = face > 0 ? Math.PI / 2 : -Math.PI / 2;
+      this.group.add(m);
+    };
+    // Westbound (towards the island) reads from the east; eastbound reads from the bridge.
+    panel('JACKPOT ISLAND', 'WEST  ·  BRIDGE 1 MILE  ◂', 1, -3.6);
+    panel('THE MAINLAND', 'EAST  ·  DESERT STRIP  ▸', -1, 3.6);
   }
 
   /** Close the bridge behind you after the intro (repairs: nobody leaves the island yet). */
