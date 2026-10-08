@@ -1,7 +1,7 @@
 /**
  * What a character looks like: body, face, hair and an outfit ("skin"). Outfits come from
  * a catalog with rarities, like a locker in a battle-royale game; you unlock them through
- * the story and buy them at the Drip Locker clothing store.
+ * special deeds and buy them at the Drip Locker clothing store.
  */
 
 export type BodyType = 'm' | 'f';
@@ -57,7 +57,7 @@ export interface SkinDef {
   rarity: Rarity;
   desc: string;
   price: number;
-  /** How you get it if it isn't for sale ('story', 'base'...). */
+  /** How you get it if it isn't for sale ('base' = the Fort Hammerhead armory). */
   unlock?: string;
   appearance: Omit<Appearance, 'skinId' | 'height' | 'build'>;
 }
@@ -110,7 +110,7 @@ export const SKINS: SkinDef[] = [
     appearance: { body: 'f', skin: SKIN_TONES[5], eyes: 'blue', hair: 'bob', hairColor: HAIR_COLORS[8], outfit: o({ top: 'hoodie', bottom: 'cargo', shoes: 'sneakers', back: 'backpack', glasses: 'visor', c1: 0x1b1530, c2: 0x2a2050, accent: 0x3fe0ff, pants: 0x1b1530, shoe: 0x3fe0ff, neck: 'mask', glow: true }) },
   },
   {
-    id: 'ranger', name: 'Volcano Ranger', rarity: 'epic', price: 0, unlock: 'story', desc: 'Has been to the crater rim and back.',
+    id: 'ranger', name: 'Volcano Ranger', rarity: 'epic', price: 35000, desc: 'Has been to the crater rim and back.',
     appearance: { body: 'f', skin: SKIN_TONES[4], eyes: 'green', hair: 'braids', hairColor: HAIR_COLORS[2], outfit: o({ top: 'jacket', bottom: 'cargo', shoes: 'boots', hat: 'cowboy', back: 'backpack', c1: 0xd9772b, c2: 0x6b4a2a, accent: 0xf2e6c8, pants: 0x6b5a3a, shoe: 0x4a3020, neck: 'scarf' }) },
   },
   {
@@ -130,7 +130,7 @@ export const SKINS: SkinDef[] = [
     appearance: { body: 'f', skin: SKIN_TONES[2], eyes: 'violet', hair: 'mohawk', hairColor: HAIR_COLORS[7], outfit: o({ top: 'armor', bottom: 'cargo', shoes: 'boots', back: 'wings', glasses: 'visor', gloves: true, c1: 0xe8ecf2, c2: 0x2a2f3a, accent: 0xff3fa4, pants: 0x2a2f3a, shoe: 0xe8ecf2, glow: true }) },
   },
   {
-    id: 'kingpin', name: 'Island Kingpin', rarity: 'mythic', price: 0, unlock: 'finale', desc: 'Owns the island. Literally.',
+    id: 'kingpin', name: 'Island Kingpin', rarity: 'mythic', price: 1000000, desc: 'Owns the island. Literally.',
     appearance: { body: 'm', skin: SKIN_TONES[4], eyes: 'amber', hair: 'quiff', hairColor: HAIR_COLORS[0], outfit: o({ top: 'coat', bottom: 'slacks', shoes: 'loafers', hat: 'crown', back: 'cape', gloves: true, c1: 0x5a0f8a, c2: 0xf2c230, accent: 0xf2c230, pants: 0x1a1a1f, shoe: 0xf2c230, neck: 'chain', glow: true }) },
   },
 ];

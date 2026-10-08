@@ -8,9 +8,13 @@ import { hash2, mulberry32 } from '../core/noise';
  * Axes: x runs east, z runs south (north is -z). One unit is one metre.
  */
 
-export const DOMAIN = { minX: -5000, maxX: 5000, minZ: -4400, maxZ: 4400 };
+export const DOMAIN = { minX: -5000, maxX: 5000, minZ: -10200, maxZ: 4400 };
 
-/** Where the island's set pieces are. */
+/**
+ * Where the island's set pieces are. The south is the old island (the city, Mount Fortuna,
+ * Coral Cove); north of the foothills lies Saguaro County: a desert valley round a salt
+ * lake, farms, a wind farm, Mount Thunderhead and the fishing town on the north coast.
+ */
 export const LANDMARKS = {
   volcano: { x: -1650, z: -350, name: 'Mount Fortuna' },
   base: { x: -2700, z: -2500, w: 900, d: 600, name: 'Fort Hammerhead' },
@@ -19,7 +23,52 @@ export const LANDMARKS = {
   bridgeEast: { x: 6300, z: -300 },
   bridgeWest: { x: 3640, z: -300 },
   sunsetBeach: { x: 700, z: 3050, name: 'Sunset Beach' },
+  /** The big northern mountain (about 1 km high, snow on top). */
+  mountain: { x: -2300, z: -7400, name: 'Mount Thunderhead' },
+  /** The salt lake in the desert valley: an ellipse (half-axes a, b) turned by `rot`. */
+  lake: { x: -150, z: -5400, a: 1200, b: 580, rot: 0.12, name: 'Alkali Lake' },
+  desertTown: { x: 1100, z: -6000, name: 'Dustwater' },
+  northTown: { x: 300, z: -8760, name: 'Halibut Bay' },
+  farms: { x: 2450, z: -6750, name: 'Harvest Valley' },
+  windFarm: { x: 2750, z: -5000, name: 'Breezeway Wind Farm' },
+  airstrip: { x0: 100, x1: 1000, z0: -6620, z1: -6580, name: 'Dustwater Airstrip' },
+  /**
+   * The container port south-east of the harbor district: a flat quay (x0..x1, z0..z1) at
+   * height y. Its east edge (x1) is the berth: the sea right beside it is dredged to `depth`.
+   */
+  port: { x: 3490, z: 1940, x0: 3340, x1: 3640, z0: 1640, z1: 2240, y: 2.5, depth: 13, name: 'Port of Fortuna' },
+  /**
+   * The small-boat marina below Coral Cove: a flat waterfront strip (x0..x1, z0..z1) at
+   * height y, with a sheltered basin of calm water south of it (basin, `depth` deep).
+   */
+  marina: {
+    x: -900, z: 3270, x0: -1150, x1: -650, z0: 3240, z1: 3300, y: 2.2,
+    basin: { x0: -1150, x1: -650, z0: 3300, z1: 3640 }, depth: 5, name: 'Coral Cove Marina',
+  },
 };
+
+/** Dustwater: the desert town on the lake's north-east shore, strung along Lakeshore Drive. */
+export const DESERT_TOWN = { x0: 700, x1: 1500, z: -6000, y: 20 };
+/** Halibut Bay: the fishing town on the north coast; Route 1 is its main street. */
+export const NORTH_TOWN = { x0: -250, x1: 850, z: -8760, y: 5 };
+
+/**
+ * Saguaro County's coastline as a polygon (x, z). It overlaps the old island's north shore,
+ * so the two coasts merge into one: everything north of the foothills is new land.
+ */
+export const NORTH_COAST: [number, number][] = [
+  [-3200, -1500], [-3750, -2250], [-4050, -3000], [-4250, -3700], [-4150, -4300], [-3950, -4650],
+  [-4150, -5050], [-4350, -5700], [-4300, -6500], [-4100, -7300], [-3750, -8000], [-3250, -8550],
+  [-2550, -8950], [-1750, -9200], [-1000, -9250], [-450, -9100], [50, -8950], [650, -8940],
+  [1150, -9020], [1650, -8850], [2200, -8500], [2750, -8000], [3150, -7300], [3350, -6500],
+  [3450, -5700], [3450, -4900], [3350, -4200], [3100, -3650], [2850, -3150], [2550, -2650],
+  [1600, -2200], [0, -1600], [-1600, -1500],
+];
+
+/** Mount Thunderhead's height at distance r from its summit (before its rocky detail). */
+export function thunderheadProfile(r: number): number {
+  return 640 * Math.exp(-Math.pow(r / 1000, 2)) + 330 * Math.exp(-Math.pow(r / 420, 2));
+}
 
 /** The city's flat ground (everything inside is levelled to CITY_Y). */
 export const CITY = { minX: 1220, maxX: 3560, minZ: -1720, maxZ: 1580 };
@@ -121,12 +170,86 @@ export function allRoads(): RoadDef[] {
   roads.push({ id: 'beach', name: 'Sunset Beach Road', kind: 'road', width: ROAD_WIDTH.road, pts: [[450, 2950], [650, 3080], [900, 3120]] });
   // Jungle track from Coral Cove up into the hills.
   roads.push({ id: 'jungle', name: 'Jungle Trail', kind: 'dirt', width: ROAD_WIDTH.dirt, pts: [[-1300, 2760], [-1500, 2300], [-1900, 1900], [-2500, 1500], [-2900, 1150]] });
+  const port = LANDMARKS.port;
+  roads.push({ id: 'port', name: 'Port Road', kind: 'road', width: ROAD_WIDTH.road, pts: [[3450, 1500], [3450, port.z0 + 60], [3450, port.z1 - 40]] });
+  const marina = LANDMARKS.marina;
+  roads.push({ id: 'marina', name: 'Marina Way', kind: 'road', width: ROAD_WIDTH.road, pts: [[-875, 2832], [-880, 3000], [marina.x, marina.z0 + 4]] });
+  roads.push(...countyRoads());
   return roads;
+}
+
+/** Saguaro County: Route 1 round the north, the freeway up the middle, county roads and tracks. */
+const NORTH_ROUTE1: [number, number][] = [
+  [-3350, -1650], [-3550, -2250], [-3800, -3000], [-3950, -3700], [-3850, -4300], [-3700, -4700], [-3900, -5300],
+  [-4050, -6000], [-3950, -6900], [-3700, -7600], [-3250, -8200], [-2600, -8650], [-1800, -8950], [-1000, -9000],
+  [NORTH_TOWN.x0 - 250, NORTH_TOWN.z], [NORTH_TOWN.x1 + 150, NORTH_TOWN.z], [1250, -8700],
+];
+const FREEWAY: [number, number][] = [
+  [2600, -2100], [2350, -2550], [1950, -3100], [1850, -3700], [1800, -4400], [1750, -4800], [1650, -5500],
+  [1650, -6000], [1550, -6800], [1350, -7600], [1250, -8700],
+];
+
+/**
+ * A road that winds up round a mountain at a steady grade: start at (x, z), keep the summit
+ * on one side (dir 1 = anticlockwise seen on the map, -1 = clockwise) and stop at height yTop.
+ */
+function climb(cx: number, cz: number, x: number, z: number, dir: number, grade: number, yTop: number): [number, number][] {
+  const pts: [number, number][] = [[x, z]];
+  let a = Math.atan2(z - cz, x - cx);
+  let r = Math.hypot(x - cx, z - cz);
+  let y = thunderheadProfile(r);
+  while (y < yTop && pts.length < 2000) {
+    const step = Math.min(45, r * 0.35);
+    y += grade * step;
+    // The radius where the mountain is that high (it only rises inwards).
+    let lo = 0;
+    let hi = r;
+    for (let it = 0; it < 30; it++) {
+      const mid = (lo + hi) / 2;
+      if (thunderheadProfile(mid) > y) lo = mid;
+      else hi = mid;
+    }
+    const nr = (lo + hi) / 2;
+    a += (dir * Math.sqrt(Math.max(0, step * step - (r - nr) * (r - nr)))) / Math.max(nr, 1);
+    r = nr;
+    pts.push([cx + Math.cos(a) * r, cz + Math.sin(a) * r]);
+  }
+  return pts;
+}
+
+function countyRoads(): RoadDef[] {
+  const m = LANDMARKS.mountain;
+  const out: RoadDef[] = [];
+  out.push({ id: 'route1n', name: 'Route 1', kind: 'highway', width: ROAD_WIDTH.highway, pts: NORTH_ROUTE1 });
+  out.push({ id: 'freeway', name: 'Sagebrush Freeway', kind: 'highway', width: ROAD_WIDTH.highway, pts: FREEWAY });
+  // Route 44 crosses the desert south of the lake, from the west coast to the wind farm.
+  out.push({
+    id: 'route44', name: 'Route 44', kind: 'road', width: ROAD_WIDTH.road,
+    pts: [[-3700, -4700], [-3000, -4650], [-2000, -4650], [-1100, -4700], [-300, -4620], [600, -4650], [1750, -4800]],
+  });
+  out.push({ id: 'route44e', name: 'Route 44', kind: 'road', width: ROAD_WIDTH.road, pts: [[1750, -4800], [2400, -4850], [2950, -5050]] });
+  // Lakeshore Drive: round the lake's west and north shores and down Dustwater's main street.
+  out.push({
+    id: 'lakeshore', name: 'Lakeshore Drive', kind: 'road', width: ROAD_WIDTH.road,
+    pts: [[-2000, -4650], [-1800, -5250], [-1550, -5800], [-1000, -6150], [-200, -6150], [450, -6060],
+      [DESERT_TOWN.x0 - 120, DESERT_TOWN.z], [DESERT_TOWN.x1 + 100, DESERT_TOWN.z], [1650, -6000]],
+  });
+  // Thunderhead Road winds up from the lake to the lookout; the summit trail goes on to the top.
+  const road = climb(m.x, m.z, -1550, -5800, -1, 0.065, 300);
+  out.push({ id: 'thunderhead', name: 'Thunderhead Road', kind: 'road', width: ROAD_WIDTH.road, pts: road });
+  const [lx, lz] = road[road.length - 1];
+  out.push({ id: 'summit', name: 'Summit Trail', kind: 'dirt', width: ROAD_WIDTH.dirt, pts: climb(m.x, m.z, lx, lz, -1, 0.12, thunderheadProfile(60)) });
+  out.push({ id: 'harvest', name: 'Harvest Road', kind: 'road', width: ROAD_WIDTH.road, pts: [[1550, -6800], [2300, -6750], [2950, -6550]] });
+  out.push({ id: 'logging', name: 'Logging Road', kind: 'dirt', width: ROAD_WIDTH.dirt, pts: [[1350, -7600], [600, -7750], [-200, -7950], [-700, -8150]] });
+  out.push({ id: 'mine', name: 'Prospector Trail', kind: 'dirt', width: ROAD_WIDTH.dirt, pts: [[-200, -6150], [-100, -6600], [250, -7050]] });
+  const as = LANDMARKS.airstrip;
+  out.push({ id: 'airstrip', name: 'Airstrip Road', kind: 'dirt', width: ROAD_WIDTH.dirt, pts: [[DESERT_TOWN.x0 + 40, DESERT_TOWN.z], [DESERT_TOWN.x0 + 40, as.z1 + 30], [as.x1 - 60, as.z1 + 30]] });
+  return out;
 }
 
 // ------------------------------------------------------------------ blocks and lots
 
-export type District = 'strip' | 'downtown' | 'midtown' | 'beach' | 'harbor' | 'heights' | 'oldtown';
+export type District = 'strip' | 'downtown' | 'midtown' | 'beach' | 'harbor' | 'heights' | 'oldtown' | 'desert' | 'north';
 export type Facing = 'N' | 'S' | 'E' | 'W';
 
 export interface Lot {
@@ -198,11 +321,11 @@ export function cityBlocks(): Block[] {
 }
 
 /** Target lot frontage per district. */
-const FRONTAGE: Record<District, number> = { strip: 140, downtown: 70, midtown: 80, beach: 110, harbor: 90, heights: 46, oldtown: 30 };
+const FRONTAGE: Record<District, number> = { strip: 140, downtown: 70, midtown: 80, beach: 110, harbor: 90, heights: 46, oldtown: 30, desert: 50, north: 38 };
 /** Base land price per square metre. */
-const PRICE_M2: Record<District, number> = { strip: 42, downtown: 30, midtown: 12, beach: 26, harbor: 5, heights: 4, oldtown: 2.2 };
+const PRICE_M2: Record<District, number> = { strip: 42, downtown: 30, midtown: 12, beach: 26, harbor: 5, heights: 4, oldtown: 2.2, desert: 1.1, north: 1.8 };
 /** Share of lots that are for sale (the rest are the city's own buildings). */
-const SALE_SHARE: Record<District, number> = { strip: 0.34, downtown: 0.16, midtown: 0.26, beach: 0.34, harbor: 0.38, heights: 0.4, oldtown: 0.5 };
+const SALE_SHARE: Record<District, number> = { strip: 0.34, downtown: 0.16, midtown: 0.26, beach: 0.34, harbor: 0.38, heights: 0.4, oldtown: 0.5, desert: 0.55, north: 0.5 };
 
 function roundPrice(p: number): number {
   const mag = Math.pow(10, Math.floor(Math.log10(p)) - 1);
@@ -254,6 +377,10 @@ export function cityLots(): Lot[] {
     }
   }
   lots.push(...oldTownLots(n));
+  n = lots.length;
+  lots.push(...townLots(n, DESERT_TOWN, 'desert', 'Lakeshore Drive', ROAD_WIDTH.road, [44, 52, 70, 46, 60, 90, 48], 58));
+  n = lots.length;
+  lots.push(...townLots(n, NORTH_TOWN, 'north', 'Route 1', ROAD_WIDTH.highway, [34, 40, 34, 52, 36, 44, 70], 46));
   priceAndAssign(lots);
   return lots;
 }
@@ -293,6 +420,32 @@ function oldTownLots(start: number): Lot[] {
   return out;
 }
 
+/**
+ * A county town: lots on both sides of its main street (along z), in a repeating pattern of
+ * frontages so there are small and big lots, each `depth` deep.
+ */
+function townLots(start: number, town: { x0: number; x1: number; z: number }, district: District, street: string, roadWidth: number, widths: number[], depth: number): Lot[] {
+  const out: Lot[] = [];
+  let n = start;
+  const half = roadWidth / 2 + SIDEWALK;
+  for (const side of [-1, 1] as const) {
+    let x = town.x0;
+    let k = side < 0 ? 0 : 3;
+    for (;;) {
+      const w = widths[k++ % widths.length];
+      if (x + w > town.x1) break;
+      n++;
+      const z0 = side < 0 ? town.z - half - depth : town.z + half;
+      out.push({
+        id: `L${String(n).padStart(3, '0')}`, district, x0: x, x1: x + w, z0, z1: z0 + depth,
+        front: side < 0 ? 'S' : 'N', street, price: 0, forSale: false,
+      });
+      x += w + 6;
+    }
+  }
+  return out;
+}
+
 /** Story buildings that sit on fixed lots (found by position so they never move). */
 export const SPECIAL_SITES: { key: string; x: number; z: number }[] = [
   { key: 'goldenViper', x: 2450, z: -500 },
@@ -305,6 +458,21 @@ export const SPECIAL_SITES: { key: string; x: number; z: number }[] = [
   { key: 'clothing', x: 1850, z: 400 },
   { key: 'hospital', x: 1500, z: -900 },
   { key: 'police', x: 1500, z: 850 },
+  // Your flat: the first block off the Interstate 15 bridge.
+  { key: 'flat', x: 3403, z: -420 },
+  // Convenience stores round the island (store1..store8) and the pawn shop.
+  { key: 'store1', x: 1804, z: -422 },
+  { key: 'store2', x: 3174, z: -421 },
+  { key: 'store3', x: 3508, z: -581 },
+  { key: 'store4', x: 2734, z: -1534 },
+  { key: 'store5', x: 2828, z: 1166 },
+  { key: 'store6', x: -1431, z: 2727 },
+  { key: 'store7', x: 1000, z: -5960 },
+  { key: 'store8', x: 300, z: -8800 },
+  { key: 'pawnShop', x: 1900, z: 934 },
+  // Gas stations in the county towns (built with the town).
+  { key: 'gasDustwater', x: 1400, z: -5960 },
+  { key: 'gasHalibut', x: 800, z: -8800 },
 ];
 
 function priceAndAssign(lots: Lot[]): void {

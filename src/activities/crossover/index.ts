@@ -10,9 +10,8 @@ import { audio } from '../../core/audio';
 
 /**
  * Interstate 15 is the road between the two games. Its far end is the mainland, where the
- * first game (Jackpot Tycoon) is played. While the bridge is closed for repairs the barrier
- * offers a trip over there anyway; once the story reopens it, driving off the mainland end
- * of the bridge does. The first game links back from the end of its own Interstate 15.
+ * first game (Jackpot Tycoon) is played: drive off the mainland end of the bridge and you're
+ * offered the trip. The first game links back from the end of its own Interstate 15.
  */
 
 /** The first game. `?mainland=<url>` overrides it (for local testing). */
@@ -72,16 +71,14 @@ export function goToMainland(g: Game): void {
 
 export class Crossover implements Activity {
   readonly id = 'crossover';
-  /** Inside a trigger zone (offer once per visit). */
+  /** Inside the trigger zone (offer once per visit). */
   private inZone = false;
-  private barrierX = BRIDGE.x1 - 260;
 
   constructor(readonly game: Game) {}
 
-  /** The zone in front of the barrier (closed), or the mainland end of the bridge (open). */
+  /** The mainland end of the bridge. */
   private zone(x: number, z: number): boolean {
-    if (Math.abs(z - BRIDGE.z) > BRIDGE.width / 2 + 2) return false;
-    return this.game.story.finished ? x > BRIDGE.x1 + 20 && x < BRIDGE.mainland + 400 : x > this.barrierX - 26 && x < this.barrierX + 2;
+    return Math.abs(z - BRIDGE.z) < BRIDGE.width / 2 + 2 && x > BRIDGE.x1 + 20 && x < BRIDGE.mainland + 400;
   }
 
   update(_dt: number): void {
@@ -96,12 +93,9 @@ export class Crossover implements Activity {
 
   private offer(): void {
     const g = this.game;
-    const open = g.story.finished;
-    const p = g.ui.panel({ title: 'Interstate 15', subtitle: open ? 'The mainland' : 'Closed for repairs', accent: '#1e6bff' });
+    const p = g.ui.panel({ title: 'Interstate 15', subtitle: 'The mainland', accent: '#1e6bff' });
     const back = mainlandName();
-    p.body.appendChild(el('div', 'ptext', esc(open
-      ? 'The bridge is open again. Over on the mainland is the desert strip where it all started: Jackpot Tycoon, the first Casino Simulator.'
-      : 'The bridge is closed to traffic, but the road crew will wave you through to the mainland: the desert strip of Jackpot Tycoon, the first Casino Simulator.')));
+    p.body.appendChild(el('div', 'ptext', esc('Across the bridge is the mainland: the desert strip where it all started, in Jackpot Tycoon, the first Casino Simulator.')));
     p.body.appendChild(el('div', 'ptext dim', esc(`${back ? `Your tycoon ${back} is waiting over there. ` : ''}Your island game is saved; drive back across Interstate 15 any time.`)));
     if (g.vehicles.driving) g.vehicles.driving.speed = 0;
     p.footer.append(
@@ -115,8 +109,7 @@ export class Crossover implements Activity {
 
   markers(full: boolean): MapMarker[] {
     if (!full) return [];
-    const x = this.game.story.finished ? BRIDGE.x1 : this.barrierX;
-    return [{ x, z: BRIDGE.z, icon: '🌉', color: '#1e6bff', label: 'Interstate 15 · Mainland', big: true }];
+    return [{ x: BRIDGE.x1, z: BRIDGE.z, icon: '🌉', color: '#1e6bff', label: 'Interstate 15 · Mainland', big: true }];
   }
 }
 

@@ -8,7 +8,7 @@ export interface Objective {
 }
 
 /**
- * The on-screen HUD: wallet, clock, story objectives, the "use" prompt, toasts, the story
+ * The on-screen HUD: wallet, clock, objectives, the "use" prompt, toasts, the cutscene
  * dialogue box and big centred banners. Styled after battle-royale HUDs: chunky, outlined
  * lettering on slanted panels.
  */
@@ -57,7 +57,9 @@ export class Hud {
 
   setMoney(n: number, instant = false): void {
     this.targetMoney = n;
-    if (instant) this.shownMoney = n;
+    if (!instant) return;
+    this.shownMoney = n;
+    (this.moneyEl.querySelector('.v') as HTMLElement).textContent = money(n);
   }
 
   setClock(day: number, hours: number): void {

@@ -3,7 +3,7 @@ import type { MapMarker } from '../ui/map';
 /**
  * A side activity (shoplifting, the docks, hidden packages, races, taxi jobs…). Each lives
  * in its own folder under src/activities and plugs into the game through this interface:
- * the game calls update() every frame once the story has started, asks for map markers,
+ * the game calls update() every frame once you're past the title screen, asks for map markers,
  * and saves/loads whatever state it returns.
  */
 export interface Activity {

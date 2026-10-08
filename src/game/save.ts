@@ -2,11 +2,14 @@ import { loadJSON, saveJSON, removeKey } from '../core/storage';
 import type { Appearance } from '../chars/skins';
 
 /**
- * Everything that persists. Version 2 of the game starts everyone from zero: this is a new
- * key, nothing is read from the first game's saves.
+ * Everything that persists. Everyone starts the same way (a flat, a car, some cash): this is a
+ * new key, nothing is read from the first game's saves.
  */
 
 export const SAVE_KEY = 'cs2.save.v1';
+
+/** Cash in your pocket on day one (plus your flat and your car). */
+export const START_MONEY = 10000;
 
 export interface OwnedVehicle {
   id: string;
@@ -52,7 +55,6 @@ export interface SaveData {
   day: number;
   hours: number;
   pos: { x: number; y: number; z: number; yaw: number };
-  story: { chapter: number; step: number; flags: Record<string, number> };
   businesses: BusinessSave[];
   vehicles: OwnedVehicle[];
   weapons: string[];
@@ -69,11 +71,10 @@ export function newSave(name: string, appearance: Appearance): SaveData {
     name,
     appearance,
     ownedSkins: ['rookie', 'rookieF'],
-    money: 0,
+    money: START_MONEY,
     day: 1,
     hours: 19.1,
     pos: { x: 6200, y: 10, z: -300, yaw: -Math.PI / 2 },
-    story: { chapter: 0, step: 0, flags: {} },
     businesses: [],
     vehicles: [],
     weapons: [],
@@ -92,8 +93,6 @@ export function loadSave(): SaveData | null {
   s.vehicles ??= [];
   s.weapons ??= [];
   s.stats ??= {};
-  s.story ??= { chapter: 0, step: 0, flags: {} };
-  s.story.flags ??= {};
   s.settings ??= { music: 0.45, sfx: 0.9, sensitivity: 1, invertY: false };
   if (!Number.isFinite(s.money)) s.money = 0;
   return s;

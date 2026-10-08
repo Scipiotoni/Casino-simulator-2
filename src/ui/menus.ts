@@ -352,7 +352,7 @@ export class GameUI {
         grid.appendChild(card({
           icon: rarityIcon(s.rarity),
           title: s.name,
-          sub: `${s.rarity.toUpperCase()} · ${s.desc}${!owned && s.unlock ? `\nUnlock: ${s.unlock === 'story' ? 'story' : s.unlock === 'base' ? 'Fort Hammerhead' : s.unlock}` : ''}`,
+          sub: `${s.rarity.toUpperCase()} · ${s.desc}${!owned && s.unlock ? `\nUnlock: ${s.unlock === 'base' ? 'Fort Hammerhead armory' : s.unlock}` : ''}`,
           price: wearing ? 'Wearing' : owned ? 'Wear' : s.unlock ? 'Locked' : money(s.price),
           color: RARITY_COLORS[s.rarity],
           selected: wearing,
@@ -640,7 +640,7 @@ export class GameUI {
         }));
       };
       paint();
-      const start = btn('Start the story ▸', 'pbtn primary big', () => {
+      const start = btn('Drive to Jackpot Island ▸', 'pbtn primary big', () => {
         const n = (name.trim() || 'Rookie').replace(/[^\p{L}\p{N} '._-]/gu, '').slice(0, 16) || 'Rookie';
         box.remove();
         res({ name: n, appearance: a });

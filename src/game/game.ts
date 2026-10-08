@@ -13,8 +13,8 @@ import { audio, type SfxName } from '../core/audio';
 import { GamblingSession } from '../casino/session';
 import { tweens } from '../core/tween';
 import { Director } from '../story/director';
-import { Story } from '../story/story';
-import { playFinale } from '../story/finale';
+import { playIntro } from '../story/intro';
+import { Flat } from '../world/flat';
 import { Waypoint } from './waypoint';
 import { VehicleSystem } from './vehicles';
 import { BusinessSystem } from '../business/business';
@@ -48,7 +48,8 @@ export class Game {
   session!: GamblingSession;
   player!: Player;
   director!: Director;
-  story!: Story;
+  /** Your flat in Palm Court (where everyone starts). */
+  flat!: Flat;
   waypoint!: Waypoint;
   vehicles!: VehicleSystem;
   business!: BusinessSystem;
@@ -87,7 +88,6 @@ export class Game {
   private started = false;
   private saveT = 30;
   private titleT = 0;
-  private storyWp: { x: number; z: number; label: string } | null = null;
   private userWp: { x: number; z: number; label: string } | null = null;
 
   constructor(private app: HTMLElement) {
@@ -140,7 +140,7 @@ export class Game {
     await step(0.95, 'Filling the streets');
     this.crowd = new Crowd(this, this.renderer.spec.crowd);
     this.traffic = new Traffic(this, this.renderer.spec.traffic);
-    this.story = new Story(this);
+    this.flat = new Flat(this);
     await step(0.97, 'Setting up side jobs');
     this.activities = createActivities(this);
     await step(0.98, 'Drawing the map');
@@ -176,7 +176,7 @@ export class Game {
       this.minimap.setVisible(true);
       this.mode = 'play';
       this.input.wantLock = true;
-      this.hud.banner(this.story.finished ? 'WELCOME BACK, KINGPIN' : 'WELCOME BACK', save.name.toUpperCase(), 2600);
+      this.hud.banner('WELCOME BACK', save.name.toUpperCase(), 2600);
       return;
     }
     // New game: frame the player on the bridge's welcome plaza while they choose a look.
@@ -202,7 +202,8 @@ export class Game {
     this.hud.setVisible(true);
     this.minimap.setVisible(true);
     this.hud.setMoney(this.money, true);
-    await this.story.begin();
+    await this.director.play((d) => playIntro(this, d));
+    this.save();
   }
 
   /** Dev entry points (?fly, ?chars, ?dev&x=..&z=..). */
@@ -223,10 +224,6 @@ export class Game {
       if (q.has('pitch')) this.fly.pitch = Number(q.get('pitch'));
     }
     if (q.has('chars')) this.debugLineup(q.get('chars') ?? '');
-    if (q.has('story')) {
-      const [c, st] = (q.get('story') ?? '0.0').split('.').map(Number);
-      this.story.load({ chapter: c, step: st || 0, flags: {} });
-    }
     this.started = q.has('save');
     this.mode = 'play';
   }
@@ -234,7 +231,7 @@ export class Game {
   // ---------------------------------------------------------------- saving
 
   save(manual = false): void {
-    if (!this.started || !this.story) return;
+    if (!this.started) return;
     const p = this.player.pos;
     const v = this.vehicles.driving;
     const pos = v ? { x: v.exitPoint().x, y: v.pos.y, z: v.exitPoint().z, yaw: v.heading } : { x: p.x, y: p.y, z: p.z, yaw: this.player.yaw };
@@ -247,7 +244,6 @@ export class Game {
       day: this.day,
       hours: this.hours,
       pos,
-      story: this.story.serialize(),
       businesses: this.business.serialize(),
       vehicles: this.vehicles.list.filter((c) => c.owned).map((c) => ({ id: c.id, def: c.def.id, color: c.color, x: c.pos.x, z: c.pos.z, heading: c.heading })),
       weapons: [...this.combat.owned],
@@ -277,9 +273,7 @@ export class Game {
     for (const w of s.weapons) if (!this.combat.owned.includes(w)) this.combat.owned.push(w);
     for (const w of this.combat.owned) this.combat.ammo[w] = 999;
     this.combat.ammo = Object.fromEntries(this.combat.owned.map((w) => [w, 99]));
-    this.story.load(s.story);
     for (const a of this.activities) if (a.load && s.activities?.[a.id] !== undefined) a.load(s.activities[a.id]);
-    this.world.bridge.setClosed(!this.story.finished);
     if ((this.stats.goldenChip ?? 0) > 0) this.world.base.takeChip(false);
     const y = this.world.groundY(s.pos.x, s.pos.z, s.pos.y + 1.5);
     this.player.teleport(s.pos.x, y, s.pos.z, s.pos.yaw);
@@ -320,11 +314,6 @@ export class Game {
     if (v?.opts.id === 'goldenViper') this.stats.viperNet = (this.stats.viperNet ?? 0) + net;
   }
 
-  setStoryWaypoint(wp: { x: number; z: number; label: string } | null): void {
-    this.storyWp = wp;
-    this.refreshWaypoint();
-  }
-
   setUserWaypoint(x: number, z: number, label: string): void {
     this.userWp = { x, z, label };
     this.refreshWaypoint();
@@ -337,7 +326,7 @@ export class Game {
   }
 
   private refreshWaypoint(): void {
-    const w = this.userWp ?? this.storyWp;
+    const w = this.userWp;
     if (!w) {
       if (this.waypoint.target) this.waypoint.clear();
       return;
@@ -356,6 +345,7 @@ export class Game {
       out.push({ x: v.door.x, z: v.door.z, icon: '🎰', color: '#b23cff', label: v.opts.name, big: full });
     }
     for (const s of this.shops) out.push({ x: s.door.x, z: s.door.z, icon: s.icon, color: '#2a6ad8', label: s.name, big: false });
+    out.push({ x: this.flat.door.x, z: this.flat.door.z, icon: '🏠', color: '#1f9a4c', label: 'Your flat', big: true });
     for (const b of this.business.owned) {
       const c = { x: (b.lot.x0 + b.lot.x1) / 2, z: (b.lot.z0 + b.lot.z1) / 2 };
       const def = BIZ.find((d) => d.type === b.save.type);
@@ -371,7 +361,7 @@ export class Game {
     }
     for (const c of this.vehicles.list) if (c.owned && c !== this.vehicles.driving) out.push({ x: c.pos.x, z: c.pos.z, icon: '🚗', color: '#3ddc84' });
     for (const a of this.activities) if (a.markers) out.push(...a.markers(full));
-    const w = this.userWp ?? this.storyWp;
+    const w = this.userWp;
     if (w) out.push({ x: w.x, z: w.z, icon: '★', color: '#ffb800', label: w.label, big: true });
     return out;
   }
@@ -381,11 +371,6 @@ export class Game {
     for (const b of this.business.owned) n += this.business.value(b);
     for (const c of this.vehicles.list) if (c.owned) n += vehicleDef(c.def.id).price;
     return n;
-  }
-
-  async finale(): Promise<void> {
-    await this.director.play((d) => playFinale(this, d));
-    this.save();
   }
 
   audioCue(name: string): void {
@@ -622,7 +607,7 @@ export class Game {
     }
     if (this.mode !== 'title') {
       this.combat.update(dt, this.canMove);
-      this.story.update(dt);
+      this.flat.update();
       this.business.update(dt);
       this.world.base.update(dt);
       this.crowd.update(dt);

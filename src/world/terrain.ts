@@ -1,6 +1,6 @@
-import { fbm, noise2, ridged } from '../core/noise';
+import { fbm, hash2, noise2, ridged } from '../core/noise';
 import { clamp, smoothstep } from '../core/math';
-import { CITY, CITY_Y, DOMAIN, LANDMARKS, OLD_TOWN, allRoads, cityLots, type Lot, type RoadDef } from './layout';
+import { CITY, CITY_Y, DESERT_TOWN, DOMAIN, LANDMARKS, NORTH_COAST, NORTH_TOWN, OLD_TOWN, allRoads, cityLots, thunderheadProfile, type Lot, type RoadDef } from './layout';
 
 /**
  * The island's height field: natural land (coast, hills, the volcano, the jungle ridge),
@@ -27,7 +27,63 @@ export interface RoadProfile {
   length: number;
 }
 
-/** Signed "distance" from the coast: < 1 on land, > 1 at sea (a warped ellipse). */
+// ------------------------------------------------------------------ the coast
+
+/** Polynomial smooth minimum: like min(a, b) but rounded where they are within k. */
+function smin(a: number, b: number, k: number): number {
+  const h = Math.max(k - Math.abs(a - b), 0) / k;
+  return Math.min(a, b) - h * h * k * 0.25;
+}
+
+/** Signed distance to a closed polygon (negative inside). */
+function polygonDistance(px: number, pz: number, poly: [number, number][]): number {
+  let best = Infinity;
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [ax, az] = poly[j];
+    const [bx, bz] = poly[i];
+    const dx = bx - ax;
+    const dz = bz - az;
+    const t = clamp(((px - ax) * dx + (pz - az) * dz) / (dx * dx + dz * dz), 0, 1);
+    const ex = ax + dx * t - px;
+    const ez = az + dz * t - pz;
+    best = Math.min(best, ex * ex + ez * ez);
+    if (az > pz !== bz > pz && px < ax + ((pz - az) / (bz - az)) * dx) inside = !inside;
+  }
+  return inside ? -Math.sqrt(best) : Math.sqrt(best);
+}
+
+/** Saguaro County's coast as a distance field on a coarse grid (built on first use). */
+const SDF = { x0: -6000, z0: -11200, x1: 5000, z1: 0, step: 25 };
+const SDF_NX = (SDF.x1 - SDF.x0) / SDF.step + 1;
+const SDF_NZ = (SDF.z1 - SDF.z0) / SDF.step + 1;
+let northField: Float32Array | null = null;
+
+function northSdf(x: number, z: number): number {
+  if (!northField) {
+    northField = new Float32Array(SDF_NX * SDF_NZ);
+    for (let j = 0; j < SDF_NZ; j++) {
+      for (let i = 0; i < SDF_NX; i++) northField[j * SDF_NX + i] = polygonDistance(SDF.x0 + i * SDF.step, SDF.z0 + j * SDF.step, NORTH_COAST);
+    }
+  }
+  const fx = (x - SDF.x0) / SDF.step;
+  const fz = (z - SDF.z0) / SDF.step;
+  if (fx < 0 || fz < 0 || fx >= SDF_NX - 1 || fz >= SDF_NZ - 1) return 5000;
+  const i = Math.floor(fx);
+  const j = Math.floor(fz);
+  const tx = fx - i;
+  const tz = fz - j;
+  const k = j * SDF_NX + i;
+  const f = northField;
+  const a = f[k] + (f[k + 1] - f[k]) * tx;
+  const b = f[k + SDF_NX] + (f[k + SDF_NX + 1] - f[k + SDF_NX]) * tx;
+  return a + (b - a) * tz;
+}
+
+/**
+ * Signed "distance" from the coast: < 1 on land, > 1 at sea. The old island is a warped
+ * ellipse; Saguaro County (a polygon) is merged onto its north shore with a smooth union.
+ */
 export function coastD(x: number, z: number): number {
   const wx = x + 380 * fbm(x / 2300 + 3.1, z / 2300 - 1.7, 3);
   const wz = z + 380 * fbm(x / 2300 - 7.3, z / 2300 + 5.2, 3);
@@ -38,8 +94,88 @@ export function coastD(x: number, z: number): number {
   const cityBand = (1 - smoothstep(1900, 2600, Math.abs(z + 100))) * smoothstep(1800, 2800, x);
   d = d * (1 - cityBand) + Math.max(Math.min(d, 0.9), east) * cityBand;
   // Small coves and headlands.
-  d += 0.035 * noise2(x / 520 + 11, z / 520 - 4);
+  const coves = 0.035 * noise2(x / 520 + 11, z / 520 - 4);
+  d += coves;
+  if (z < 0) {
+    // Fade the county out well south of its shore so the old island is untouched.
+    const north = 1 + northSdf(x + (wx - x) * 0.5, z + (wz - z) * 0.5) / 3400 + coves + 6 * smoothstep(-1400, 0, z);
+    d = smin(d, north, 0.06);
+  }
   return d;
+}
+
+// ------------------------------------------------------------------ Saguaro County
+
+/** The foothill range between the city and the desert (a crest line). */
+const RIDGE: [number, number][] = [[-3000, -3950], [-1800, -3800], [-600, -3750], [400, -3800], [1000, -3950]];
+
+function ridgeDistance(x: number, z: number): number {
+  let best = Infinity;
+  for (let k = 0; k < RIDGE.length - 1; k++) {
+    const [ax, az] = RIDGE[k];
+    const [bx, bz] = RIDGE[k + 1];
+    const dx = bx - ax;
+    const dz = bz - az;
+    const t = clamp(((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz), 0, 1);
+    best = Math.min(best, Math.hypot(ax + dx * t - x, az + dz * t - z));
+  }
+  return best;
+}
+
+/** How far into the desert basin a point is (0 at its heart, 1 at its rim). */
+export function basinRadius(x: number, z: number): number {
+  return Math.hypot((x - 300) / 2700, (z + 5350) / 1400) + 0.12 * noise2(x / 700 + 5, z / 700 - 2);
+}
+
+function ellipseDistance(x: number, z: number, cx: number, cz: number, a: number, b: number, rot: number): number {
+  const dx = x - cx;
+  const dz = z - cz;
+  const c = Math.cos(rot);
+  const s = Math.sin(rot);
+  return (Math.hypot((dx * c + dz * s) / a, (-dx * s + dz * c) / b) - 1) * b;
+}
+
+/** Signed distance from the salt lake's shore (negative in the water). */
+export function lakeDistance(x: number, z: number): number {
+  const L = LANDMARKS.lake;
+  const main = ellipseDistance(x, z, L.x, L.z, L.a, L.b, L.rot);
+  // A second lobe to the south-east, and a ragged shore of points and inlets.
+  const lobe = ellipseDistance(x, z, L.x + 820, L.z + 260, 520, 330, -0.45);
+  return smin(main, lobe, 160) + 70 * noise2(x / 520 + 2, z / 520 + 8) + 25 * noise2(x / 160 - 3, z / 160);
+}
+
+/** Desert biome weight: 1 in the valley's sand and scrub, 0 in green country. */
+export function aridity(x: number, z: number): number {
+  if (z > -2200) return 0;
+  const core = 1 - smoothstep(0.7, 1.2, basinRadius(x, z));
+  const dryHills = 0.45 * smoothstep(-2300, -3400, z);
+  return Math.max(core, dryHills) * (1 - forestness(x, z));
+}
+
+/** Pine country weight: 1 in the northern forests and on Mount Thunderhead. */
+export function forestness(x: number, z: number): number {
+  if (z > -4800) return 0;
+  const m = LANDMARKS.mountain;
+  const mount = 1 - smoothstep(1500, 2300, Math.hypot(x - m.x, z - m.z));
+  const north = smoothstep(-6500, -7500, z + 350 * noise2(x / 1300 + 4, z / 1300));
+  return Math.max(mount, north) * (1 - farmland(x, z));
+}
+
+/** Harvest Valley's fields: 1 inside the farmland. */
+export function farmland(x: number, z: number): number {
+  const fx = Math.max(1750 - x, 0, x - 3100);
+  const fz = Math.max(-7350 - z, 0, z + 5900);
+  return 1 - smoothstep(0, 160, Math.hypot(fx, fz) + 60 * noise2(x / 400, z / 400 + 3));
+}
+
+/** Which crop a field grows (-1 off the farmland): fields are 120 x 80 m strips. */
+export function fieldAt(x: number, z: number): number {
+  if (farmland(x, z) < 0.6) return -1;
+  const i = Math.floor((x - 1750) / 120);
+  const j = Math.floor((z + 7350) / 80);
+  // Leave tracks between the fields.
+  if ((x - 1750) - i * 120 < 4 || (z + 7350) - j * 80 < 4) return -1;
+  return Math.floor(hash2(i, j, 5) * 4);
 }
 
 /** Natural ground before any levelling. */
@@ -74,6 +210,59 @@ export function naturalHeight(x: number, z: number): number {
   // Palm Heights: rolling hills north of the city.
   const ph = Math.exp(-Math.pow((x - 2000) / 900, 2) - Math.pow((z + 2350) / 500, 2));
   h += ph * 45 * inland;
+  if (z < -2000) h = countyHeight(x, z, h, d, inland);
+  return h;
+}
+
+/**
+ * Saguaro County's relief on top of the rolling hills: the foothill range, Mount Thunderhead,
+ * forested hills in the north and sea cliffs, then the desert basin and the farmland levelled
+ * out of them, and the salt lake carved last.
+ */
+function countyHeight(x: number, z: number, h: number, d: number, inland: number): number {
+  // The foothill range.
+  if (z < -3000 && z > -4700) {
+    const r = ridgeDistance(x, z);
+    if (r < 1300) h += Math.exp(-Math.pow(r / 420, 2)) * inland * (140 + 170 * ridged(x / 480 + 2, z / 480 - 5, 3));
+  }
+  // Mount Thunderhead: a broad massif with ridged flanks and a sharp summit.
+  const m = LANDMARKS.mountain;
+  const rm = Math.hypot(x - m.x, z - m.z);
+  const cliffT = smoothstep(1.0, 0.93, d);
+  if (rm < 3200) {
+    const flank = Math.exp(-Math.pow(rm / 1000, 2));
+    h += cliffT * (thunderheadProfile(rm) + 170 * (ridged(x / 520 + 3, z / 520 - 7, 4) - 0.45) * flank * smoothstep(100, 650, rm));
+  }
+  // Forested hills across the north.
+  const nf = smoothstep(-6300, -7400, z);
+  if (nf > 0) {
+    const f = fbm(x / 1100 + 9, z / 1100 + 4, 4) * 0.5 + 0.5;
+    h += nf * inland * 150 * f * f;
+  }
+  // Sea cliffs along the west and north coasts (not at the beaches by the towns).
+  const westOrNorth = Math.max(smoothstep(-2900, -3400, x), smoothstep(-7900, -8400, z));
+  const townBeach = (1 - smoothstep(700, 1100, Math.abs(x - LANDMARKS.northTown.x))) * smoothstep(-7900, -8300, z);
+  const cliffs = smoothstep(-2800, -3600, z) * westOrNorth * (1 - townBeach);
+  if (cliffs > 0) h += cliffs * smoothstep(0.995, 0.97, d) * (30 + 30 * (noise2(x / 400 + 1, z / 400 + 6) * 0.5 + 0.5));
+  // The desert basin: a broad, low valley floor with a few flat-topped buttes.
+  const e = basinRadius(x, z);
+  if (e < 1) {
+    const D = 1 - smoothstep(0.62, 1.0, e);
+    let floor = 14 + 18 * (fbm(x / 2600 + 1, z / 2600 + 7, 2) * 0.5 + 0.5) + 70 * Math.pow(smoothstep(0.5, 1.0, e), 2);
+    const b = noise2(x / 420 + 17, z / 420 - 9);
+    if (b > 0.42) floor += 45 * smoothstep(0.42, 0.5, b) * smoothstep(500, 900, lakeDistance(x, z));
+    h += (floor - h) * D;
+  }
+  // Harvest Valley: gentle farmland.
+  const fm = farmland(x, z);
+  if (fm > 0) h += (24 + 10 * fbm(x / 1800 + 4, z / 1800, 2) - h) * fm * 0.9;
+  // Alkali Lake: a shallow salt lake at sea level, ringed by salt flats.
+  const sd = lakeDistance(x, z);
+  if (sd < 0) h = Math.min(h, -1.2 - 10 * smoothstep(0, 420, -sd));
+  else if (sd < 700) {
+    const cap = Math.min(h, 0.7 + 21 * Math.pow(smoothstep(0, 700, sd), 1.3));
+    h = cap + (h - cap) * smoothstep(450, 700, sd);
+  }
   return h;
 }
 
@@ -89,11 +278,34 @@ interface FlatZone {
 
 export function flatZones(): FlatZone[] {
   const b = LANDMARKS.base;
+  const { port, marina, airstrip } = LANDMARKS;
   return [
     { x0: CITY.minX, x1: CITY.maxX, z0: CITY.minZ, z1: CITY.maxZ, y: CITY_Y, blend: 260, surface: Surface.Pavement },
     { x0: b.x - b.w / 2, x1: b.x + b.w / 2, z0: b.z - b.d / 2, z1: b.z + b.d / 2, y: 14, blend: 220, surface: Surface.Dirt },
     { x0: OLD_TOWN.x0 - 60, x1: OLD_TOWN.x1 + 60, z0: OLD_TOWN.z - 90, z1: OLD_TOWN.z + 80, y: 4.5, blend: 120, surface: Surface.Lawn },
+    { x0: port.x0, x1: port.x1, z0: port.z0, z1: port.z1, y: port.y, blend: 140, surface: Surface.Tarmac },
+    { x0: marina.x0, x1: marina.x1, z0: marina.z0, z1: marina.z1, y: marina.y, blend: 70, surface: Surface.Pavement },
+    { x0: DESERT_TOWN.x0 - 160, x1: DESERT_TOWN.x1 + 160, z0: DESERT_TOWN.z - 130, z1: DESERT_TOWN.z + 110, y: DESERT_TOWN.y, blend: 180, surface: Surface.Natural },
+    { x0: airstrip.x0, x1: airstrip.x1, z0: airstrip.z0, z1: airstrip.z1, y: DESERT_TOWN.y + 1, blend: 120, surface: Surface.Dirt },
+    { x0: NORTH_TOWN.x0 - 260, x1: NORTH_TOWN.x1 + 260, z0: NORTH_TOWN.z - 110, z1: NORTH_TOWN.z + 110, y: NORTH_TOWN.y, blend: 160, surface: Surface.Natural },
   ];
+}
+
+/** Dredged water: the port's berth and the marina's basin (deepened, never raised). */
+export function waterZones(): FlatZone[] {
+  const { port, marina } = LANDMARKS;
+  return [
+    { x0: port.x1, x1: port.x1 + 340, z0: port.z0 - 60, z1: port.z1 + 80, y: -port.depth, blend: 220, surface: Surface.Natural },
+    { x0: marina.basin.x0, x1: marina.basin.x1, z0: marina.basin.z0, z1: marina.basin.z1, y: -marina.depth, blend: 120, surface: Surface.Natural },
+  ];
+}
+
+/** Ground height of a lot's district when it's a levelled town (null on the city grid). */
+export function townY(l: Lot): number | null {
+  if (l.district === 'oldtown') return 4.5;
+  if (l.district === 'desert') return DESERT_TOWN.y;
+  if (l.district === 'north') return NORTH_TOWN.y;
+  return null;
 }
 
 export class Terrain {
@@ -113,6 +325,7 @@ export class Terrain {
     this.surface = new Uint8Array(this.nx * this.nz);
     this.generateNatural();
     this.applyFlatZones();
+    this.applyWaterZones();
     for (const r of allRoads()) this.roads.push(this.profile(r));
     this.carveRoads();
     this.lots = cityLots();
@@ -143,6 +356,20 @@ export class Terrain {
         if (h < -0.5 && dd > 0) return;
         this.heights[idx] = h + (f.y - h) * w;
         if (w > 0.98) this.surface[idx] = f.surface;
+      });
+    }
+  }
+
+  private applyWaterZones(): void {
+    for (const f of waterZones()) {
+      this.forCells(f.x0 - f.blend, f.x1 + f.blend, f.z0 - f.blend, f.z1 + f.blend, (idx, x, z) => {
+        const dx = Math.max(f.x0 - x, 0, x - f.x1);
+        const dz = Math.max(f.z0 - z, 0, z - f.z1);
+        const dd = Math.hypot(dx, dz);
+        const h = this.heights[idx];
+        // Inside: dug out. Around it, only the sea floor slopes down to meet it (quay walls stay).
+        if (dd === 0) this.heights[idx] = Math.min(h, f.y);
+        else if (h < -0.5) this.heights[idx] = Math.min(h, h + (f.y - h) * (1 - smoothstep(0, f.blend, dd)));
       });
     }
   }
@@ -320,11 +547,11 @@ export class Terrain {
     for (const l of this.lots) {
       const cx = (l.x0 + l.x1) / 2;
       const cz = (l.z0 + l.z1) / 2;
-      const y = l.district === 'oldtown' ? 4.5 : this.gridStreetY(cx, l.front === 'N' ? l.z0 : l.front === 'S' ? l.z1 : cz);
+      const y = townY(l) ?? this.gridStreetY(cx, l.front === 'N' ? l.z0 : l.front === 'S' ? l.z1 : cz);
       const fy = Math.round((y + 0.25) * 10) / 10;
       this.lotY.set(l.id, fy);
       const blend = 14;
-      const green = l.district === 'heights' || l.district === 'oldtown' || l.district === 'beach';
+      const green = l.district === 'heights' || l.district === 'oldtown' || l.district === 'beach' || l.district === 'north';
       this.forCells(l.x0 - blend, l.x1 + blend, l.z0 - blend, l.z1 + blend, (idx, x, z) => {
         const dx = Math.max(l.x0 - x, 0, x - l.x1);
         const dz = Math.max(l.z0 - z, 0, z - l.z1);
@@ -332,7 +559,7 @@ export class Terrain {
         const w = 1 - smoothstep(0, blend, dd);
         if (w <= 0) return;
         this.heights[idx] += (fy - this.heights[idx]) * w;
-        if (w > 0.99) this.surface[idx] = green ? Surface.Lawn : Surface.Pavement;
+        if (w > 0.99) this.surface[idx] = green ? Surface.Lawn : l.district === 'desert' ? Surface.Dirt : Surface.Pavement;
       });
     }
   }
