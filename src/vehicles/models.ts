@@ -8,7 +8,7 @@ import { Kit } from '../render/kit';
  * merged meshes plus four wheels.
  */
 
-export type VehicleClass = 'compact' | 'sedan' | 'sports' | 'muscle' | 'suv' | 'pickup' | 'van' | 'limo' | 'buggy' | 'super' | 'jeep' | 'tank' | 'police' | 'taxi' | 'convertible';
+export type VehicleClass = 'compact' | 'sedan' | 'sports' | 'muscle' | 'suv' | 'pickup' | 'van' | 'limo' | 'buggy' | 'super' | 'jeep' | 'tank' | 'police' | 'taxi' | 'convertible' | 'boat';
 
 export interface VehicleDef {
   id: string;
@@ -51,6 +51,8 @@ export const VEHICLES: VehicleDef[] = [
   { id: 'super', name: 'Golden Hypercar', cls: 'super', price: 900000, L: 4.6, W: 2.05, belt: 0.78, roof: 1.12, clearance: 0.1, wheelR: 0.36, cabin: [0.36, 0.62], rake: [0.5, 0.7], color: 0xf2c230, top: 95, accel: 18, grip: 0.95, seats: 2, engine: 'sport', extras: ['wing', 'scoop'] },
   { id: 'police', name: 'Interceptor', cls: 'police', price: 0, L: 4.8, W: 1.9, belt: 0.95, roof: 1.45, clearance: 0.16, wheelR: 0.34, cabin: [0.28, 0.7], rake: [0.35, 0.4], color: 0xf4f4f6, top: 62, accel: 11, grip: 0.86, seats: 4, engine: 'v8', extras: ['lightbar', 'bullbar'], stripe: 0x15151a },
   { id: 'jeep', name: 'Army Jeep', cls: 'jeep', price: 0, L: 4.0, W: 1.9, belt: 1.05, roof: 1.75, clearance: 0.32, wheelR: 0.4, cabin: [0.25, 0.65], rake: [0.02, 0.15], color: 0x5d6b3a, top: 46, accel: 8, grip: 0.82, seats: 4, engine: 'diesel', extras: ['openTop', 'snorkel'] },
+  { id: 'speedboat', name: 'Sea Dart', cls: 'boat', price: 0, L: 6.4, W: 2.3, belt: 0.75, roof: 1.5, clearance: 0, wheelR: 0.3, cabin: [0.35, 0.62], rake: [0.3, 0.3], color: 0xff4f5a, top: 32, accel: 8, grip: 0.6, seats: 4, engine: 'sport' },
+  { id: 'cruiser', name: 'Coral Cruiser', cls: 'boat', price: 0, L: 9.5, W: 3.2, belt: 1.0, roof: 2.6, clearance: 0, wheelR: 0.3, cabin: [0.3, 0.7], rake: [0.3, 0.3], color: 0xf4f4f6, top: 24, accel: 5, grip: 0.55, seats: 6, engine: 'diesel' },
   { id: 'tank', name: 'Rhino Tank', cls: 'tank', price: 0, L: 7.2, W: 3.4, belt: 1.5, roof: 2.4, clearance: 0.3, wheelR: 0.42, cabin: [0.3, 0.7], rake: [0.2, 0.2], color: 0x5d6b3a, top: 22, accel: 4, grip: 0.98, seats: 2, engine: 'tank', extras: ['turret'] },
 ];
 
@@ -149,7 +151,86 @@ function wheelModel(r: number, w: number, rim: number, tank = false): THREE.Grou
   return g.clone();
 }
 
+/**
+ * A boat, in the same frame as the cars (+x forward, z across, y up) with the waterline at
+ * y = 0: a pointed hull with a white deck and a stripe, a windscreen, seats and an outboard
+ * motor; the cruiser gets a cabin with portholes and a flybridge rail.
+ */
+function buildBoat(d: VehicleDef, color: number): BuiltVehicle {
+  const k = new Kit();
+  const glow = new Kit();
+  const L = d.L;
+  const W = d.W;
+  const big = d.id === 'cruiser';
+  // Plan view of the hull: square stern, straight sides, a curved pointed bow.
+  const plan = (s: number): THREE.Shape => {
+    const sh = new THREE.Shape();
+    const hw = (W / 2) * s;
+    const x0 = -L / 2;
+    const x1 = L / 2;
+    sh.moveTo(x0, -hw);
+    sh.lineTo(x0 + L * 0.5, -hw);
+    sh.quadraticCurveTo(x1 - L * 0.08, -hw * 0.9, x1, 0);
+    sh.quadraticCurveTo(x1 - L * 0.08, hw * 0.9, x0 + L * 0.5, hw);
+    sh.lineTo(x0, hw);
+    sh.closePath();
+    return sh;
+  };
+  const up = { rx: -Math.PI / 2 };
+  const hullTop = big ? 0.9 : 0.62;
+  // Lower hull (narrower: a V-ish bottom), upper hull in the boat's colour, a stripe, the deck.
+  k.extrude(plan(0.78), 0.4, shade(color, 0.7), { ...up, y: -0.3 }, 'shiny', 0, 12);
+  k.extrude(plan(1), hullTop + 0.1, color, { ...up, y: (hullTop - 0.1) / 2 }, 'shiny', 0.04, 16);
+  k.extrude(plan(1.012), 0.1, 0xffffff, { ...up, y: hullTop * 0.55 }, 'shiny', 0, 16);
+  k.extrude(plan(0.94), 0.06, 0xf4efe6, { ...up, y: hullTop + 0.03 }, 'matte', 0, 16);
+  // Rub rail and bow rail.
+  k.box(L * 0.7, 0.05, 0.05, 0xd8dce4, { x: -L * 0.1, y: hullTop + 0.35, z: W / 2 - 0.12 }, 'shiny');
+  k.box(L * 0.7, 0.05, 0.05, 0xd8dce4, { x: -L * 0.1, y: hullTop + 0.35, z: -W / 2 + 0.12 }, 'shiny');
+  if (!big) {
+    // Speedboat: windscreen, two rows of seats, an outboard on the transom.
+    const wx = L * 0.08;
+    k.box(0.06, 0.45, W * 0.8, 0x1a2a3c, { x: wx, y: hullTop + 0.28, rz: 0.5 }, 'glass');
+    k.box(0.5, 0.35, W * 0.84, color, { x: wx + 0.25, y: hullTop + 0.12 }, 'shiny');
+    for (const sx of [-0.6, -1.6]) {
+      for (const sz of [-0.45, 0.45]) {
+        k.rbox(0.55, 0.3, 0.6, 0.08, 0xf4f4f4, { x: sx, y: hullTop + 0.2, z: sz }, 'matte');
+        k.rbox(0.15, 0.55, 0.6, 0.06, 0xf4f4f4, { x: sx - 0.3, y: hullTop + 0.4, z: sz }, 'matte');
+      }
+    }
+    k.cyl(0.18, 0.18, 0.06, 0x2a2a2e, { x: wx - 0.35, y: hullTop + 0.55, z: -0.45, rz: 1.1 }, 'shiny', 14);
+    k.rbox(0.5, 0.7, 0.45, 0.08, 0x2a2a2e, { x: -L / 2 - 0.2, y: hullTop + 0.05 }, 'shiny');
+    k.box(0.12, 0.8, 0.15, 0x3a3a3e, { x: -L / 2 - 0.3, y: -0.2 }, 'shiny');
+    k.rbox(0.42, 0.18, 0.3, 0.06, shade(color, 0.85), { x: -L / 2 - 0.2, y: hullTop + 0.45 }, 'shiny');
+  } else {
+    // Cruiser: a cabin with portholes, a flybridge on top with its rail, a swim platform.
+    const cx0 = -L * 0.25;
+    const cx1 = L * 0.18;
+    k.rbox(cx1 - cx0, 1.0, W * 0.78, 0.15, 0xf4f4f6, { x: (cx0 + cx1) / 2, y: hullTop + 0.55 }, 'shiny');
+    k.box(0.06, 0.7, W * 0.7, 0x1a2a3c, { x: cx1 + 0.05, y: hullTop + 0.6, rz: 0.45 }, 'glass');
+    for (const s of [-1, 1]) {
+      for (let i = 0; i < 3; i++) glow.cyl(0.12, 0.12, 0.04, 0xbfe6ff, { x: cx0 + 0.6 + i * 0.9, y: hullTop + 0.6, z: s * W * 0.39, rx: Math.PI / 2 }, 'glow', 10);
+      k.box(cx1 - cx0, 0.05, 0.05, 0xd8dce4, { x: (cx0 + cx1) / 2, y: hullTop + 1.55, z: s * W * 0.36 }, 'shiny');
+    }
+    k.box(cx1 - cx0, 0.08, W * 0.75, 0xe8e2d6, { x: (cx0 + cx1) / 2, y: hullTop + 1.08 }, 'matte');
+    k.rbox(0.8, 0.5, 0.6, 0.08, 0x2a2a2e, { x: cx1 - 0.6, y: hullTop + 1.35 }, 'shiny');
+    k.box(1.2, 0.1, W * 0.9, 0xc8a878, { x: -L / 2 - 0.5, y: 0.25 }, 'matte');
+  }
+  // Navigation lights: red to port (left: -z here), green to starboard.
+  glow.sphere(0.06, 0xff3030, { x: L * 0.3, y: hullTop + 0.15, z: -W / 2 + 0.05 }, 'glow');
+  glow.sphere(0.06, 0x30ff60, { x: L * 0.3, y: hullTop + 0.15, z: W / 2 - 0.05 }, 'glow');
+  const body = new THREE.Group();
+  body.add(k.bake({ shadows: true }));
+  const gl = glow.bake();
+  body.add(gl);
+  const seatsLocal = big
+    ? [new THREE.Vector3(L * 0.12, hullTop + 1.2, -0.3), new THREE.Vector3(L * 0.05, hullTop + 1.2, 0.4), new THREE.Vector3(-L * 0.35, hullTop + 0.1, -0.6), new THREE.Vector3(-L * 0.35, hullTop + 0.1, 0.6)]
+    : [new THREE.Vector3(-0.6, hullTop + 0.1, -0.45), new THREE.Vector3(-0.6, hullTop + 0.1, 0.45), new THREE.Vector3(-1.6, hullTop + 0.1, -0.45), new THREE.Vector3(-1.6, hullTop + 0.1, 0.45)];
+  const driverEye = new THREE.Vector3(seatsLocal[0].x - 0.1, seatsLocal[0].y + 0.75, seatsLocal[0].z);
+  return { body, wheels: [], wheelPos: [], lights: gl.children as THREE.Mesh[], driverEye, seatsLocal };
+}
+
 export function buildVehicle(d: VehicleDef, color = d.color): BuiltVehicle {
+  if (d.cls === 'boat') return buildBoat(d, color);
   const k = new Kit();
   const glow = new Kit();
   const L = d.L;

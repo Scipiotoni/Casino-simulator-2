@@ -15,6 +15,8 @@ export interface BodyParts {
   lo: THREE.BufferGeometry;
   face: THREE.BufferGeometry;
   skirt: THREE.BufferGeometry;
+  /** Rigid pieces that ride on the head: 'Hair_<style>', 'Hat_<name>' and their '_lo' copies. */
+  extras: Map<string, THREE.BufferGeometry>;
 }
 
 const parts: Partial<Record<'m' | 'f', BodyParts>> = {};
@@ -33,17 +35,65 @@ export async function loadBodies(boneIndex: (name: string) => number): Promise<v
       const gltf = await loader.loadAsync(url);
       gltf.scene.updateMatrixWorld(true);
       const found: Record<string, THREE.BufferGeometry> = {};
+      const extras = new Map<string, THREE.BufferGeometry>();
       gltf.scene.traverse((o) => {
         const m = o as THREE.SkinnedMesh;
-        if (!m.isSkinnedMesh) return;
-        found[m.name] = toModelSpace(m, boneIndex);
+        if (m.isSkinnedMesh) found[m.name] = toModelSpace(m, boneIndex);
+        else if ((o as THREE.Mesh).isMesh) extras.set(o.name, rigidModelSpace(o as THREE.Mesh));
       });
       const need = ['Body', 'BodyLow', 'Face', 'Skirt'];
       for (const n of need) if (!found[n]) throw new Error(`body_${key}.glb has no ${n}`);
-      parts[key] = { hi: found.Body, lo: found.BodyLow, face: found.Face, skirt: found.Skirt };
+      parts[key] = { hi: found.Body, lo: found.BodyLow, face: found.Face, skirt: found.Skirt, extras };
     }),
   );
 }
+
+/** A rigid piece (hair, a hat) in the character's model space: positions, normals and region UVs. */
+function rigidModelSpace(m: THREE.Mesh): THREE.BufferGeometry {
+  const g = new THREE.BufferGeometry();
+  const src = m.geometry;
+  g.setAttribute('position', src.getAttribute('position').clone());
+  g.setAttribute('normal', src.getAttribute('normal').clone());
+  const uv = src.getAttribute('uv');
+  if (uv) g.setAttribute('uv', uv.clone());
+  if (src.index) g.setIndex(src.index.clone());
+  g.applyMatrix4(m.matrixWorld);
+  return g;
+}
+
+/**
+ * How far forward the body's surface comes at (x, y) in the rest pose (for setting ties,
+ * buckles and bow ties on it). Cast along -z against the full-detail body.
+ */
+export function frontAt(f: boolean, x: number, y: number): number {
+  const key = `${f ? 'f' : 'm'}:${x.toFixed(3)}:${y.toFixed(3)}`;
+  const hit = fronts.get(key);
+  if (hit !== undefined) return hit;
+  const g = bodyParts(f).hi;
+  const pos = g.getAttribute('position');
+  const idx = g.index;
+  const n = idx ? idx.count : pos.count;
+  let best = 0;
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  for (let i = 0; i < n; i += 3) {
+    a.fromBufferAttribute(pos, idx ? idx.getX(i) : i);
+    b.fromBufferAttribute(pos, idx ? idx.getX(i + 1) : i + 1);
+    c.fromBufferAttribute(pos, idx ? idx.getX(i + 2) : i + 2);
+    // Barycentric coordinates of (x, y) in the triangle's projection on the xy plane.
+    const d = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
+    if (Math.abs(d) < 1e-12) continue;
+    const u = ((b.y - c.y) * (x - c.x) + (c.x - b.x) * (y - c.y)) / d;
+    const v = ((c.y - a.y) * (x - c.x) + (a.x - c.x) * (y - c.y)) / d;
+    const w = 1 - u - v;
+    if (u < 0 || v < 0 || w < 0) continue;
+    best = Math.max(best, u * a.z + v * b.z + w * c.z);
+  }
+  fronts.set(key, best);
+  return best;
+}
+const fronts = new Map<string, number>();
 
 /** A skinned mesh's geometry in the character's model space, with skin indices in game order. */
 function toModelSpace(m: THREE.SkinnedMesh, boneIndex: (name: string) => number): THREE.BufferGeometry {

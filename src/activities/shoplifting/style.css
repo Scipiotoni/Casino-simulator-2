@@ -1,0 +1,26 @@
+/* Shoplifting: the clerk's mood, your pockets and the stolen goods in your bag. */
+.lift-hud {
+  position: absolute;
+  top: 92px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  background: rgba(14, 16, 28, 0.78);
+  color: #fff;
+  font: 600 14px/1.3 'Nunito', sans-serif;
+  pointer-events: none;
+  text-align: center;
+  z-index: 5;
+}
+.lift-hud.on { display: flex; }
+.lift-hud b { font-size: 15px; }
+.lift-hud b.watch { color: #ff7a6a; }
+.lift-hud b.busy { color: #7fe08a; }
+.lift-hud span { color: #e8e2d6; font-size: 13px; }
+.lift-bar { width: 180px; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.15); overflow: hidden; }
+.lift-bar i { display: block; height: 100%; background: linear-gradient(90deg, #f2c230, #ff7a1a); }

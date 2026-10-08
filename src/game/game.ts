@@ -21,6 +21,8 @@ import { VehicleSystem } from './vehicles';
 import { BusinessSystem } from '../business/business';
 import { FloorEditor } from '../business/floorEditor';
 import { Combat } from '../combat/combat';
+import { buildGun } from '../combat/gunModel';
+import { gunDef } from '../combat/guns';
 import { FortHammerhead } from '../world/base';
 import { Crowd } from '../world/crowd';
 import { Traffic } from '../world/traffic';
@@ -91,7 +93,8 @@ export class Game {
   private realDt = 0;
   private tmpV = new THREE.Vector3();
   private tmpE = new THREE.Vector3();
-  private started = false;
+  /** Past the title screen (a game is loaded or started). */
+  started = false;
   private saveT = 30;
   private titleT = 0;
   private userWp: { x: number; z: number; label: string } | null = null;
@@ -534,6 +537,7 @@ export class Game {
         an.pose = 'idle';
         an.speed = 6;
       }
+      if (pose === 'aimPistol' || pose === 'aimRifle') m.attach(buildGun(gunDef(pose === 'aimRifle' ? 'rifle' : 'pistol')).group);
       m.setExpression((['happy', 'grin', 'neutral', 'smirk', 'surprised', 'angry', 'sad', 'wink'] as const)[i % 8]);
       this.debugAnims.push(an);
     });

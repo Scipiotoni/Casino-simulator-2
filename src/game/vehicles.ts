@@ -93,16 +93,43 @@ export class VehicleSystem {
     v.driver = null;
     this.driving = null;
     audio.engine(null);
-    const out = v.exitPoint();
+    const out = v.isBoat ? this.landing(v) : v.exitPoint();
     const p = g.player;
     p.mode = 'walk';
     p.poseOverride = null;
     p.setVisible(true);
-    p.teleport(out.x, g.world.groundY(out.x, out.z, v.pos.y + 1), out.z, v.heading);
+    p.teleport(out.x, v.isBoat ? out.y : g.world.groundY(out.x, out.z, v.pos.y + 1), out.z, v.heading);
     g.camera.mode = p.firstPerson ? 'first' : 'third';
     g.camera.yaw = v.heading + Math.PI;
     this.addBlocker(v);
     g.interactions.move(`car:${v.id}`, v.pos.x, v.pos.y, v.pos.z);
+  }
+
+  /** Getting off a boat: onto the nearest pier, jetty or beach within a few steps, else into the water. */
+  private landing(v: Vehicle): THREE.Vector3 {
+    const w = this.game.world;
+    let best: THREE.Vector3 | null = null;
+    let bestD = Infinity;
+    for (let r = v.def.W / 2 + 1; r <= v.def.W / 2 + 4.5; r += 1) {
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2;
+        const x = v.pos.x + Math.sin(a) * r;
+        const z = v.pos.z + Math.cos(a) * r;
+        const y = w.groundY(x, z, 4);
+        if (y < -0.2 || y > 4) continue;
+        const q = { x, z };
+        if (w.collision.resolve(q, 0.35, y + 0.1, 1.6)) continue;
+        if (r < bestD) {
+          bestD = r;
+          best = new THREE.Vector3(x, y, z);
+        }
+      }
+      if (best) break;
+    }
+    if (best) return best;
+    // Nowhere to step: over the side and swim.
+    const e = v.exitPoint();
+    return e.set(e.x, -1.25, e.z);
   }
 
   readInput(): DriveInput {

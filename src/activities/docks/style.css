@@ -1,0 +1,23 @@
+/* Docks: the cargo run's timer. */
+.dock-hud {
+  position: absolute;
+  top: 92px;
+  right: 290px;
+  display: none;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  background: rgba(14, 16, 28, 0.78);
+  color: #fff;
+  font: 600 14px/1.3 'Nunito', sans-serif;
+  pointer-events: none;
+  z-index: 5;
+}
+.dock-hud.on { display: flex; }
+.dock-hud span { font: 400 26px/1 'Lilita One', sans-serif; color: #ffd23d; }
+.dock-hud span.late { color: #ff6a5a; }
+@media (max-width: 700px) {
+  .dock-hud { right: 12px; top: 170px; }
+}

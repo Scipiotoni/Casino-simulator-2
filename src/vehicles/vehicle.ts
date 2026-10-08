@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { buildVehicle, vehicleDef, type BuiltVehicle, type VehicleDef } from './models';
 import type { World } from '../game/world';
 import { clamp, dampAngle } from '../core/math';
+import { SEA_LEVEL } from '../world/terrain';
 
 export interface DriveInput {
   throttle: number;
@@ -67,8 +68,17 @@ export class Vehicle {
     return new THREE.Vector3(Math.sin(this.heading), 0, Math.cos(this.heading));
   }
 
+  get isBoat(): boolean {
+    return this.def.cls === 'boat';
+  }
+
   update(dt: number, input: DriveInput | null, world: World): number {
     let impact = 0;
+    if (this.isBoat) {
+      if (!this.scripted) impact = this.sail(dt, input, world);
+      this.sync(dt, world);
+      return impact;
+    }
     if (!this.scripted) {
       const d = this.def;
       const inp = input ?? { throttle: 0, steer: 0, handbrake: !this.driver, boost: false };
@@ -140,8 +150,86 @@ export class Vehicle {
     return impact;
   }
 
+  /**
+   * Boats: a lively arcade hull. Planes up as it speeds up (the bow lifts), turns better with
+   * speed, slides through turns, and runs aground in the shallows or bumps off quays and ships.
+   */
+  private sail(dt: number, input: DriveInput | null, world: World): number {
+    const d = this.def;
+    const inp = input ?? { throttle: 0, steer: 0, handbrake: false, boost: false };
+    const top = d.top * (inp.boost && this.boost > 0 ? 1.25 : 1);
+    if (inp.boost && this.boost > 0 && inp.throttle > 0) this.boost = Math.max(0, this.boost - dt * 0.25);
+    else this.boost = Math.min(1, this.boost + dt * 0.05);
+    if (inp.throttle > 0) this.speed += d.accel * inp.throttle * (1 - Math.max(0, this.speed) / top) * dt;
+    else if (inp.throttle < 0) this.speed = Math.max(-6, this.speed - d.accel * (this.speed > 0 ? 1.2 : 0.6) * dt);
+    // Water drag: boats coast, then settle.
+    this.speed -= Math.sign(this.speed) * Math.min(Math.abs(this.speed), (0.6 + Math.abs(this.speed) * 0.035) * dt);
+    this.steer += (inp.steer * 0.6 - this.steer) * Math.min(1, dt * 4);
+    const spd = Math.abs(this.speed);
+    const turn = this.steer * (0.35 + Math.min(1, spd / 12) * 0.75) * (this.speed < -0.3 ? -1 : 1);
+    this.heading -= turn * dt;
+    this.side += turn * this.speed * 0.12 * dt;
+    this.side -= this.side * Math.min(1, 1.4 * dt);
+    this.skid = clamp(Math.abs(this.side) / 5, 0, 1);
+    const fx = Math.sin(this.heading);
+    const fz = Math.cos(this.heading);
+    const p = { x: this.pos.x + (fx * this.speed - fz * this.side) * dt, z: this.pos.z + (fz * this.speed + fx * this.side) * dt };
+    let impact = 0;
+    // Quays, ships and piers.
+    let hit = false;
+    for (const k of [-0.3, 0.3]) {
+      const cx = p.x + fx * d.L * k;
+      const cz = p.z + fz * d.L * k;
+      const q = { x: cx, z: cz };
+      if (world.collision.resolve(q, d.W * 0.5, SEA_LEVEL - 0.3, 1.6, `veh:${this.id}`)) {
+        hit = true;
+        p.x += q.x - cx;
+        p.z += q.z - cz;
+      }
+    }
+    // Aground: the bow (or the middle) in water too shallow to float in.
+    const shallow = (x: number, z: number) => world.terrain.heightAt(x, z) > SEA_LEVEL - 0.7;
+    if (shallow(p.x + fx * d.L * 0.45, p.z + fz * d.L * 0.45) || shallow(p.x, p.z)) {
+      hit = true;
+      p.x = this.pos.x;
+      p.z = this.pos.z;
+    }
+    if (hit) {
+      impact = spd;
+      this.speed *= -0.2;
+      this.side *= 0.3;
+    }
+    this.pos.x = p.x;
+    this.pos.z = p.z;
+    this.rpm = clamp(spd / d.top, 0, 1);
+    return impact;
+  }
+
+  private bobT = Math.random() * 10;
+
+  /** Float on the swell: pitch with speed (planing), roll into turns. */
+  private float(dt: number): void {
+    this.bobT += dt;
+    const t = this.bobT;
+    this.pos.y = SEA_LEVEL + Math.sin(t * 1.6) * 0.05 + Math.sin(t * 0.7 + 1) * 0.04;
+    const plane = clamp(Math.abs(this.speed) * 0.006, 0, 0.11) * Math.sign(this.speed || 1);
+    const k = Math.min(1, dt * 3 + (this.scripted ? 1 : 0));
+    this.pitch += (plane + Math.sin(t * 1.3) * 0.02 - this.pitch) * k;
+    this.roll += (clamp(this.steer * this.speed * 0.02, -0.18, 0.18) + Math.sin(t * 1.1 + 2) * 0.025 - this.roll) * k;
+    this.root.position.copy(this.pos);
+    this.root.rotation.set(0, 0, 0);
+    this.root.rotation.order = 'YXZ';
+    this.root.rotation.y = this.heading - Math.PI / 2;
+    this.root.rotation.z = this.pitch;
+    this.root.rotation.x = this.roll;
+  }
+
   /** Follow the ground: height, pitch and roll from the wheels; update the model. */
   sync(dt: number, world: World): void {
+    if (this.isBoat) {
+      this.float(dt);
+      return;
+    }
     const d = this.def;
     const fx = Math.sin(this.heading);
     const fz = Math.cos(this.heading);
