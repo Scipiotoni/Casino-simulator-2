@@ -19,7 +19,8 @@ import type { Quality } from '../render/renderer';
 export class GameUI {
   constructor(private g: Game) {}
 
-  private open(opts: ConstructorParameters<typeof Panel>[1]): Panel {
+  /** Open a modal panel (pauses movement until it closes). Activities use this for their own menus. */
+  panel(opts: ConstructorParameters<typeof Panel>[1]): Panel {
     const g = this.g;
     g.enterMenu();
     const onClose = opts.onClose;
@@ -33,7 +34,7 @@ export class GameUI {
   }
 
   confirm(title: string, text: string, yes: string, onYes: () => void, danger = false): void {
-    const p = this.open({ title });
+    const p = this.panel({ title });
     p.body.appendChild(el('div', 'ptext', esc(text)));
     p.footer.append(
       btn('Cancel', '', () => p.close()),
@@ -48,7 +49,7 @@ export class GameUI {
 
   lotPanel(l: Lot): void {
     const g = this.g;
-    const p = this.open({ title: 'Lot for sale', subtitle: `${l.street} · ${districtName(l.district)}`, accent: '#3ddc84' });
+    const p = this.panel({ title: 'Lot for sale', subtitle: `${l.street} · ${districtName(l.district)}`, accent: '#3ddc84' });
     p.body.append(
       row('Price', money(l.price)),
       row('Size', `${Math.round(lotArea(l)).toLocaleString('en-US')} m²  (${Math.round(l.x1 - l.x0)} × ${Math.round(l.z1 - l.z0)} m)`),
@@ -71,7 +72,7 @@ export class GameUI {
     const g = this.g;
     let filter = 'all';
     let sort: 'price' | 'size' = 'price';
-    const p = this.open({ title: 'Paradise Realty', subtitle: 'Every lot for sale on Jackpot Island', wide: true, accent: '#3ddc84' });
+    const p = this.panel({ title: 'Paradise Realty', subtitle: 'Every lot for sale on Jackpot Island', wide: true, accent: '#3ddc84' });
     const bar = el('div', 'pfilters');
     const list = el('div', 'pgrid');
     const render = () => {
@@ -112,7 +113,7 @@ export class GameUI {
   /** A lot picked from the realty listing: buy it here, or mark it on the map. */
   private lotOffer(l: Lot): void {
     const g = this.g;
-    const p = this.open({ title: l.street, subtitle: districtName(l.district), accent: '#3ddc84' });
+    const p = this.panel({ title: l.street, subtitle: districtName(l.district), accent: '#3ddc84' });
     p.body.append(row('Price', money(l.price)), row('Size', `${Math.round(lotArea(l)).toLocaleString('en-US')} m²`));
     const c = { x: (l.x0 + l.x1) / 2, z: (l.z0 + l.z1) / 2 };
     p.footer.append(
@@ -137,7 +138,7 @@ export class GameUI {
     const l = b.lot;
     let pick: BizType | null = null;
     let name = '';
-    const p = this.open({ title: 'What will you build?', subtitle: `${l.street} · ${districtName(l.district)} · ${Math.round(lotArea(l)).toLocaleString('en-US')} m²`, wide: true, accent: '#ffd23d' });
+    const p = this.panel({ title: 'What will you build?', subtitle: `${l.street} · ${districtName(l.district)} · ${Math.round(lotArea(l)).toLocaleString('en-US')} m²`, wide: true, accent: '#ffd23d' });
     const grid = el('div', 'pgrid');
     const nameRow = el('div', 'pname');
     const input = el('input', 'pinput') as HTMLInputElement;
@@ -198,7 +199,7 @@ export class GameUI {
     const g = this.g;
     const s = b.save;
     const d = bizDef(s.type);
-    const p = this.open({ title: s.name, subtitle: `${d.icon} ${d.name} · ${b.lot.street} · ${districtName(b.lot.district)}`, wide: s.type === 'casino', accent: d.color });
+    const p = this.panel({ title: s.name, subtitle: `${d.icon} ${d.name} · ${b.lot.street} · ${districtName(b.lot.district)}`, wide: s.type === 'casino', accent: d.color });
     const h = Math.floor(g.hours);
     if (s.building > 0) {
       p.body.append(row('Status', `Under construction · ${Math.ceil(s.building)} s to go`));
@@ -257,7 +258,7 @@ export class GameUI {
 
   private rename(b: Business): void {
     const g = this.g;
-    const p = this.open({ title: 'Rename' });
+    const p = this.panel({ title: 'Rename' });
     const input = el('input', 'pinput') as HTMLInputElement;
     input.maxLength = 28;
     input.value = b.save.name;
@@ -283,7 +284,7 @@ export class GameUI {
 
   gunShop(): void {
     const g = this.g;
-    const p = this.open({ title: 'Bullseye Guns', subtitle: 'Licensed, legal, no questions asked', wide: true, accent: '#ff5a6a' });
+    const p = this.panel({ title: 'Bullseye Guns', subtitle: 'Licensed, legal, no questions asked', wide: true, accent: '#ff5a6a' });
     const grid = el('div', 'pgrid');
     const render = () => {
       grid.innerHTML = '';
@@ -312,7 +313,7 @@ export class GameUI {
 
   carDealer(): void {
     const g = this.g;
-    const p = this.open({ title: 'Island Motors', subtitle: 'New cars delivered to the lot out front', wide: true, accent: '#3aa7ff' });
+    const p = this.panel({ title: 'Island Motors', subtitle: 'New cars delivered to the lot out front', wide: true, accent: '#3aa7ff' });
     const grid = el('div', 'pgrid');
     const render = () => {
       grid.innerHTML = '';
@@ -338,7 +339,7 @@ export class GameUI {
 
   wardrobe(shop: boolean): void {
     const g = this.g;
-    const p = this.open({ title: shop ? 'Drip Locker' : 'Wardrobe', subtitle: shop ? 'Outfits for every occasion' : 'Your outfits', wide: true, accent: '#d68bff' });
+    const p = this.panel({ title: shop ? 'Drip Locker' : 'Wardrobe', subtitle: shop ? 'Outfits for every occasion' : 'Your outfits', wide: true, accent: '#d68bff' });
     const grid = el('div', 'pgrid');
     const render = () => {
       grid.innerHTML = '';
@@ -375,7 +376,7 @@ export class GameUI {
   /** The hospital: a free check-up (and where you wake up after a knockout). */
   hospital(): void {
     const g = this.g;
-    const p = this.open({ title: 'Mercy Island Hospital', accent: '#ff6b6b' });
+    const p = this.panel({ title: 'Mercy Island Hospital', accent: '#ff6b6b' });
     p.body.appendChild(el('div', 'ptext', g.combat.hp < 100 ? 'A nurse patches you up. Free of charge: this is a nice island.' : 'You are in perfect health.'));
     g.combat.hp = 100;
     p.footer.append(btn('Thanks', 'primary', () => p.close()));
@@ -385,7 +386,7 @@ export class GameUI {
 
   mapPanel(): void {
     const g = this.g;
-    const p = this.open({ title: 'Jackpot Island', subtitle: 'Click anywhere to set a waypoint', wide: true, accent: '#3aa7ff' });
+    const p = this.panel({ title: 'Jackpot Island', subtitle: 'Click anywhere to set a waypoint', wide: true, accent: '#3aa7ff' });
     const wrap = el('div', 'bigmap');
     const c = document.createElement('canvas');
     const m = g.map;
@@ -437,7 +438,7 @@ export class GameUI {
 
   pauseMenu(): void {
     const g = this.g;
-    const p = this.open({ title: 'Paused', subtitle: `${g.playerName} · Day ${g.day}` });
+    const p = this.panel({ title: 'Paused', subtitle: `${g.playerName} · Day ${g.day}` });
     p.body.append(
       row('Cash', money(g.money)),
       row('Net worth', money(g.netWorth())),
@@ -472,7 +473,7 @@ export class GameUI {
   }
 
   controls(): void {
-    const p = this.open({ title: 'Controls' });
+    const p = this.panel({ title: 'Controls' });
     const lines: [string, string][] = [
       ['Move', 'W A S D'], ['Look', 'Mouse'], ['Sprint', 'Shift'], ['Jump', 'Space'], ['Use / talk / sit', 'E'], ['First / third person', 'V'],
       ['Map', 'M'], ['Pause', 'Esc / P'], ['Drive', 'W S, A D steer, Space handbrake, Shift boost'], ['Get out', 'E'],
@@ -484,7 +485,7 @@ export class GameUI {
 
   settings(): void {
     const g = this.g;
-    const p = this.open({ title: 'Settings' });
+    const p = this.panel({ title: 'Settings' });
     const r = g.renderer;
     const qrow = el('div', 'pseg');
     const render = () => {

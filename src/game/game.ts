@@ -32,6 +32,8 @@ import { vehicleDef } from '../vehicles/models';
 import { BIZ } from '../business/catalog';
 import { money as fmtMoney } from '../ui/dom';
 import type { Venue } from '../casino/venue';
+import type { Activity } from '../activities/activity';
+import { createActivities } from '../activities';
 
 export type GameMode = 'loading' | 'title' | 'play' | 'cutscene' | 'seated' | 'menu' | 'build';
 
@@ -58,6 +60,8 @@ export class Game {
   map!: IslandMap;
   minimap!: Minimap;
   shops: ShopSite[] = [];
+  /** Side activities (shoplifting, docks, collectibles, jobs…). */
+  activities: Activity[] = [];
   /** Multiplayer hooks (not connected in this build). */
   net: { publishLots(): void } | null = null;
   mode: GameMode = 'loading';
@@ -137,6 +141,8 @@ export class Game {
     this.crowd = new Crowd(this, this.renderer.spec.crowd);
     this.traffic = new Traffic(this, this.renderer.spec.traffic);
     this.story = new Story(this);
+    await step(0.97, 'Setting up side jobs');
+    this.activities = createActivities(this);
     await step(0.98, 'Drawing the map');
     this.map = new IslandMap(this.world.terrain);
     this.minimap = new Minimap(this.uiRoot, this.map);
@@ -246,6 +252,7 @@ export class Game {
       vehicles: this.vehicles.list.filter((c) => c.owned).map((c) => ({ id: c.id, def: c.def.id, color: c.color, x: c.pos.x, z: c.pos.z, heading: c.heading })),
       weapons: [...this.combat.owned],
       stats: this.stats,
+      activities: Object.fromEntries(this.activities.filter((a) => a.save).map((a) => [a.id, a.save!()])),
       settings: this.settings,
       savedAt: Date.now(),
     };
@@ -271,6 +278,7 @@ export class Game {
     for (const w of this.combat.owned) this.combat.ammo[w] = 999;
     this.combat.ammo = Object.fromEntries(this.combat.owned.map((w) => [w, 99]));
     this.story.load(s.story);
+    for (const a of this.activities) if (a.load && s.activities?.[a.id] !== undefined) a.load(s.activities[a.id]);
     this.world.bridge.setClosed(!this.story.finished);
     if ((this.stats.goldenChip ?? 0) > 0) this.world.base.takeChip(false);
     const y = this.world.groundY(s.pos.x, s.pos.z, s.pos.y + 1.5);
@@ -362,6 +370,7 @@ export class Game {
       out.push({ x: L.oldTown.x, z: L.oldTown.z, icon: '⚓', color: '#3a7bd5', label: L.oldTown.name, big: true });
     }
     for (const c of this.vehicles.list) if (c.owned && c !== this.vehicles.driving) out.push({ x: c.pos.x, z: c.pos.z, icon: '🚗', color: '#3ddc84' });
+    for (const a of this.activities) if (a.markers) out.push(...a.markers(full));
     const w = this.userWp ?? this.storyWp;
     if (w) out.push({ x: w.x, z: w.z, icon: '★', color: '#ffb800', label: w.label, big: true });
     return out;
@@ -618,6 +627,7 @@ export class Game {
       this.world.base.update(dt);
       this.crowd.update(dt);
       this.traffic.update(dt);
+      for (const a of this.activities) a.update(dt);
     }
     const cam = this.renderer.camera;
     const focusPos = this.camera.mode === 'free' || this.mode === 'title' ? cam.position : driving ? driving.pos : this.player.pos;

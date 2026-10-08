@@ -57,6 +57,8 @@ export interface SaveData {
   vehicles: OwnedVehicle[];
   weapons: string[];
   stats: Record<string, number>;
+  /** Side-activity state, by activity id. */
+  activities?: Record<string, unknown>;
   settings: { music: number; sfx: number; sensitivity: number; invertY: boolean };
   savedAt: number;
 }
