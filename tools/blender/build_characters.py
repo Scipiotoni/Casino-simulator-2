@@ -29,7 +29,7 @@ import bpy  # noqa: E402  (first of Blender's modules)
 import bmesh  # noqa: E402
 from mathutils import Quaternion, Vector  # noqa: E402
 
-from common import B, G, Sculpt, clean, decimate, link, remove, sculpt_mesh  # noqa: E402
+from common import B, G, Sculpt, clean, decimate, link, remove, sculpt_mesh, smooth_normals, symmetrize, unfold  # noqa: E402
 import hair_hats  # noqa: E402
 
 OUT = next((a for a in sys.argv[1:] if not a.startswith('--') and not a.endswith('.py')), 'src/chars/assets')
@@ -39,11 +39,11 @@ PREVIEWS = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'previews')
 
 def rest_pose(f):
     sh = 0.192 if f else 0.212
-    hip = 0.098 if f else 0.094
+    hip = 0.09 if f else 0.088
     return {
         'root': (0, 0, 0), 'hips': (0, 0.96, 0), 'spine': (0, 1.1, 0), 'chest': (0, 1.28, 0), 'neck': (0, 1.49, 0), 'head': (0, 1.57, 0.005),
-        'upperArmL': (sh, 1.43, 0), 'foreArmL': (sh + 0.03, 1.15, -0.005), 'handL': (sh + 0.058, 0.89, 0.01),
-        'upperArmR': (-sh, 1.43, 0), 'foreArmR': (-sh - 0.03, 1.15, -0.005), 'handR': (-sh - 0.058, 0.89, 0.01),
+        'upperArmL': (sh, 1.395, 0), 'foreArmL': (sh + 0.03, 1.12, -0.005), 'handL': (sh + 0.058, 0.862, 0.01),
+        'upperArmR': (-sh, 1.395, 0), 'foreArmR': (-sh - 0.03, 1.12, -0.005), 'handR': (-sh - 0.058, 0.862, 0.01),
         'thighL': (hip, 0.93, 0), 'shinL': (hip + 0.005, 0.51, 0.012), 'footL': (hip + 0.008, 0.085, -0.01),
         'thighR': (-hip, 0.93, 0), 'shinR': (-hip - 0.005, 0.51, 0.012), 'footR': (-hip - 0.008, 0.085, -0.01),
     }
@@ -80,29 +80,34 @@ def sculpt_body(f):
     """Metaball families: torso and head, two arms, two legs (separate so the limbs stay distinct)."""
     R = rest_pose(f)
     torso = Sculpt('Torso')
+    # The shoulders sit low, the trapezius sloping from the neck down to the deltoids (a flat,
+    # high shoulder line reads as shrugged). The pelvis sits back, so the belly stays flat
+    # down to the waistband.
     if f:
         # Hips curvy but clear of the hands hanging beside them.
-        torso.ellipsoid((0, 0.93, -0.008), (0.16, 0.105, 0.115))
+        torso.ellipsoid((0, 0.93, -0.02), (0.146, 0.1, 0.105))
         torso.ellipsoid((0, 1.06, 0), (0.122, 0.085, 0.086))
-        torso.ellipsoid((0, 1.17, 0.004), (0.132, 0.075, 0.092))
+        torso.ellipsoid((0, 1.17, 0.004), (0.13, 0.075, 0.09))
         torso.ellipsoid((0, 1.29, 0.004), (0.128, 0.095, 0.1))
-        torso.ellipsoid((0, 1.405, -0.006), (0.155, 0.06, 0.09))
+        torso.ellipsoid((0, 1.37, -0.006), (0.15, 0.055, 0.088))
         for s in (-1, 1):
-            torso.ellipsoid((s * 0.056, 1.295, 0.06), (0.062, 0.058, 0.05))
-            torso.ball((s * 0.178, 1.41, 0), 0.052)
-        torso.capsule((0, 1.44, -0.004), (0, 1.585, 0.006), 0.046)
+            torso.ellipsoid((s * 0.056, 1.29, 0.06), (0.062, 0.058, 0.05))
+            torso.ellipsoid((s * 0.085, 1.42, -0.018), (0.085, 0.028, 0.06), rot=Quaternion((0, 1, 0), s * 0.36))
+            torso.ball((s * 0.172, 1.376, 0), 0.05)
+        torso.capsule((0, 1.42, -0.004), (0, 1.585, 0.006), 0.046)
     else:
-        torso.ellipsoid((0, 0.935, -0.005), (0.158, 0.1, 0.108))
-        torso.ellipsoid((0, 1.06, 0), (0.142, 0.09, 0.098))
-        torso.ellipsoid((0, 1.17, 0.006), (0.158, 0.08, 0.106))
+        torso.ellipsoid((0, 0.935, -0.012), (0.14, 0.1, 0.104))
+        torso.ellipsoid((0, 1.06, 0), (0.138, 0.09, 0.098))
+        torso.ellipsoid((0, 1.17, 0.006), (0.156, 0.08, 0.106))
         # Narrow enough under the arms that they hang free of the chest (no webbing when raised).
         torso.ellipsoid((0, 1.3, 0.01), (0.14, 0.1, 0.122))
-        torso.ellipsoid((0, 1.41, -0.006), (0.192, 0.065, 0.108))
+        torso.ellipsoid((0, 1.37, -0.006), (0.185, 0.06, 0.105))
         for s in (-1, 1):
-            # Pecs and big rounded shoulders: the heroic V.
-            torso.ellipsoid((s * 0.068, 1.315, 0.07), (0.075, 0.06, 0.05))
-            torso.ball((s * 0.2, 1.418, 0), 0.066)
-        torso.capsule((0, 1.44, -0.004), (0, 1.585, 0.006), 0.056)
+            # Pecs, a sloping trapezius and big rounded shoulders: the heroic V.
+            torso.ellipsoid((s * 0.068, 1.31, 0.07), (0.075, 0.06, 0.05))
+            torso.ellipsoid((s * 0.1, 1.425, -0.02), (0.1, 0.032, 0.07), rot=Quaternion((0, 1, 0), s * 0.38))
+            torso.ball((s * 0.2, 1.38, 0), 0.064)
+        torso.capsule((0, 1.42, -0.004), (0, 1.585, 0.006), 0.056)
     # Head: skull, jaw, chin, nose, brow and ears (hair_hats.head has the same skull).
     (hc, hh) = hair_hats.head(f)
     hw = hh[0]
@@ -121,7 +126,7 @@ def sculpt_body(f):
         el = R['foreArm' + side]
         wr = R['hand' + side]
         ru = 0.05 if f else 0.058
-        arm.ball((up[0] - sg * 0.01, up[1] - 0.005, 0), ru * 1.05)
+        arm.ball((up[0] - sg * 0.01, up[1] - 0.01, 0), ru * 1.05)
         arm.taper((up[0], up[1] - 0.02, up[2]), el, ru, ru * 0.82)
         arm.ellipsoid((el[0] + sg * 0.004, el[1] - 0.06, el[2]), (ru * 0.84, 0.075, ru * 0.86))
         arm.taper(el, (wr[0], wr[1] + 0.02, wr[2]), ru * 0.8, ru * 0.6)
@@ -134,9 +139,10 @@ def sculpt_body(f):
         th = R['thigh' + side]
         kn = R['shin' + side]
         an = R['foot' + side]
-        rt = 0.088 if f else 0.092
-        # The top of the thigh reaches up inside the pelvis so the hip join is deep.
-        leg.ellipsoid((th[0] + sg * 0.004, th[1] - 0.02, th[2]), (rt * 0.95, 0.09, rt * 0.95))
+        rt = 0.085 if f else 0.088
+        # The top of the thigh reaches up inside the pelvis so the hip join is deep (kept in
+        # from the outside of the hip, which would otherwise bulge past the pelvis).
+        leg.ellipsoid((th[0] - sg * 0.006, th[1] - 0.02, th[2]), (rt * 0.85, 0.09, rt * 0.95))
         leg.taper((th[0], th[1] - 0.06, th[2]), kn, rt, rt * 0.7)
         leg.ellipsoid((kn[0], kn[1] - 0.15, kn[2] - 0.022), (rt * 0.68, 0.13, rt * 0.7))
         leg.taper(kn, (an[0], an[1] + 0.05, an[2]), rt * 0.64, rt * 0.55)
@@ -217,7 +223,7 @@ def rig(mesh, arm):
     bpy.ops.object.parent_set(type='ARMATURE_AUTO')
     # The arms rest hanging down, so aiming or waving raises them a long way: spread the
     # shoulders' weights out so the armpit stretches smoothly instead of in streaks.
-    smooth_weights(mesh, lambda g: 1.12 < g.y < 1.55 and 0.08 < abs(g.x) < 0.3, repeat=30)
+    smooth_weights(mesh, lambda g: 1.09 < g.y < 1.55 and 0.08 < abs(g.x) < 0.3, repeat=30)
     limit_weights(mesh)
 
 
@@ -281,9 +287,9 @@ def limb_frames(R):
 
 def armhole(f):
     """Where the sleeve meets the body (above the armpit): a plane each side."""
-    sh = 0.192 if f else 0.212
+    sh, y, _ = rest_pose(f)['upperArmL']
     n = Vector((0.97, 0.24, 0)).normalized()
-    return {s: (Vector((s * (sh - 0.03), 1.42, 0)), Vector((s * n.x, n.y, 0))) for s in (-1, 1)}
+    return {s: (Vector((s * (sh - 0.03), y - 0.01, 0)), Vector((s * n.x, n.y, 0))) for s in (-1, 1)}
 
 
 def region_of(k, c, fr):
@@ -350,7 +356,7 @@ def regionize(ob, R, f):
     # Armholes: above the armpit the plane decides between sleeve and body.
     for s, (co, no) in armhole(f).items():
         arm = 'armL' if s > 0 else 'armR'
-        near = lambda c, s=s: c.y > 1.24 and c.x * s > 0.08
+        near = lambda c, s=s, top=co.y: c.y > top - 0.1 and c.x * s > 0.08
         cut(('torso', arm), co, no, near)
         for fc in bm.faces:
             c = G(fc.calc_center_median())
@@ -551,17 +557,22 @@ def build(body):
     f = body == 'f'
     R, sculpts = sculpt_body(f)
     fused = sculpt_mesh(sculpts, voxel=0.0055, smooth=6, name='BodyFused')
+    symmetrize(fused)
     hair_hats.set_head(f, head_of(fused))
     hi = thin_body(fused, body_tris=2900, head_tris=900)
     lo = decimate(fused, 760, name='BodyLow')
-    remove(fused)
+    folds = {}
     for o in (hi, lo):
         clean(o)
+        folds[o.name] = unfold(o)
     arm = make_armature(R)
     report = {}
     for o in (hi, lo):
         rig(o, arm)
         report[o.name] = regionize(o, R, f)
+        # Shaded like the full sculpt: no facets, and no seams along the clothes' edges.
+        smooth_normals(o, fused)
+    remove(fused)
     face_patch(hi, arm)
     skirt(arm, f)
     hair_hats.build_all(f)
@@ -581,6 +592,7 @@ def build(body):
     tris = {ob.name: sum(len(p.vertices) - 2 for p in ob.data.polygons) for ob in bpy.context.scene.objects if ob.type == 'MESH'}
     print('built', body, path, os.path.getsize(path), 'bytes')
     print('  tris', tris)
+    print('  folds unfolded', folds)
     print('  regions', report['Body'])
     if RENDER:
         render_previews(f'body_{body}')

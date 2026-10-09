@@ -1,6 +1,7 @@
 """
 Shared helpers for the Blender build scripts: game/Blender coordinates, metaball sculpting,
-lathed and swept shapes, baking modifiers, decimation and the region UVs the game colours by.
+lathed and swept shapes, baking modifiers, decimation (and repairing what it folds), smooth
+normals and the region UVs the game colours by.
 
 Game model space: x (the character's left), y up, z forward (the way it faces).
 Blender: x, -y forward, z up. The glTF exporter (export_yup) turns Blender back into game space.
@@ -296,6 +297,80 @@ def decimate(ob, tris, name=None, symmetric=True, keep=None, invert=False):
     out.name = name or ob.name
     out.data.name = out.name
     return out
+
+
+def symmetrize(ob):
+    """
+    Make a mesh exactly mirror-symmetric in x (one half mirrored onto the other). A voxel remesh is
+    only nearly symmetric (its grid isn't centred on x = 0), and a symmetric decimation of a
+    nearly symmetric mesh folds triangles over along the centre line.
+    """
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    bmesh.ops.symmetrize(bm, input=bm.verts[:] + bm.edges[:] + bm.faces[:], direction='-X', dist=1e-5)
+    bm.to_mesh(ob.data)
+    bm.free()
+
+
+def folded(bm):
+    """Faces turned against their neighbours (a fold in the surface)."""
+    bm.normal_update()
+    out = []
+    for f in bm.faces:
+        n = Vector()
+        for e in f.edges:
+            for g in e.link_faces:
+                if g is not f:
+                    n += g.normal
+        if n.length > 0 and f.normal.dot(n) < 0:
+            out.append(f)
+    return out
+
+
+def unfold(ob, passes=8):
+    """Collapse the shortest edge of every folded face until none are left. Returns how many were found."""
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    found = 0
+    for _ in range(passes):
+        bad = folded(bm)
+        if not bad:
+            break
+        found += len(bad)
+        edges = {min(f.edges, key=lambda e: e.calc_length()) for f in bad}
+        bmesh.ops.collapse(bm, edges=list(edges), uvs=False)
+        bmesh.ops.dissolve_degenerate(bm, dist=1e-6, edges=bm.edges)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(ob.data)
+    bm.free()
+    return found
+
+
+def smooth_normals(ob, src):
+    """
+    Shade a decimated mesh like the smooth source it was made from: every vertex takes the
+    normal of the source surface nearest to it, so neither the facets nor any cuts made
+    since (clothing edges) show in the shading.
+    """
+    from mathutils.bvhtree import BVHTree
+    from mathutils.interpolate import poly_3d_calc
+    bm = bmesh.new()
+    bm.from_mesh(src.data)
+    bm.normal_update()
+    bm.faces.ensure_lookup_table()
+    tree = BVHTree.FromBMesh(bm)
+    normals = []
+    for v in ob.data.vertices:
+        co, no, i, _ = tree.find_nearest(v.co)
+        if i is None:
+            normals.append(v.normal.copy())
+            continue
+        f = bm.faces[i]
+        w = poly_3d_calc([u.co for u in f.verts], co)
+        n = sum((u.normal * k for u, k in zip(f.verts, w)), Vector())
+        normals.append(n.normalized() if n.length > 1e-6 else no)
+    bm.free()
+    ob.data.normals_split_custom_set_from_vertices(normals)
 
 
 def set_region(ob, region):

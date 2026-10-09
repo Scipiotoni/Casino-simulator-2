@@ -21,6 +21,8 @@ export const BONES = [
 ] as const;
 export type BoneName = (typeof BONES)[number];
 const B = Object.fromEntries(BONES.map((b, i) => [b, i])) as Record<BoneName, number>;
+/** Bones on the centre line (a heavier build widens round it, not round the bone). */
+const TRUNK = new Set([B.root, B.hips, B.spine, B.chest, B.neck, B.head]);
 
 const PARENT: Record<BoneName, BoneName | null> = {
   root: null, hips: 'root', spine: 'hips', chest: 'spine', neck: 'chest', head: 'neck',
@@ -35,11 +37,11 @@ type V3 = [number, number, number];
 /** Rest-pose bone positions in model space (character faces +z, its left is +x). */
 function restPose(f: boolean): Record<BoneName, V3> {
   const sh = f ? 0.192 : 0.212;
-  const hip = f ? 0.098 : 0.094;
+  const hip = f ? 0.09 : 0.088;
   return {
     root: [0, 0, 0], hips: [0, 0.96, 0], spine: [0, 1.1, 0], chest: [0, 1.28, 0], neck: [0, 1.49, 0], head: [0, 1.57, 0.005],
-    upperArmL: [sh, 1.43, 0], foreArmL: [sh + 0.03, 1.15, -0.005], handL: [sh + 0.058, 0.89, 0.01],
-    upperArmR: [-sh, 1.43, 0], foreArmR: [-sh - 0.03, 1.15, -0.005], handR: [-sh - 0.058, 0.89, 0.01],
+    upperArmL: [sh, 1.395, 0], foreArmL: [sh + 0.03, 1.12, -0.005], handL: [sh + 0.058, 0.862, 0.01],
+    upperArmR: [-sh, 1.395, 0], foreArmR: [-sh - 0.03, 1.12, -0.005], handR: [-sh - 0.058, 0.862, 0.01],
     thighL: [hip, 0.93, 0], shinL: [hip + 0.005, 0.51, 0.012], footL: [hip + 0.008, 0.085, -0.01],
     thighR: [-hip, 0.93, 0], shinR: [-hip - 0.005, 0.51, 0.012], footR: [-hip - 0.008, 0.085, -0.01],
   };
@@ -121,23 +123,27 @@ class SkinBuilder {
     const uv = g.getAttribute('uv');
     const s = this.slots[0];
     for (let i = 0; i < p.count; i++) {
-      // The bone with the most say colours the vertex.
-      let bone = si.getX(i);
-      let best = sw.getX(i);
-      for (let k = 1; k < 4; k++) {
-        if (sw.getComponent(i, k) > best) {
-          best = sw.getComponent(i, k);
-          bone = si.getComponent(i, k);
-        }
-      }
       let x = p.getX(i);
       const y = p.getY(i);
       let z = p.getZ(i);
       if (bulk !== 1) {
-        const r = rest[BONES[bone]];
-        const ax = bone === B.root || bone === B.hips || bone === B.spine || bone === B.chest || bone === B.neck || bone === B.head ? 0 : r[0];
-        x = ax + (x - ax) * bulk;
-        z = r[2] + (z - r[2]) * (0.5 + bulk * 0.5);
+        // Widen round the bones the vertex follows, blended by their weights so the build
+        // changes smoothly from one bone to the next (no steps where they hand over). The
+        // head keeps its size: the face, hair and hats are fitted to it.
+        let ax = 0;
+        let az = 0;
+        let head = 0;
+        for (let k = 0; k < 4; k++) {
+          const w = sw.getComponent(i, k);
+          const b = si.getComponent(i, k);
+          const r = rest[BONES[b]];
+          if (b === B.head) head += w;
+          if (!TRUNK.has(b)) ax += w * r[0];
+          az += w * r[2];
+        }
+        const grow = 1 + (bulk - 1) * (1 - head);
+        x = ax + (x - ax) * grow;
+        z = az + (z - az) * (0.5 + grow * 0.5);
       }
       s.pos.push(x, y, z);
       s.nor.push(nr.getX(i), nr.getY(i), nr.getZ(i));
@@ -480,18 +486,18 @@ function buildTop(sb: SkinBuilder, a: Appearance): void {
       sb.add(torus(0.07, 0.016, Math.PI * 2, 6, 16), { bone: B.chest, color: o.c2, xf: { y: 1.5, rx: Math.PI / 2 } });
       break;
     case 'coat':
-      sb.add(torus(0.115, 0.04, Math.PI * 2, 6, 18), { bone: B.chest, color: o.accent, xf: { y: 1.48, rx: Math.PI / 2, sz: 0.75 } });
+      sb.add(torus(0.115, 0.04, Math.PI * 2, 6, 18), { bone: B.chest, color: o.accent, xf: { y: 1.46, rx: Math.PI / 2, sz: 0.75 } });
       break;
     case 'hoodie':
       // The hood resting on the shoulders.
-      sb.add(torus(0.105, 0.05, Math.PI * 1.3, 8, 16), { bone: B.chest, color: o.c2, xf: { y: 1.49, z: -0.045, rx: Math.PI / 2 - 0.25, rz: -Math.PI * 0.15 + Math.PI, sx: 1.15 } });
+      sb.add(torus(0.105, 0.05, Math.PI * 1.3, 8, 16), { bone: B.chest, color: o.c2, xf: { y: 1.47, z: -0.045, rx: Math.PI / 2 - 0.25, rz: -Math.PI * 0.15 + Math.PI, sx: 1.15 } });
       if (o.glow) sb.add(torus(0.17, 0.006, Math.PI * 2, 4, 24), { bone: B.spine, color: o.accent, xf: { y: 1.02, rx: Math.PI / 2, sz: 0.68 }, glow: true });
       break;
     case 'armor': {
-      sb.add(rbox(0.42, 0.27, 0.29, 0.07), { bone: B.chest, color: o.c1, xf: { y: 1.32, z: 0.012 } });
+      sb.add(rbox(0.42, 0.27, 0.29, 0.07), { bone: B.chest, color: o.c1, xf: { y: 1.3, z: 0.012 } });
       sb.add(rbox(0.36, 0.14, 0.25, 0.05), { bone: B.spine, color: o.c2, xf: { y: 1.12, z: 0.008 } });
       for (const s of [-1, 1]) {
-        sb.add(sphere(0.095, 10, 8), { bone: B[s > 0 ? 'upperArmL' : 'upperArmR'], color: o.c1, xf: { x: s * 0.215, y: 1.44, sy: 0.75 } });
+        sb.add(sphere(0.095, 10, 8), { bone: B[s > 0 ? 'upperArmL' : 'upperArmR'], color: o.c1, xf: { x: s * 0.215, y: 1.405, sy: 0.75 } });
         sb.add(box(0.012, 0.16, 0.012), { bone: B.chest, color: o.accent, xf: { x: s * 0.09, y: 1.32, z: 0.158 }, glow: true });
       }
       sb.add(torus(0.05, 0.01, Math.PI * 2, 6, 16), { bone: B.chest, color: o.accent, xf: { y: 1.34, z: 0.162 }, glow: true });
@@ -559,7 +565,7 @@ function buildBack(sb: SkinBuilder, o: Outfit): void {
     case 'backpack':
       sb.add(rbox(0.26, 0.32, 0.12, 0.05), { bone, color: o.c2, xf: { y: 1.27, z: -0.16 } });
       sb.add(rbox(0.2, 0.12, 0.05, 0.03), { bone, color: shade(o.c2, 0.85), xf: { y: 1.18, z: -0.23 } });
-      for (const s of [-1, 1]) sb.add(box(0.03, 0.3, 0.02), { bone, color: 0x222222, xf: { x: s * 0.09, y: 1.33, z: 0.125, rx: -0.1 } });
+      for (const s of [-1, 1]) sb.add(box(0.03, 0.3, 0.02), { bone, color: 0x222222, xf: { x: s * 0.09, y: 1.31, z: 0.125, rx: -0.1 } });
       if (o.glow) sb.add(box(0.2, 0.012, 0.012), { bone, color: o.accent, xf: { y: 1.38, z: -0.225 }, glow: true });
       break;
     case 'surfboard':
