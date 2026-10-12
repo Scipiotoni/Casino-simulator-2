@@ -39,6 +39,7 @@ import type { Activity } from '../activities/activity';
 import { createActivities } from '../activities';
 import { Multiplayer } from '../net/multiplayer';
 import { Chat } from '../ui/chat';
+import { LoadingScreen } from '../ui/loading';
 
 export type GameMode = 'loading' | 'title' | 'play' | 'cutscene' | 'seated' | 'menu' | 'build';
 
@@ -86,7 +87,7 @@ export class Game {
   stats: Record<string, number> = {};
   settings = { music: 0.45, sfx: 0.9, sensitivity: 1, invertY: false };
   uiRoot!: HTMLDivElement;
-  private loading!: HTMLDivElement;
+  private loading!: LoadingScreen;
   private focused: Interactable | null = null;
   readonly fly = { x: 2600, y: 120, z: 400, yaw: 0, pitch: -0.2 };
   private debugAnims: Animator[] = [];
@@ -108,23 +109,10 @@ export class Game {
     this.camera = new CameraRig(this.renderer.camera);
   }
 
-  private makeLoading(): void {
-    this.loading = document.createElement('div');
-    this.loading.className = 'loading';
-    this.loading.innerHTML = `
-      <div class="logo"><div class="l1">CASINO SIMULATOR</div><div class="l2">2</div><div class="l3">JACKPOT ISLAND</div></div>
-      <div class="bar"><div></div></div>
-      <div class="msg">Loading</div>`;
-    this.app.appendChild(this.loading);
-  }
-
   async boot(): Promise<void> {
-    this.makeLoading();
-    const bar = this.loading.querySelector('.bar > div') as HTMLDivElement;
-    const msg = this.loading.querySelector('.msg') as HTMLDivElement;
+    this.loading = new LoadingScreen(this.app);
     const step = async (f: number, m: string) => {
-      bar.style.width = `${Math.round(f * 100)}%`;
-      msg.textContent = m;
+      this.loading.progress(f, m);
       await new Promise((r) => setTimeout(r, 16));
     };
     await step(0.02, 'Dressing the locals');
@@ -166,8 +154,7 @@ export class Game {
     window.addEventListener('keydown', () => audio.unlock());
     window.addEventListener('beforeunload', () => this.save());
     document.addEventListener('visibilitychange', () => document.hidden && this.save());
-    this.loading.classList.add('done');
-    setTimeout(() => this.loading.remove(), 800);
+    this.loading.done();
     requestAnimationFrame(this.loop);
 
     const q = new URLSearchParams(location.search);

@@ -42,17 +42,105 @@ html, body {
 button { font-family: var(--ui-font); cursor: pointer; }
 
 /* ---------------------------------------------------------------- loading */
-.loading {
-  position: absolute; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  background: radial-gradient(ellipse at 50% 35%, #2a5bd7 0%, #10276b 45%, #070f26 100%);
-  transition: opacity 0.6s ease;
+/* Jackpot Island at sunset: sky, sun, neon skyline, sea, the Interstate 15 bridge with a car
+   driving across as the progress bar, and a slot machine to play while you wait. */
+.ld { position: absolute; inset: 0; z-index: 50; overflow: hidden; color: #fff; font-family: var(--ui-font); transition: opacity 0.8s ease; user-select: none; -webkit-user-select: none; }
+.ld.done { opacity: 0; pointer-events: none; }
+.ld-sky { position: absolute; inset: 0; background: radial-gradient(circle at 50% 46%, rgba(255, 196, 110, 0.6), transparent 34%), linear-gradient(180deg, #1b0b3a 0%, #4a1666 26%, #b23a72 48%, #ff7a4d 62%, #ffb35c 70%, #ffd38a 74%); }
+.ld-sun { position: absolute; left: 50%; top: 46%; width: min(46vw, 420px); aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%;
+  background: linear-gradient(180deg, #fff3a6 0%, #ffcf4d 45%, #ff7a3d 100%);
+  /* Solid on top, striped below: the retro sunset. */
+  -webkit-mask: linear-gradient(#000 0 55%, transparent 55%), repeating-linear-gradient(180deg, #000 0 12px, transparent 12px 17px);
+  mask: linear-gradient(#000 0 55%, transparent 55%), repeating-linear-gradient(180deg, #000 0 12px, transparent 12px 17px);
+  animation: ldSun 6s ease-in-out infinite alternate; }
+@keyframes ldSun { to { transform: translate(-50%, -48%); } }
+.ld-cloud { position: absolute; height: 18px; border-radius: 20px; background: rgba(255, 200, 220, 0.5); filter: blur(1px); animation: ldCloud linear infinite; }
+.ld-cloud::before, .ld-cloud::after { content: ''; position: absolute; border-radius: 50%; background: inherit; }
+.ld-cloud::before { width: 40%; height: 220%; left: 18%; bottom: 0; }
+.ld-cloud::after { width: 30%; height: 160%; left: 52%; bottom: 0; }
+.ld-cloud.c1 { width: 180px; top: 16%; animation-duration: 70s; }
+.ld-cloud.c2 { width: 120px; top: 27%; animation-duration: 95s; animation-delay: -40s; opacity: 0.7; }
+.ld-cloud.c3 { width: 240px; top: 9%; animation-duration: 120s; animation-delay: -80s; opacity: 0.6; }
+@keyframes ldCloud { from { left: -260px; } to { left: 100%; } }
+.ld-city { position: absolute; left: 0; right: 0; bottom: 30%; width: 100%; height: 34%; }
+.ld-neon { filter: drop-shadow(0 0 4px currentColor); }
+.ld-win { animation: ldWin 6s steps(1) infinite; }
+@keyframes ldWin { 0%, 70% { opacity: 1; } 71%, 86% { opacity: 0.25; } 87% { opacity: 1; } }
+.ld-blink { animation: ldBlink 1.6s steps(1) infinite; }
+@keyframes ldBlink { 50% { opacity: 0.15; } }
+.ld-wheel { animation: ldSpinWheel 3s linear infinite; }
+@keyframes ldSpinWheel { to { transform: rotate(360deg); } }
+.ld-sign { font: 900 16px var(--ui-font); fill: #ffd23d; letter-spacing: 2px; filter: drop-shadow(0 0 4px #ff9b1f); }
+.ld-sea { position: absolute; left: 0; right: 0; bottom: 0; height: 30%; background: linear-gradient(180deg, #4a2a7a 0%, #24185a 40%, #0d0b2e 100%); overflow: hidden; }
+.ld-glint { position: absolute; left: 50%; top: 0; width: min(40vw, 360px); height: 100%; transform: translateX(-50%);
+  background: repeating-linear-gradient(180deg, rgba(255, 210, 120, 0.75) 0 3px, transparent 3px 11px);
+  -webkit-mask: radial-gradient(ellipse 50% 100% at 50% 0, #000, transparent 75%); mask: radial-gradient(ellipse 50% 100% at 50% 0, #000, transparent 75%);
+  animation: ldGlint 2.4s linear infinite; }
+@keyframes ldGlint { to { background-position: 0 22px; } }
+.ld-road { position: absolute; left: 0; right: 0; bottom: 6%; height: 20%; }
+.ld-bridge { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ld-car-wrap { position: absolute; left: 3%; bottom: 33%; width: clamp(54px, 8vw, 90px); transition: left 0.6s ease; animation: ldBob 0.5s ease-in-out infinite; }
+.ld-car { width: 100%; height: auto; overflow: visible; filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.5)); }
+@keyframes ldBob { 50% { transform: translateY(-2px); } }
+.ld-shield { position: absolute; right: 3%; bottom: 72%; width: 54px; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: linear-gradient(180deg, #c8202f 0 30%, #1d3f9e 30%); border: 3px solid #fff; border-radius: 6px 6px 50% 50% / 6px 6px 40% 40%; box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35); }
+.ld-shield span { font-size: 7px; letter-spacing: 0.06em; margin-top: -6px; }
+.ld-shield b { font-size: 24px; line-height: 1; margin-top: 4px; }
+.ld-top { position: absolute; left: 0; right: 0; top: 4%; display: flex; justify-content: center; pointer-events: none; }
+.ld-top .logo .l1 { font-size: clamp(26px, 5vw, 60px); }
+.ld-top .logo .l2 { font-size: clamp(34px, 7.5vw, 92px); }
+.ld-slot { position: absolute; right: max(16px, 5vw); top: 50%; transform: translateY(-50%); width: min(300px, 82vw); padding: 12px 14px 16px; border-radius: 22px;
+  background: linear-gradient(180deg, #7a1f4f, #3a0f30); border: 4px solid #ffd23d; box-shadow: 0 0 0 4px #3a1a00, 0 0 40px rgba(255, 79, 163, 0.5), 0 12px 0 rgba(0, 0, 0, 0.35);
+  display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.ld-slot-head { width: 100%; display: flex; justify-content: space-between; align-items: center; font-size: 17px; letter-spacing: 0.06em; color: #ffd23d; text-shadow: 0 2px 0 #3a1a00; }
+.ld-chips { color: #fff; font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 16px; }
+.ld-reels { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; }
+.ld-reel { height: 76px; border-radius: 12px; overflow: hidden; background: linear-gradient(180deg, #d9d2c4, #fff 30%, #fff 70%, #d9d2c4); box-shadow: inset 0 0 0 3px #3a1a00, inset 0 6px 10px rgba(0, 0, 0, 0.25); }
+.ld-strip > div { height: 76px; display: grid; place-items: center; font-size: 42px; line-height: 1; }
+.ld-payline { position: absolute; left: -6px; right: -6px; top: 50%; height: 3px; background: rgba(255, 59, 92, 0.7); pointer-events: none; }
+.ld-result { min-height: 22px; font-size: 18px; text-align: center; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.4); }
+.ld-result.win { color: #7dffb1; }
+.ld-result.jackpot { color: #ffd23d; font-size: 24px; animation: ldPulse 0.35s ease-in-out 6 alternate; }
+@keyframes ldPulse { to { transform: scale(1.15); } }
+.ld-spin { width: 100%; padding: 12px; border: none; border-radius: 14px; font-size: 22px; letter-spacing: 0.08em; color: #3a1a00;
+  background: linear-gradient(180deg, #fff2a8, #ffd23d 50%, #ff9b1f); box-shadow: 0 5px 0 #a35a00; transition: transform 0.08s, box-shadow 0.08s; touch-action: manipulation; }
+.ld-spin:active { transform: translateY(4px); box-shadow: 0 1px 0 #a35a00; }
+.ld-lever { position: absolute; right: -30px; top: 30px; width: 22px; height: 110px; border: none; padding: 0; background: transparent; touch-action: manipulation; }
+.ld-lever::before { content: ''; position: absolute; left: 8px; top: 18px; width: 7px; height: 92px; border-radius: 4px; background: linear-gradient(90deg, #888, #eee, #888); }
+.ld-lever span { position: absolute; left: 0; top: 0; width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ff8a9a, #c8202f 60%, #6a0f18); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5); }
+.ld-lever.pull span { animation: ldKnob 0.5s ease; }
+.ld-lever.pull::before { animation: ldRod 0.5s ease; }
+@keyframes ldKnob { 40% { transform: translateY(66px); } }
+@keyframes ldRod { 40% { transform: scaleY(0.3); transform-origin: 50% 100%; } }
+.ld-status { position: absolute; left: max(16px, 5vw); top: 50%; transform: translateY(-50%); max-width: min(380px, 44vw); text-shadow: 0 3px 0 rgba(0, 0, 0, 0.35); }
+.ld-pct { font-size: clamp(42px, 7vw, 76px); color: #ffd23d; -webkit-text-stroke: 2px #3a1a00; paint-order: stroke fill; line-height: 1; }
+.ld-msg { margin-top: 6px; font-size: clamp(18px, 2.2vw, 24px); }
+.ld-quip { margin-top: 6px; font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 16px; color: #ffe2f2; opacity: 0.9; }
+.ld-quip.in, .ld-tip.in { animation: ldIn 0.4s ease; }
+@keyframes ldIn { from { opacity: 0; transform: translateY(6px); } }
+.ld-tip { position: absolute; left: 50%; bottom: 1.6%; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 32px); padding: 7px 14px; border-radius: 999px;
+  background: rgba(11, 8, 36, 0.72); font-family: 'Nunito', sans-serif; font-size: 14px; text-align: center; }
+.ld-tip span { font-family: var(--ui-font); color: #ffd23d; letter-spacing: 0.08em; margin-right: 6px; }
+.ld-tip b { color: #9fe8ff; }
+.ld-confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.ld-confetti i { position: absolute; top: -12px; width: 8px; height: 14px; border-radius: 2px; animation: ldFall linear forwards; }
+@keyframes ldFall { to { transform: translate(var(--dx), 105vh) rotate(720deg); } }
+@media (max-width: 760px) {
+  .ld-status { left: 16px; right: 16px; top: auto; bottom: 33%; transform: none; max-width: none; text-align: center; padding: 8px 12px; border-radius: 18px; background: rgba(11, 8, 36, 0.62); }
+  .ld-pct { font-size: 40px; }
+  .ld-slot { left: 50%; right: auto; top: 24%; transform: translateX(-50%); width: min(280px, calc(100vw - 72px)); }
+  .ld-reel, .ld-strip > div { height: 62px; }
+  .ld-strip > div { font-size: 34px; }
+  .ld-lever { right: -28px; }
+  .ld-top { top: 2%; }
+  .ld-top .logo .l1 { font-size: 24px; }
+  .ld-top .logo .l2 { font-size: 34px; }
+  .ld-top .logo .l3 { font-size: 13px; }
+  .ld-shield { display: none; }
 }
-.loading.done { opacity: 0; pointer-events: none; }
-.loading .logo { transform: scale(1); }
-.loading .bar { margin-top: 34px; width: min(440px, 80vw); height: 16px; border-radius: 10px; background: rgba(0, 0, 0, 0.35); border: 2px solid rgba(255, 255, 255, 0.25); overflow: hidden; }
-.loading .bar > div { height: 100%; width: 0%; background: linear-gradient(90deg, var(--yellow), #ff9f2e); transition: width 0.25s ease; }
-.loading .msg { margin-top: 12px; font-family: var(--ui-font); letter-spacing: 0.04em; opacity: 0.85; font-size: 18px; }
-.loading .tip { position: absolute; bottom: 28px; max-width: 640px; padding: 0 20px; text-align: center; opacity: 0.75; font-size: 15px; }
+@media (prefers-reduced-motion: reduce) {
+  .ld *, .ld *::before, .ld *::after { animation: none !important; transition: none !important; }
+}
 
 /* The game logo: chunky, outlined, tilted. */
 .logo { display: flex; flex-direction: column; align-items: center; font-family: var(--ui-font); line-height: 0.9; text-align: center; filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.35)); }

@@ -502,7 +502,7 @@ export class GameUI {
       t.innerHTML = `
         <div class="logo big"><div class="l1">CASINO SIMULATOR</div><div class="l2">2</div><div class="l3">JACKPOT ISLAND</div></div>
         <div class="title-menu"></div>
-        <div class="title-foot">Version 2 · everyone starts from zero</div>`;
+        <div class="title-foot">Version 2 · everyone starts with $10,000 and a flat</div>`;
       const menu = t.querySelector('.title-menu') as HTMLDivElement;
       const go = (c: 'new' | 'continue') => {
         audio.unlock();
@@ -523,7 +523,7 @@ export class GameUI {
       menu.appendChild(btn('Settings', 'pbtn big', () => this.settings()));
       // The first game is across Interstate 15.
       const back = mainlandName();
-      if (arrivedFromMainland()) menu.prepend(el('div', 'title-hello', esc(`Welcome across Interstate 15${back ? `, ${back}` : ''}! On the island everyone starts from zero.`)));
+      if (arrivedFromMainland()) menu.prepend(el('div', 'title-hello', esc(`Welcome across Interstate 15${back ? `, ${back}` : ''}! On the island everyone starts with $10,000 and a flat.`)));
       menu.appendChild(btn('◂ Back to the mainland: Casino Simulator 1', 'title-link', () => goToMainland(g)));
       g.uiRoot.appendChild(t);
     });
