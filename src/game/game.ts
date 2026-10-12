@@ -5,7 +5,7 @@ import { World } from './world';
 import { CharacterModel, BONES } from '../chars/model';
 import { loadBodies } from '../chars/bodies';
 import { Animator, ROLL_TIME, rollSwell, type Pose } from '../chars/anim';
-import { SKINS, appearanceFromSkin, skinById, type Appearance } from '../chars/skins';
+import { SKINS, appearanceFromSkin, lockPieces, skinById, type Appearance } from '../chars/skins';
 import { Player } from './player';
 import { CameraRig } from './cameraRig';
 import { Hud } from '../ui/hud';
@@ -30,7 +30,7 @@ import { buildShops, type ShopSite } from '../world/shops';
 import { GameUI } from '../ui/menus';
 import { Panel } from '../ui/panel';
 import { IslandMap, Minimap, type MapMarker } from '../ui/map';
-import { loadSave, newSave, writeSave, type SaveData } from './save';
+import { loadSave, newSave, writeSave, type SaveData, type SavedLook } from './save';
 import { vehicleDef } from '../vehicles/models';
 import { BIZ } from '../business/catalog';
 import { money as fmtMoney } from '../ui/dom';
@@ -84,6 +84,14 @@ export class Game {
   playerName = 'Rookie';
   appearance: Appearance = appearanceFromSkin('rookie');
   ownedSkins: string[] = ['rookie', 'rookieF'];
+  /** Looks saved in the wardrobe. */
+  looks: SavedLook[] = [];
+  /** The wardrobe's editor is open: the camera frames the player, the HUD steps aside. */
+  editingLook = false;
+  /** Which way the player faces in the creator (dragged round to see the back). */
+  previewYaw: number | null = null;
+  /** What Esc does while the wardrobe's editor is open. */
+  onEditEscape: (() => void) | null = null;
   stats: Record<string, number> = {};
   settings = { music: 0.45, sfx: 0.9, sensitivity: 1, invertY: false };
   uiRoot!: HTMLDivElement;
@@ -202,6 +210,7 @@ export class Game {
     this.day = s.day;
     this.hours = s.hours;
     this.ownedSkins = [...s.ownedSkins];
+    this.looks = [];
     this.stats = {};
     this.started = true;
     this.hud.setVisible(true);
@@ -257,6 +266,7 @@ export class Game {
       weapons: [...this.combat.owned],
       stats: this.stats,
       activities: Object.fromEntries(this.activities.filter((a) => a.save).map((a) => [a.id, a.save!()])),
+      looks: this.looks,
       settings: this.settings,
       savedAt: Date.now(),
     };
@@ -266,8 +276,9 @@ export class Game {
 
   private applySave(s: SaveData): void {
     this.playerName = s.name;
-    this.setAppearance(s.appearance);
     this.ownedSkins = s.ownedSkins;
+    this.setAppearance(lockPieces(s.appearance, s.ownedSkins));
+    this.looks = s.looks ?? [];
     this.money = s.money;
     this.day = s.day;
     this.hours = s.hours;
@@ -463,10 +474,23 @@ export class Game {
     this.combat?.reattach();
   }
 
+  /** The most open direction round the player, and how far it is to a wall that way (for framing them). */
+  openFacing(): { yaw: number; room: number } {
+    const p = this.player.pos;
+    let best = { yaw: this.player.yaw, room: -1 };
+    for (let i = 0; i < 12; i++) {
+      const yaw = this.player.yaw + (i * Math.PI) / 6;
+      const d = this.world.collision.raycast(p.x, p.y + 1.4, p.z, Math.sin(yaw), 0, Math.cos(yaw), 6);
+      if (d > best.room + 0.3) best = { yaw, room: d };
+    }
+    return best;
+  }
+
+  /** Put on a catalog outfit; your own body, face and hair stay as they are. */
   wear(id: string): void {
-    const keep = { skin: this.appearance.skin, hairColor: this.appearance.hairColor };
     const s = skinById(id);
-    this.setAppearance(appearanceFromSkin(id, s.unlock || s.price > 0 ? {} : keep));
+    const a = this.appearance;
+    this.setAppearance({ ...a, outfit: { ...s.appearance.outfit }, skinId: s.id });
   }
 
   unlockSkin(id: string): void {
@@ -495,6 +519,8 @@ export class Game {
   }
 
   leaveMenu(): void {
+    // The wardrobe's editor took over from the panel that just closed: stay in the menu.
+    if (this.editingLook) return;
     if (this.mode === 'menu') this.mode = 'play';
     if (this.mode === 'play') {
       this.input.wantLock = true;
@@ -598,7 +624,9 @@ export class Game {
     tweens.update(this.realDt);
     this.director.update(dt);
     // Menus: Esc closes the open panel; Esc / P / M open the pause menu and the map.
-    if (this.mode === 'menu' && this.minimap.big && (inp.pressed('Escape') || inp.pressed('KeyM'))) this.minimap.setBig(false);
+    if (this.mode === 'menu' && this.editingLook) {
+      if (inp.pressed('Escape')) this.onEditEscape?.();
+    } else if (this.mode === 'menu' && this.minimap.big && (inp.pressed('Escape') || inp.pressed('KeyM'))) this.minimap.setBig(false);
     else if (this.mode === 'menu' && (inp.pressed('Escape') || (inp.pressed('KeyP') && Panel.open?.isPause))) Panel.open?.close();
     else if (this.mode === 'play' && !this.hud.dialogOpen) {
       if (inp.pressed('KeyP') || (inp.pressed('Escape') && !inp.locked)) this.ui.pauseMenu();
@@ -662,7 +690,7 @@ export class Game {
     audio.listener.x = cam.position.x;
     audio.listener.z = cam.position.z;
     audio.listener.yaw = this.camera.yaw;
-    const showHud = this.mode === 'play' || this.mode === 'menu';
+    const showHud = (this.mode === 'play' || this.mode === 'menu') && !this.editingLook;
     this.waypoint.update(cam, this.player.pos, showHud);
     if (showHud && (this.mode === 'play' || this.minimap.big)) {
       const heading = driving ? driving.heading : this.player.yaw;
@@ -708,7 +736,7 @@ export class Game {
     if (this.titleT < 0) {
       // Creator: the camera holds on the player; let them idle.
       this.player.update(dt, null, 0, this.world, false);
-      this.player.model.root.rotation.y = Math.PI / 2 + Math.sin(performance.now() / 2400) * 0.4;
+      this.player.model.root.rotation.y = this.previewYaw ?? Math.PI / 2 + Math.sin(performance.now() / 2400) * 0.4;
       this.camera.update(dt, this.world, this.player.pos, this.player.pos, this.renderer.settings.fov);
       return;
     }

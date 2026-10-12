@@ -6,7 +6,8 @@ import { BIZ, bizDef, buildCost, upgradeCost, hourlyIncome, lotArea, casinoHourl
 import { districtName, defaultName, type Business } from '../business/business';
 import { GUNS } from '../combat/guns';
 import { VEHICLES } from '../vehicles/models';
-import { SKINS, RARITY_COLORS, SKIN_TONES, HAIR_COLORS, appearanceFromSkin, skinById, type Appearance, type Hair } from '../chars/skins';
+import { SKINS, RARITY_COLORS, appearanceFromSkin, lockPieces, skinById, type Appearance } from '../chars/skins';
+import { LookEditor, withFace } from './editor';
 import { audio } from '../core/audio';
 import type { Quality } from '../render/renderer';
 import { arrivedFromMainland, goToMainland, mainlandName } from '../activities/crossover';
@@ -339,7 +340,10 @@ export class GameUI {
 
   wardrobe(shop: boolean): void {
     const g = this.g;
-    const p = this.panel({ title: shop ? 'Drip Locker' : 'Wardrobe', subtitle: shop ? 'Outfits for every occasion' : 'Your outfits', wide: true, accent: '#d68bff' });
+    const p = this.panel({ title: shop ? 'Drip Locker' : 'Wardrobe', subtitle: shop ? 'Outfits for every occasion (you keep your own face and hair)' : 'Your outfits (you keep your own face and hair)', wide: true, accent: '#d68bff' });
+    if (!shop || g.ownedSkins.length) {
+      p.footer.append(btn('✎ Customise your look', 'primary', () => this.customize(p), !!g.vehicles.driving));
+    }
     const grid = el('div', 'pgrid');
     const render = () => {
       grid.innerHTML = '';
@@ -533,70 +537,73 @@ export class GameUI {
   creator(): Promise<{ name: string; appearance: Appearance }> {
     const g = this.g;
     return new Promise((res) => {
-      let a = appearanceFromSkin('rookie');
       let name = '';
-      const box = el('div', 'creator');
-      const apply = () => g.player.setAppearance(a);
-      const head = el('div', 'cr-head', '<div class="cr-t">WHO ARE YOU?</div><div class="cr-s">Everyone on Jackpot Island starts with nothing.</div>');
       const input = el('input', 'pinput') as HTMLInputElement;
       input.placeholder = 'Your name';
       input.maxLength = 16;
       input.addEventListener('input', () => (name = input.value));
-      input.addEventListener('keydown', (e) => e.stopPropagation());
-      const sect = (label: string) => el('div', 'cr-l', label);
-      const bodyRow = el('div', 'cr-row');
-      for (const [id, label] of [['rookie', 'Rookie'], ['rookieF', 'Rookie (F)']] as const) {
-        bodyRow.appendChild(btn(label, 'sm', () => {
-          const keep = { skin: a.skin, hairColor: a.hairColor };
-          a = appearanceFromSkin(id, keep);
-          apply();
-          paint();
-        }));
-      }
-      const swatches = (list: number[], get: () => number, set: (v: number) => void) => {
-        const r = el('div', 'cr-sw');
-        const draw = () => {
-          r.innerHTML = '';
-          for (const c of list) {
-            const s = el('button', `sw ${get() === c ? 'sel' : ''}`);
-            s.style.background = `#${c.toString(16).padStart(6, '0')}`;
-            s.addEventListener('click', (e) => {
-              e.stopPropagation();
-              set(c);
-              apply();
-              draw();
-            });
-            r.appendChild(s);
-          }
-        };
-        draw();
-        return { el: r, draw };
-      };
-      const skin = swatches(SKIN_TONES, () => a.skin, (v) => (a.skin = v));
-      const hairC = swatches(HAIR_COLORS, () => a.hairColor, (v) => (a.hairColor = v));
-      const hairs: Hair[] = ['short', 'buzz', 'spiky', 'quiff', 'afro', 'mohawk', 'long', 'ponytail', 'bun', 'bob', 'braids', 'bald'];
-      const hairRow = el('div', 'cr-row');
-      const paint = () => {
-        skin.draw();
-        hairC.draw();
-        hairRow.innerHTML = '';
-        for (const h of hairs) hairRow.appendChild(btn(h, a.hair === h ? 'primary sm' : 'sm', () => {
-          a.hair = h;
-          apply();
-          paint();
-        }));
-      };
-      paint();
-      const start = btn('Drive to Jackpot Island ▸', 'pbtn primary big', () => {
+      const start = btn('Drive to Jackpot Island ▸', 'primary lk-go', () => {
         const n = (name.trim() || 'Rookie').replace(/[^\p{L}\p{N} '._-]/gu, '').slice(0, 16) || 'Rookie';
-        box.remove();
-        res({ name: n, appearance: a });
+        ed.destroy();
+        res({ name: n, appearance: lockPieces(ed.a, g.ownedSkins) });
       });
-      box.append(head, sect('Name'), input, sect('Body'), bodyRow, sect('Skin tone'), skin.el, sect('Hair'), hairRow, sect('Hair colour'), hairC.el, start);
-      box.addEventListener('pointerdown', (e) => e.stopPropagation());
-      g.uiRoot.appendChild(box);
+      const ed = new LookEditor(g, {
+        start: withFace(appearanceFromSkin('rookie')),
+        mode: 'create',
+        title: 'WHO ARE YOU?',
+        subtitle: 'Everyone on Jackpot Island starts with $10,000 and a flat.',
+        top: input,
+        actions: [start],
+      });
+      ed.setFacing(Math.PI / 2);
+      g.player.setAppearance(ed.a);
       setTimeout(() => input.focus(), 60);
     });
+  }
+
+  /**
+   * The wardrobe's editor, in the world: the camera turns round to face the player, the HUD
+   * steps aside, and Done keeps the look (Cancel or Esc puts the old one back).
+   */
+  customize(from?: Panel): void {
+    const g = this.g;
+    if (g.editingLook || g.vehicles.driving || g.player.mode === 'dead') return;
+    if (g.mode !== 'play' && !(from && g.mode === 'menu')) return;
+    // Taking over from the wardrobe panel: closing it doesn't hand control back.
+    g.editingLook = true;
+    from?.close();
+    g.enterMenu();
+    g.hud.setVisible(false);
+    const before = structuredClone(g.appearance);
+    const prev = { cam: g.camera.mode, yaw: g.player.yaw, fp: g.player.firstPerson };
+    g.player.firstPerson = false;
+    g.player.setHeadVisible(true);
+    const facing = g.openFacing();
+    const finish = (keep: boolean) => {
+      ed.destroy();
+      g.onEditEscape = null;
+      g.player.firstPerson = prev.fp;
+      g.player.yaw = prev.yaw;
+      g.setAppearance(keep ? lockPieces(ed.a, g.ownedSkins) : before);
+      g.camera.mode = prev.cam;
+      g.editingLook = false;
+      g.hud.setVisible(true);
+      if (keep) {
+        g.save();
+        audio.play('purchase');
+      }
+      g.leaveMenu();
+    };
+    const ed = new LookEditor(g, {
+      start: withFace(g.appearance),
+      mode: 'wardrobe',
+      title: 'WARDROBE',
+      subtitle: 'Drag the view to turn round. Saved looks are under Looks.',
+      actions: [btn('Cancel', 'sm', () => finish(false)), btn('Done', 'primary sm', () => finish(true))],
+    });
+    ed.setFacing(facing.yaw, facing.room);
+    g.onEditEscape = () => finish(false);
+    g.camera.mode = 'cinematic';
   }
 }
 

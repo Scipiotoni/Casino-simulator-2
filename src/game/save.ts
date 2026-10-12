@@ -1,5 +1,5 @@
 import { loadJSON, saveJSON, removeKey } from '../core/storage';
-import type { Appearance } from '../chars/skins';
+import { appearanceFromSkin, sanitizeAppearance, type Appearance } from '../chars/skins';
 
 /**
  * Everything that persists. Everyone starts the same way (a flat, a car, some cash): this is a
@@ -46,6 +46,14 @@ export interface BusinessSave {
   xp: number;
 }
 
+export interface SavedLook {
+  name: string;
+  a: Appearance;
+}
+
+/** How many looks the wardrobe keeps. */
+export const MAX_LOOKS = 8;
+
 export interface SaveData {
   version: 1;
   name: string;
@@ -61,6 +69,8 @@ export interface SaveData {
   stats: Record<string, number>;
   /** Side-activity state, by activity id. */
   activities?: Record<string, unknown>;
+  /** Looks saved in the wardrobe. */
+  looks?: SavedLook[];
   settings: { music: number; sfx: number; sensitivity: number; invertY: boolean };
   savedAt: number;
 }
@@ -95,6 +105,10 @@ export function loadSave(): SaveData | null {
   s.stats ??= {};
   s.settings ??= { music: 0.45, sfx: 0.9, sensitivity: 1, invertY: false };
   if (!Number.isFinite(s.money)) s.money = 0;
+  s.appearance = sanitizeAppearance(s.appearance, appearanceFromSkin('rookie'));
+  s.looks = Array.isArray(s.looks)
+    ? s.looks.slice(0, MAX_LOOKS).map((l, i) => ({ name: typeof l?.name === 'string' ? l.name.slice(0, 20) : `Look ${i + 1}`, a: sanitizeAppearance(l?.a, s.appearance) }))
+    : [];
   return s;
 }
 

@@ -11,6 +11,12 @@ on, gambling, buying lots and building on them, and getting into trouble.
 
 ## What's on the island
 
+- **Your own character.** The creator (and the wardrobe in your flat, or Wardrobe in the pause
+  menu) lets you pick body, skin tone, height and build; eye colour, eyebrows, facial hair,
+  lipstick, lashes and face details (freckles, blush, a scar, war paint...); hairstyle and any
+  hair colour; and every piece of the outfit (top, bottoms, shoes, hat, glasses, neck, back,
+  gloves, neon trim) in any colours. Special pieces come with the Drip Locker's outfits.
+  Save up to eight looks and switch between them; other players see your look exactly.
 - **A big island** with a city (Fortuna City), Old Town, a desert town, a fishing town in the
   north, mountains, a lake, farms, a wind farm, an airstrip, a container port and a marina.
   The minimap and the big map (M) work like the first game's.

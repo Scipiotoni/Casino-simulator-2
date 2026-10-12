@@ -84,6 +84,8 @@ export class Input {
     );
     document.addEventListener('pointerlockchange', () => {
       this.locked = document.pointerLockElement === this.el;
+      // A lock asked for just before a menu opened can land after it: let go again.
+      if (this.locked && !this.wantLock) this.exitLock();
     });
     // The browser can refuse (e.g. for a moment after Esc released the mouse): the next click retries.
     document.addEventListener('pointerlockerror', () => {

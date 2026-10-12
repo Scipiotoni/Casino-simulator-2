@@ -315,9 +315,28 @@ interface Built {
   geometry: THREE.BufferGeometry;
   low: THREE.BufferGeometry;
   face: THREE.BufferGeometry;
+  /** Characters wearing it right now. */
+  users: number;
 }
 
+/**
+ * Built bodies by look. Trying things on in the wardrobe builds a new one per change, so
+ * past a few dozen the unworn ones are let go, oldest first.
+ */
 const cache = new Map<string, Built>();
+const CACHE_KEEP = 48;
+
+function trimCache(): void {
+  if (cache.size <= CACHE_KEEP) return;
+  for (const [k, b] of cache) {
+    if (cache.size <= CACHE_KEEP) break;
+    if (b.users > 0) continue;
+    cache.delete(k);
+    b.geometry.dispose();
+    b.low.dispose();
+    b.face.dispose();
+  }
+}
 
 /**
  * The body's colour regions, as cut in Blender (tools/blender/build_characters.py, REGIONS):
@@ -368,7 +387,7 @@ function buildCharacter(a: Appearance): Built {
   const lo = buildBody(a);
   LOW = false;
   lo.face.dispose();
-  return { geometry: hi.geometry, low: lo.geometry, face: hi.face };
+  return { geometry: hi.geometry, low: lo.geometry, face: hi.face, users: 0 };
 }
 
 function buildBody(a: Appearance): { geometry: THREE.BufferGeometry; face: THREE.BufferGeometry } {
@@ -891,14 +910,22 @@ export class CharacterModel {
   lod = 0;
   private exprHold = 0;
   private baseExpr: Expression = 'neutral';
+  private built: Built;
 
   constructor(readonly appearance: Appearance) {
     const key = appearanceKey(appearance);
     let built = cache.get(key);
     if (!built) {
+      trimCache();
       built = buildCharacter(appearance);
       cache.set(key, built);
+    } else {
+      // Most recently used goes to the back of the line.
+      cache.delete(key);
+      cache.set(key, built);
     }
+    built.users++;
+    this.built = built;
     this.rest = restPose(appearance.body === 'f');
     const list: THREE.Bone[] = [];
     for (const name of BONES) {
@@ -928,7 +955,7 @@ export class CharacterModel {
     this.root.add(this.mesh);
 
     // The face decal rides on the head bone.
-    this.faceTex = faceAtlas(appearance.eyes).clone();
+    this.faceTex = faceAtlas(appearance.eyes, appearance.face, appearance.hairColor).clone();
     this.faceTex.needsUpdate = true;
     const faceMat = new THREE.MeshLambertMaterial({ map: this.faceTex, transparent: true, alphaTest: 0.05, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 });
     const fg = built.face.clone();
@@ -1001,6 +1028,7 @@ export class CharacterModel {
   }
 
   dispose(): void {
+    this.built.users = Math.max(0, this.built.users - 1);
     (this.face.material as THREE.Material).dispose();
     this.face.geometry.dispose();
     this.faceTex.dispose();

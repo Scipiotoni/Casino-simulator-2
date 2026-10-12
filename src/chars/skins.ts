@@ -13,6 +13,11 @@ export type Hat = 'none' | 'cap' | 'beanie' | 'tophat' | 'cowboy' | 'helmet' | '
 export type Glasses = 'none' | 'shades' | 'aviators' | 'visor' | 'round' | 'goggles';
 export type Back = 'none' | 'backpack' | 'surfboard' | 'dice' | 'wings' | 'cape' | 'jetpack' | 'guitar' | 'chips';
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic';
+export type Neck = 'none' | 'chain' | 'bowtie' | 'tie' | 'scarf' | 'mask';
+export type Brows = 'soft' | 'thick' | 'thin' | 'arched' | 'straight';
+export type Beard = 'none' | 'stubble' | 'moustache' | 'goatee' | 'chinstrap' | 'full';
+export type Lips = 'natural' | 'red' | 'pink' | 'plum' | 'nude' | 'black';
+export type Marks = 'none' | 'freckles' | 'blush' | 'scar' | 'star' | 'warpaint' | 'beauty';
 
 export interface Outfit {
   top: Top;
@@ -29,15 +34,28 @@ export interface Outfit {
   shoe: number;
   gloves: boolean;
   /** Gold chain, bow tie, scarf, mask. */
-  neck: 'none' | 'chain' | 'bowtie' | 'tie' | 'scarf' | 'mask';
+  neck: Neck;
   /** Accent pieces that glow (neon trims). */
   glow: boolean;
 }
+
+/** The painted face's details (the eyes' colour is Appearance.eyes). */
+export interface FaceStyle {
+  brows: Brows;
+  beard: Beard;
+  lips: Lips;
+  marks: Marks;
+  lashes: boolean;
+}
+
+export const DEFAULT_FACE: FaceStyle = { brows: 'soft', beard: 'none', lips: 'natural', marks: 'none', lashes: false };
 
 export interface Appearance {
   body: BodyType;
   skin: number;
   eyes: string;
+  /** Face details; crowd characters leave it out and get the plain face. */
+  face?: FaceStyle;
   hair: Hair;
   hairColor: number;
   outfit: Outfit;
@@ -50,6 +68,29 @@ export interface Appearance {
 
 export const SKIN_TONES = [0xffe0c8, 0xf6cfaa, 0xe9b98c, 0xd59e6e, 0xb8804f, 0x99643b, 0x7a4a2b, 0x5a3520];
 export const HAIR_COLORS = [0x1c1410, 0x3a2416, 0x6a3f22, 0xa86a34, 0xe0b25a, 0xf2dc9a, 0xc0392b, 0xe84393, 0x3a7bd5, 0x2ecc71, 0xeeeeee, 0x9b59b6];
+/** The clothes palette in the editor (any colour is allowed; these are the quick picks). */
+export const CLOTH_COLORS = [
+  0xffffff, 0xd9d9de, 0x8e8e96, 0x2b2b30, 0x111114, 0xe3262f, 0xff6b6b, 0xff7a3d, 0xffb347, 0xffd23d,
+  0xf2e6c8, 0xc8b48a, 0x8a5a3a, 0x4a3020, 0x5d6b3a, 0x2ecc71, 0x06d6a0, 0x1fb5c8, 0x3fe0ff, 0x4d96ff,
+  0x35588f, 0x1a2a5a, 0x6a2fb8, 0xb65cff, 0xe84393, 0xff8fd8, 0xf2c230, 0xc0c0c8,
+];
+
+export const HAIRS: Hair[] = ['short', 'buzz', 'spiky', 'quiff', 'afro', 'mohawk', 'long', 'ponytail', 'bun', 'bob', 'braids', 'bald'];
+export const TOPS: Top[] = ['tee', 'tank', 'hoodie', 'jacket', 'hawaiian', 'vest', 'suit', 'dress', 'racing', 'military', 'tux', 'coat', 'armor'];
+export const BOTTOMS: Bottom[] = ['jeans', 'cargo', 'shorts', 'slacks', 'skirt', 'camo'];
+export const SHOES: Shoes[] = ['sneakers', 'boots', 'loafers', 'sandals', 'heels'];
+export const HATS: Hat[] = ['none', 'cap', 'beanie', 'visor', 'bandana', 'fedora', 'cowboy', 'beret', 'headset', 'helmet', 'tophat', 'crown'];
+export const GLASSES: Glasses[] = ['none', 'shades', 'aviators', 'round', 'goggles', 'visor'];
+export const BACKS: Back[] = ['none', 'backpack', 'surfboard', 'guitar', 'jetpack', 'chips', 'dice', 'cape', 'wings'];
+export const NECKS: Neck[] = ['none', 'chain', 'tie', 'bowtie', 'scarf', 'mask'];
+export const BROWS: Brows[] = ['soft', 'thick', 'thin', 'arched', 'straight'];
+export const BEARDS: Beard[] = ['none', 'stubble', 'moustache', 'goatee', 'chinstrap', 'full'];
+export const LIPS: Lips[] = ['natural', 'nude', 'pink', 'red', 'plum', 'black'];
+export const MARKS: Marks[] = ['none', 'freckles', 'blush', 'beauty', 'scar', 'star', 'warpaint'];
+export const EYES = ['brown', 'hazel', 'blue', 'green', 'grey', 'amber', 'violet'];
+/** Height and build ranges (1 = average). */
+export const HEIGHT_RANGE: [number, number] = [0.92, 1.08];
+export const BUILD_RANGE: [number, number] = [0.9, 1.14];
 
 export interface SkinDef {
   id: string;
@@ -198,5 +239,98 @@ export function randomAppearance(r: () => number, role: 'civilian' | 'gambler' |
     skinId: 'custom',
     height: 0.94 + r() * 0.12,
     build: 0.92 + r() * 0.2,
+  };
+}
+
+// ---------------------------------------------------------------- custom looks
+
+/** The outfit pieces you can't wear until you own an outfit that comes with them. */
+const PREMIUM = new Set([
+  'top:racing', 'top:military', 'top:tux', 'top:coat', 'top:armor', 'bottom:camo',
+  'hat:helmet', 'hat:tophat', 'hat:crown', 'hat:headset', 'glasses:visor',
+  'back:dice', 'back:wings', 'back:cape', 'back:chips', 'neck:mask', 'glow:true',
+]);
+
+export type PieceKind = 'top' | 'bottom' | 'hat' | 'glasses' | 'back' | 'neck' | 'shoes' | 'glow';
+
+/** The catalog outfits that come with a piece (the ones that unlock it). */
+export function pieceSources(kind: PieceKind, value: string | boolean): SkinDef[] {
+  return SKINS.filter((s) => String((s.appearance.outfit as unknown as Record<string, unknown>)[kind]) === String(value));
+}
+
+/** Whether a piece can be worn with these outfits owned. */
+export function pieceUnlocked(kind: PieceKind, value: string | boolean, owned: readonly string[]): boolean {
+  if (!PREMIUM.has(`${kind}:${value}`)) return true;
+  return pieceSources(kind, value).some((s) => owned.includes(s.id));
+}
+
+/** Strip pieces that aren't unlocked (an old save, a look saved before selling up...). */
+export function lockPieces(a: Appearance, owned: readonly string[]): Appearance {
+  if (a.skinId !== 'custom') return a;
+  const o = { ...a.outfit };
+  if (!pieceUnlocked('top', o.top, owned)) o.top = 'tee';
+  if (!pieceUnlocked('bottom', o.bottom, owned)) o.bottom = 'cargo';
+  if (!pieceUnlocked('hat', o.hat, owned)) o.hat = 'none';
+  if (!pieceUnlocked('glasses', o.glasses, owned)) o.glasses = 'none';
+  if (!pieceUnlocked('back', o.back, owned)) o.back = 'none';
+  if (!pieceUnlocked('neck', o.neck, owned)) o.neck = 'none';
+  if (!pieceUnlocked('glow', o.glow, owned)) o.glow = false;
+  return { ...a, outfit: o };
+}
+
+const oneOf = <T extends string>(list: readonly T[], v: unknown, d: T): T => (list.includes(v as T) ? (v as T) : d);
+const color = (v: unknown, d: number): number => (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 0xffffff ? v : d);
+const clamp = (v: unknown, [lo, hi]: [number, number], d: number): number => (typeof v === 'number' && Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d);
+
+/**
+ * A look from outside (a save, another player): every field is checked against the known
+ * options and anything unknown falls back to `base`. Catalog outfits are rebuilt from the
+ * catalog, keeping only the wearer's own body details.
+ */
+export function sanitizeAppearance(raw: unknown, base: Appearance): Appearance {
+  if (!raw || typeof raw !== 'object') return base;
+  const r = raw as Record<string, unknown>;
+  const skinId = typeof r.skinId === 'string' && SKINS.some((s) => s.id === r.skinId) ? r.skinId : 'custom';
+  const from = skinId !== 'custom' ? appearanceFromSkin(skinId) : base;
+  const ro = (r.outfit && typeof r.outfit === 'object' ? r.outfit : {}) as Record<string, unknown>;
+  const bo = from.outfit;
+  const outfit: Outfit = skinId !== 'custom' ? { ...bo } : {
+    top: oneOf(TOPS, ro.top, bo.top),
+    bottom: oneOf(BOTTOMS, ro.bottom, bo.bottom),
+    shoes: oneOf(SHOES, ro.shoes, bo.shoes),
+    hat: oneOf(HATS, ro.hat, bo.hat),
+    glasses: oneOf(GLASSES, ro.glasses, bo.glasses),
+    back: oneOf(BACKS, ro.back, bo.back),
+    c1: color(ro.c1, bo.c1),
+    c2: color(ro.c2, bo.c2),
+    accent: color(ro.accent, bo.accent),
+    pants: color(ro.pants, bo.pants),
+    shoe: color(ro.shoe, bo.shoe),
+    gloves: typeof ro.gloves === 'boolean' ? ro.gloves : bo.gloves,
+    neck: oneOf(NECKS, ro.neck, bo.neck),
+    glow: typeof ro.glow === 'boolean' ? ro.glow : bo.glow,
+  };
+  const rf = (r.face && typeof r.face === 'object' ? r.face : null) as Record<string, unknown> | null;
+  const bf = from.face ?? DEFAULT_FACE;
+  const face: FaceStyle | undefined = rf
+    ? {
+        brows: oneOf(BROWS, rf.brows, bf.brows),
+        beard: oneOf(BEARDS, rf.beard, bf.beard),
+        lips: oneOf(LIPS, rf.lips, bf.lips),
+        marks: oneOf(MARKS, rf.marks, bf.marks),
+        lashes: typeof rf.lashes === 'boolean' ? rf.lashes : bf.lashes,
+      }
+    : from.face;
+  return {
+    body: r.body === 'm' || r.body === 'f' ? r.body : from.body,
+    skin: SKIN_TONES.includes(r.skin as number) ? (r.skin as number) : from.skin,
+    eyes: oneOf(EYES, r.eyes, from.eyes),
+    face,
+    hair: oneOf(HAIRS, r.hair, from.hair),
+    hairColor: color(r.hairColor, from.hairColor),
+    outfit,
+    skinId,
+    height: clamp(r.height, HEIGHT_RANGE, 1),
+    build: clamp(r.build, BUILD_RANGE, 1),
   };
 }

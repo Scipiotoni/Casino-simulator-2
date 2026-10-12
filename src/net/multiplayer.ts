@@ -3,7 +3,7 @@ import type { Game } from '../game/game';
 import { Relay, type RelayPeer } from './relay';
 import { CharacterModel } from '../chars/model';
 import { Animator, ROLL_TIME, type Pose } from '../chars/anim';
-import { appearanceFromSkin, randomAppearance, SKIN_TONES, HAIR_COLORS, type Appearance } from '../chars/skins';
+import { randomAppearance, sanitizeAppearance, type Appearance } from '../chars/skins';
 import { Vehicle } from '../vehicles/vehicle';
 import { VEHICLES } from '../vehicles/models';
 import { labelTexture } from '../render/signs';
@@ -120,18 +120,7 @@ const num = (v: unknown, lo: number, hi: number, d = 0): number => (typeof v ===
 
 /** A look from the network: only known options survive, anything else falls back. */
 function cleanLook(a: unknown, seed: string): Appearance {
-  const base = randomAppearance(mulberry32(hashString(seed)), 'civilian');
-  if (!a || typeof a !== 'object') return base;
-  const r = a as Record<string, unknown>;
-  const skin = typeof r.skinId === 'string' ? r.skinId : '';
-  const out: Appearance = skin && skin !== 'custom' ? appearanceFromSkin(skin) : base;
-  if (r.body === 'm' || r.body === 'f') out.body = r.body;
-  if (SKIN_TONES.includes(r.skin as number)) out.skin = r.skin as number;
-  if (HAIR_COLORS.includes(r.hairColor as number)) out.hairColor = r.hairColor as number;
-  if (typeof r.hair === 'string' && /^[a-z]{2,12}$/.test(r.hair)) out.hair = r.hair as Appearance['hair'];
-  out.height = num(r.height, 0.92, 1.08, 1);
-  out.build = num(r.build, 0.9, 1.14, 1);
-  return out;
+  return sanitizeAppearance(a, randomAppearance(mulberry32(hashString(seed)), 'civilian'));
 }
 
 export class Multiplayer {
