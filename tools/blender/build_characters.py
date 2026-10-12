@@ -39,11 +39,11 @@ PREVIEWS = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'previews')
 
 def rest_pose(f):
     sh = 0.192 if f else 0.212
-    hip = 0.09 if f else 0.088
+    hip = 0.086 if f else 0.084
     return {
         'root': (0, 0, 0), 'hips': (0, 0.96, 0), 'spine': (0, 1.1, 0), 'chest': (0, 1.28, 0), 'neck': (0, 1.49, 0), 'head': (0, 1.57, 0.005),
-        'upperArmL': (sh, 1.395, 0), 'foreArmL': (sh + 0.03, 1.12, -0.005), 'handL': (sh + 0.058, 0.862, 0.01),
-        'upperArmR': (-sh, 1.395, 0), 'foreArmR': (-sh - 0.03, 1.12, -0.005), 'handR': (-sh - 0.058, 0.862, 0.01),
+        'upperArmL': (sh, 1.365, 0), 'foreArmL': (sh + 0.03, 1.10, -0.005), 'handL': (sh + 0.058, 0.845, 0.01),
+        'upperArmR': (-sh, 1.365, 0), 'foreArmR': (-sh - 0.03, 1.10, -0.005), 'handR': (-sh - 0.058, 0.845, 0.01),
         'thighL': (hip, 0.93, 0), 'shinL': (hip + 0.005, 0.51, 0.012), 'footL': (hip + 0.008, 0.085, -0.01),
         'thighR': (-hip, 0.93, 0), 'shinR': (-hip - 0.005, 0.51, 0.012), 'footR': (-hip - 0.008, 0.085, -0.01),
     }
@@ -70,7 +70,7 @@ CHEST_LINE = 1.17
 BELT_TOP = 1.0
 BELT_BOTTOM = 0.965
 PLACKET = 0.032
-SLEEVE = 0.42  # short sleeves end this far down the upper arm
+SLEEVE = 0.55  # short sleeves end this far down the upper arm (mid-biceps)
 SHORTS = 0.55  # shorts end this far down the thigh
 CALF = 0.5  # boots come this far up the shin
 SOLE = 0.03
@@ -80,34 +80,34 @@ def sculpt_body(f):
     """Metaball families: torso and head, two arms, two legs (separate so the limbs stay distinct)."""
     R = rest_pose(f)
     torso = Sculpt('Torso')
-    # The shoulders sit low, the trapezius sloping from the neck down to the deltoids (a flat,
-    # high shoulder line reads as shrugged). The pelvis sits back, so the belly stays flat
-    # down to the waistband.
+    # The neck and the top of the chest stay where they were; the shoulder joints sit lower, and
+    # the trapezius slopes smoothly from the base of the neck down into the deltoids, which blend
+    # into the chest (one surface, no step or ball where the torso meets the shoulder).
     if f:
-        # Hips curvy but clear of the hands hanging beside them.
-        torso.ellipsoid((0, 0.93, -0.02), (0.146, 0.1, 0.105))
-        torso.ellipsoid((0, 1.06, 0), (0.122, 0.085, 0.086))
-        torso.ellipsoid((0, 1.17, 0.004), (0.13, 0.075, 0.09))
-        torso.ellipsoid((0, 1.29, 0.004), (0.128, 0.095, 0.1))
-        torso.ellipsoid((0, 1.37, -0.006), (0.15, 0.055, 0.088))
+        # Hips curvy but slim, clear of the hands hanging beside them.
+        torso.ellipsoid((0, 0.93, -0.02), (0.134, 0.098, 0.102))
+        torso.ellipsoid((0, 1.06, 0), (0.118, 0.085, 0.084))
+        torso.ellipsoid((0, 1.17, 0.004), (0.128, 0.075, 0.09))
+        torso.ellipsoid((0, 1.29, 0.004), (0.126, 0.095, 0.1))
+        torso.ellipsoid((0, 1.395, -0.006), (0.138, 0.06, 0.088))
         for s in (-1, 1):
-            torso.ellipsoid((s * 0.056, 1.29, 0.06), (0.062, 0.058, 0.05))
-            torso.ellipsoid((s * 0.085, 1.42, -0.018), (0.085, 0.028, 0.06), rot=Quaternion((0, 1, 0), s * 0.36))
-            torso.ball((s * 0.172, 1.376, 0), 0.05)
-        torso.capsule((0, 1.42, -0.004), (0, 1.585, 0.006), 0.046)
+            torso.ellipsoid((s * 0.056, 1.295, 0.06), (0.062, 0.058, 0.05))
+            torso.ellipsoid((s * 0.085, 1.432, -0.016), (0.085, 0.026, 0.056), rot=Quaternion((0, 1, 0), s * 0.42))
+            torso.ball((s * 0.165, 1.362, 0), 0.05)
+        torso.capsule((0, 1.44, -0.004), (0, 1.585, 0.006), 0.046)
     else:
-        torso.ellipsoid((0, 0.935, -0.012), (0.14, 0.1, 0.104))
-        torso.ellipsoid((0, 1.06, 0), (0.138, 0.09, 0.098))
-        torso.ellipsoid((0, 1.17, 0.006), (0.156, 0.08, 0.106))
+        torso.ellipsoid((0, 0.935, -0.012), (0.128, 0.098, 0.1))
+        torso.ellipsoid((0, 1.06, 0), (0.132, 0.09, 0.096))
+        torso.ellipsoid((0, 1.17, 0.006), (0.152, 0.08, 0.104))
         # Narrow enough under the arms that they hang free of the chest (no webbing when raised).
         torso.ellipsoid((0, 1.3, 0.01), (0.14, 0.1, 0.122))
-        torso.ellipsoid((0, 1.37, -0.006), (0.185, 0.06, 0.105))
+        torso.ellipsoid((0, 1.4, -0.006), (0.165, 0.065, 0.106))
         for s in (-1, 1):
-            # Pecs, a sloping trapezius and big rounded shoulders: the heroic V.
+            # Pecs, a sloping trapezius and rounded shoulders blended into the chest: the heroic V.
             torso.ellipsoid((s * 0.068, 1.31, 0.07), (0.075, 0.06, 0.05))
-            torso.ellipsoid((s * 0.1, 1.425, -0.02), (0.1, 0.032, 0.07), rot=Quaternion((0, 1, 0), s * 0.38))
-            torso.ball((s * 0.2, 1.38, 0), 0.064)
-        torso.capsule((0, 1.42, -0.004), (0, 1.585, 0.006), 0.056)
+            torso.ellipsoid((s * 0.095, 1.44, -0.018), (0.095, 0.03, 0.066), rot=Quaternion((0, 1, 0), s * 0.42))
+            torso.ball((s * 0.19, 1.368, 0), 0.062)
+        torso.capsule((0, 1.44, -0.004), (0, 1.585, 0.006), 0.056)
     # Head: skull, jaw, chin, nose, brow and ears (hair_hats.head has the same skull).
     (hc, hh) = hair_hats.head(f)
     hw = hh[0]
@@ -126,7 +126,8 @@ def sculpt_body(f):
         el = R['foreArm' + side]
         wr = R['hand' + side]
         ru = 0.05 if f else 0.058
-        arm.ball((up[0] - sg * 0.01, up[1] - 0.01, 0), ru * 1.05)
+        # The top of the arm, tucked under the shoulder (not a ball sitting on it).
+        arm.ball((up[0] - sg * 0.004, up[1] - 0.025, 0), ru * 0.98)
         arm.taper((up[0], up[1] - 0.02, up[2]), el, ru, ru * 0.82)
         arm.ellipsoid((el[0] + sg * 0.004, el[1] - 0.06, el[2]), (ru * 0.84, 0.075, ru * 0.86))
         arm.taper(el, (wr[0], wr[1] + 0.02, wr[2]), ru * 0.8, ru * 0.6)
@@ -139,7 +140,7 @@ def sculpt_body(f):
         th = R['thigh' + side]
         kn = R['shin' + side]
         an = R['foot' + side]
-        rt = 0.085 if f else 0.088
+        rt = 0.08 if f else 0.082
         # The top of the thigh reaches up inside the pelvis so the hip join is deep (kept in
         # from the outside of the hip, which would otherwise bulge past the pelvis).
         leg.ellipsoid((th[0] - sg * 0.006, th[1] - 0.02, th[2]), (rt * 0.85, 0.09, rt * 0.95))
@@ -286,10 +287,14 @@ def limb_frames(R):
 
 
 def armhole(f):
-    """Where the sleeve meets the body (above the armpit): a plane each side."""
+    """
+    Where the sleeve meets the body, above the armpit: a plane each side, leaning in over the
+    top of the shoulder (so a sleeveless top leaves the shoulder bare, like a tank top's strap,
+    and a sleeve starts at the shoulder seam instead of puffing out of it).
+    """
     sh, y, _ = rest_pose(f)['upperArmL']
-    n = Vector((0.97, 0.24, 0)).normalized()
-    return {s: (Vector((s * (sh - 0.03), y - 0.01, 0)), Vector((s * n.x, n.y, 0))) for s in (-1, 1)}
+    n = Vector((0.86, 0.51, 0)).normalized()
+    return {s: (Vector((s * (sh - 0.05), y, 0)), Vector((s * n.x, n.y, 0))) for s in (-1, 1)}
 
 
 def region_of(k, c, fr):
@@ -356,7 +361,7 @@ def regionize(ob, R, f):
     # Armholes: above the armpit the plane decides between sleeve and body.
     for s, (co, no) in armhole(f).items():
         arm = 'armL' if s > 0 else 'armR'
-        near = lambda c, s=s, top=co.y: c.y > top - 0.1 and c.x * s > 0.08
+        near = lambda c, s=s, top=co.y: c.y > top - 0.065 and c.x * s > 0.08
         cut(('torso', arm), co, no, near)
         for fc in bm.faces:
             c = G(fc.calc_center_median())

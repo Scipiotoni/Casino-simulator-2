@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { noise2 } from '../core/noise';
 import { matrixOf, type Xf } from '../render/kit';
 import { withRim } from '../render/materials';
 import { expressionOffset, faceAtlas, type Expression } from './faces';
@@ -37,11 +36,11 @@ type V3 = [number, number, number];
 /** Rest-pose bone positions in model space (character faces +z, its left is +x). */
 function restPose(f: boolean): Record<BoneName, V3> {
   const sh = f ? 0.192 : 0.212;
-  const hip = f ? 0.09 : 0.088;
+  const hip = f ? 0.086 : 0.084;
   return {
     root: [0, 0, 0], hips: [0, 0.96, 0], spine: [0, 1.1, 0], chest: [0, 1.28, 0], neck: [0, 1.49, 0], head: [0, 1.57, 0.005],
-    upperArmL: [sh, 1.395, 0], foreArmL: [sh + 0.03, 1.12, -0.005], handL: [sh + 0.058, 0.862, 0.01],
-    upperArmR: [-sh, 1.395, 0], foreArmR: [-sh - 0.03, 1.12, -0.005], handR: [-sh - 0.058, 0.862, 0.01],
+    upperArmL: [sh, 1.365, 0], foreArmL: [sh + 0.03, 1.10, -0.005], handL: [sh + 0.058, 0.845, 0.01],
+    upperArmR: [-sh, 1.365, 0], foreArmR: [-sh - 0.03, 1.10, -0.005], handR: [-sh - 0.058, 0.845, 0.01],
     thighL: [hip, 0.93, 0], shinL: [hip + 0.005, 0.51, 0.012], footL: [hip + 0.008, 0.085, -0.01],
     thighR: [-hip, 0.93, 0], shinR: [-hip - 0.005, 0.51, 0.012], footR: [-hip - 0.008, 0.085, -0.01],
   };
@@ -49,7 +48,21 @@ function restPose(f: boolean): Record<BoneName, V3> {
 
 // ------------------------------------------------------------------ geometry builder
 
-type ColorFn = (x: number, y: number, z: number, region: number) => number;
+/**
+ * A printed fabric (a holiday shirt's flowers, camouflage): drawn per pixel by the body's
+ * shader from the rest-pose position, so it stays crisp at any distance and moves with the
+ * cloth, instead of being smeared across the mesh's vertices.
+ */
+interface Print {
+  base: number;
+  kind: (typeof PRINT)[keyof typeof PRINT];
+  c2: number;
+  c3: number;
+}
+const PRINT = { hawaiian: 1, camo: 2 } as const;
+/** What a part is painted with: a flat colour or a print. */
+type Paint = number | Print;
+type ColorFn = (x: number, y: number, z: number, region: number) => Paint;
 
 interface Chain {
   bones: number[];
@@ -72,11 +85,43 @@ const _v = new THREE.Vector3();
 const _n = new THREE.Vector3();
 const _nm = new THREE.Matrix3();
 
+interface Slot {
+  pos: number[];
+  nor: number[];
+  col: number[];
+  si: number[];
+  sw: number[];
+  /** Print kind (0 = plain), and the print's second and third colours. */
+  pat: number[];
+  c2: number[];
+  c3: number[];
+}
+
+function newSlot(): Slot {
+  return { pos: [], nor: [], col: [], si: [], sw: [], pat: [], c2: [], c3: [] };
+}
+
+/** Write a paint into a slot's colour attributes. */
+function paint(s: Slot, p: Paint): void {
+  if (typeof p === 'number') {
+    _c.setHex(p);
+    s.col.push(_c.r, _c.g, _c.b);
+    s.pat.push(0);
+    s.c2.push(0, 0, 0);
+    s.c3.push(0, 0, 0);
+    return;
+  }
+  _c.setHex(p.base);
+  s.col.push(_c.r, _c.g, _c.b);
+  s.pat.push(p.kind);
+  _c.setHex(p.c2);
+  s.c2.push(_c.r, _c.g, _c.b);
+  _c.setHex(p.c3);
+  s.c3.push(_c.r, _c.g, _c.b);
+}
+
 class SkinBuilder {
-  private slots: { pos: number[]; nor: number[]; col: number[]; si: number[]; sw: number[] }[] = [
-    { pos: [], nor: [], col: [], si: [], sw: [] },
-    { pos: [], nor: [], col: [], si: [], sw: [] },
-  ];
+  private slots: Slot[] = [newSlot(), newSlot()];
 
   add(geo: THREE.BufferGeometry, o: PartOpts): void {
     const g = geo.index ? geo.toNonIndexed() : geo;
@@ -93,9 +138,7 @@ class SkinBuilder {
       _n.set(nr.getX(i), nr.getY(i), nr.getZ(i)).applyMatrix3(_nm).normalize();
       s.pos.push(_v.x, _v.y, _v.z);
       s.nor.push(_n.x, _n.y, _n.z);
-      const col = typeof o.color === 'function' ? o.color(_v.x, _v.y, _v.z, uv ? Math.floor(uv.getX(i)) : 0) : o.color;
-      _c.setHex(col);
-      s.col.push(_c.r, _c.g, _c.b);
+      paint(s, typeof o.color === 'function' ? o.color(_v.x, _v.y, _v.z, uv ? Math.floor(uv.getX(i)) : 0) : o.color);
       if (o.chain) {
         const [b0, b1, w1] = chainWeights(o.chain, _v.x, _v.y, _v.z);
         s.si.push(b0, b1, 0, 0);
@@ -147,8 +190,7 @@ class SkinBuilder {
       }
       s.pos.push(x, y, z);
       s.nor.push(nr.getX(i), nr.getY(i), nr.getZ(i));
-      _c.setHex(color(x, y, z, uv ? Math.floor(uv.getX(i)) : 0));
-      s.col.push(_c.r, _c.g, _c.b);
+      paint(s, color(x, y, z, uv ? Math.floor(uv.getX(i)) : 0));
       for (let k = 0; k < 4; k++) {
         s.si.push(si.getComponent(i, k));
         s.sw.push(sw.getComponent(i, k));
@@ -166,6 +208,9 @@ class SkinBuilder {
     g.setAttribute('color', new THREE.Float32BufferAttribute([...a.col, ...b.col], 3));
     g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute([...a.si, ...b.si], 4));
     g.setAttribute('skinWeight', new THREE.Float32BufferAttribute([...a.sw, ...b.sw], 4));
+    g.setAttribute('aPrint', new THREE.Float32BufferAttribute([...a.pat, ...b.pat], 1));
+    g.setAttribute('aPrint2', new THREE.Float32BufferAttribute([...a.c2, ...b.c2], 3));
+    g.setAttribute('aPrint3', new THREE.Float32BufferAttribute([...a.c3, ...b.c3], 3));
     const na = a.pos.length / 3;
     const nb = b.pos.length / 3;
     g.addGroup(0, na, 0);
@@ -287,9 +332,8 @@ const REGION = {
 const SHIRT = 0xf7f7f7;
 const SOLES: Record<Outfit['shoes'], number> = { sneakers: 0xf4f4f4, boots: 0x2a1d14, heels: 0x1a1a1a, sandals: 0x8a5a3a, loafers: 0x1a1a1a };
 
-function camo(x: number, y: number, z: number, o: Outfit): number {
-  const n = noise2(x * 22 + z * 9, y * 22 - z * 7);
-  return n > 0.25 ? o.c2 : n < -0.3 ? 0x2a2a1e : o.c1;
+function camo(o: Outfit): Print {
+  return { base: o.c1, kind: PRINT.camo, c2: o.c2, c3: 0x2a2a1e };
 }
 
 /** How far down the arms a top's sleeves go: 0 none, 1 short, 3 to the wrist. */
@@ -336,24 +380,22 @@ function buildBody(a: Appearance): { geometry: THREE.BufferGeometry; face: THREE
   const body = bodyParts(f);
   const sl = sleeves(o);
   const lg = legs(o);
-  const pants = (x: number, y: number, z: number): number => (o.bottom === 'camo' ? camo(x, y, z, o) : o.pants);
+  const pants = (_x: number, _y: number, _z: number): Paint => (o.bottom === 'camo' ? camo(o) : o.pants);
   // The top's own fabric, prints included.
-  const fabric = (x: number, y: number, z: number): number => {
+  const fabric = (_x: number, _y: number, _z: number): Paint => {
     switch (o.top) {
-      case 'hawaiian': {
-        const n = noise2(x * 30 + 3, y * 30 + z * 20);
-        return n > 0.35 ? o.c2 : n < -0.42 ? o.accent : o.c1;
-      }
+      case 'hawaiian':
+        return { base: o.c1, kind: PRINT.hawaiian, c2: o.c2, c3: o.accent };
       case 'military':
-        return camo(x, y, z, o);
+        return camo(o);
       case 'vest':
         return o.c2;
       default:
         return o.c1;
     }
   };
-  const sleeve = (x: number, y: number, z: number): number => (o.top === 'vest' ? SHIRT : o.top === 'suit' || o.top === 'tux' || o.top === 'jacket' || o.top === 'coat' ? o.c1 : fabric(x, y, z));
-  const color = (x: number, y: number, z: number, r: number): number => {
+  const sleeve = (x: number, y: number, z: number): Paint => (o.top === 'vest' ? SHIRT : o.top === 'suit' || o.top === 'tux' || o.top === 'jacket' || o.top === 'coat' ? o.c1 : fabric(x, y, z));
+  const color = (x: number, y: number, z: number, r: number): Paint => {
     switch (r) {
       case REGION.head:
       case REGION.neck:
@@ -706,7 +748,115 @@ function buildGlasses(sb: SkinBuilder, a: Appearance, hy: number): void {
 
 // ------------------------------------------------------------------ runtime model
 
-export const BODY_MATERIAL = withRim(new THREE.MeshLambertMaterial({ vertexColors: true }), 1.0);
+/**
+ * The prints, drawn per pixel from the rest-pose position (so they ride along with the
+ * cloth): hibiscus flowers with yellow centres over darker leaves for holiday shirts, and
+ * woodland camouflage blotches. Edges are anti-aliased with screen-space derivatives.
+ */
+function withPrints<T extends THREE.Material>(m: T): T {
+  const prev = m.onBeforeCompile;
+  m.onBeforeCompile = (shader, r) => {
+    prev?.call(m, shader, r);
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>
+attribute float aPrint;
+attribute vec3 aPrint2;
+attribute vec3 aPrint3;
+varying float vPrint;
+varying vec3 vPrint2;
+varying vec3 vPrint3;
+varying vec3 vRest;
+varying vec3 vRestN;`)
+      .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+vRestN = objectNormal;`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+vRest = position;
+vPrint = aPrint;
+vPrint2 = aPrint2;
+vPrint3 = aPrint3;`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+varying float vPrint;
+varying vec3 vPrint2;
+varying vec3 vPrint3;
+varying vec3 vRest;
+varying vec3 vRestN;
+float prHash(vec3 p) {
+  p = fract(p * 0.1031);
+  p += dot(p, p.zyx + 31.32);
+  return fract((p.x + p.y) * p.z);
+}
+vec3 prHash3(vec3 p) {
+  p = fract(p * vec3(0.1031, 0.1030, 0.0973));
+  p += dot(p, p.yxz + 33.33);
+  return fract((p.xxy + p.yxx) * p.zyx);
+}
+float prNoise(vec3 p) {
+  vec3 i = floor(p);
+  vec3 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(mix(prHash(i), prHash(i + vec3(1.0, 0.0, 0.0)), f.x), mix(prHash(i + vec3(0.0, 1.0, 0.0)), prHash(i + vec3(1.0, 1.0, 0.0)), f.x), f.y),
+    mix(mix(prHash(i + vec3(0.0, 0.0, 1.0)), prHash(i + vec3(1.0, 0.0, 1.0)), f.x), mix(prHash(i + vec3(0.0, 1.0, 1.0)), prHash(i + vec3(1.0, 1.0, 1.0)), f.x), f.y),
+    f.z);
+}
+// The nearest point of a jittered grid: its offset from p, and its cell (for a random turn).
+vec3 prCell(vec3 p, out vec3 cell) {
+  vec3 i = floor(p);
+  vec3 best = vec3(9.0);
+  cell = i;
+  for (int x = -1; x <= 1; x++) for (int y = -1; y <= 1; y++) for (int z = -1; z <= 1; z++) {
+    vec3 c = i + vec3(float(x), float(y), float(z));
+    vec3 o = c + 0.15 + 0.7 * prHash3(c) - p;
+    if (dot(o, o) < dot(best, best)) { best = o; cell = c; }
+  }
+  return best;
+}
+// A cell's offset laid flat on the surface (in the plane of the rest-pose normal).
+vec2 prFlat(vec3 o, vec3 n) {
+  vec3 t = normalize(cross(n, abs(n.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
+  return vec2(dot(o, t), dot(o, cross(n, t)));
+}
+vec3 prPaint(vec3 base) {
+  vec3 n = normalize(vRestN);
+  if (vPrint < 1.5) {
+    // Holiday shirt: leaves, then flowers on top.
+    vec3 p = vRest / 0.06;
+    vec3 lc;
+    vec2 lq = prFlat(prCell(p * 1.25 + 17.3, lc), n);
+    float la = prHash(lc) * 6.2832;
+    lq = mat2(cos(la), -sin(la), sin(la), cos(la)) * lq;
+    float lr = length(vec2(lq.x * 0.55, lq.y * 1.5));
+    float aa = fwidth(lr) + 1e-4;
+    vec3 col = mix(base, base * 0.62, 1.0 - smoothstep(0.24 - aa, 0.24 + aa, lr));
+    vec3 fc;
+    vec2 q = prFlat(prCell(p, fc), n);
+    float r = length(q);
+    float ang = atan(q.y, q.x) + prHash(fc) * 6.2832;
+    float petal = 0.27 + 0.1 * cos(5.0 * ang);
+    aa = fwidth(r) + 1e-4;
+    col = mix(col, vPrint2, 1.0 - smoothstep(petal - aa, petal + aa, r));
+    col = mix(col, vPrint3, 1.0 - smoothstep(0.075 - aa, 0.075 + aa, r));
+    return col;
+  }
+  // Camouflage: two layers of soft blobs with crisp edges.
+  vec3 p = vRest * 9.0;
+  float n1 = prNoise(p) * 0.65 + prNoise(p * 2.1 + 5.2) * 0.35;
+  float n2 = prNoise(p * 1.4 + 11.7) * 0.6 + prNoise(p * 3.0 + 2.3) * 0.4;
+  float a1 = fwidth(n1) + 1e-4;
+  float a2 = fwidth(n2) + 1e-4;
+  vec3 col = mix(base, vPrint2, smoothstep(0.52 - a1, 0.52 + a1, n1));
+  return mix(col, vPrint3, smoothstep(0.62 - a2, 0.62 + a2, n2));
+}`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+if (vPrint > 0.5) diffuseColor.rgb = prPaint(diffuseColor.rgb);`);
+  };
+  const key = m.customProgramCacheKey.bind(m);
+  m.customProgramCacheKey = () => `${key()}|prints`;
+  return m;
+}
+
+export const BODY_MATERIAL = withPrints(withRim(new THREE.MeshLambertMaterial({ vertexColors: true }), 1.0));
 export const GLOW_MATERIAL = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
 const BLOB_TEX = (() => {
   const c = document.createElement('canvas');
