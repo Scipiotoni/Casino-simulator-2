@@ -11,6 +11,8 @@ export interface PanelOpts {
   wide?: boolean;
   onClose?: () => void;
   accent?: string;
+  /** The pause menu (P closes it as well as Esc). */
+  pause?: boolean;
 }
 
 let current: Panel | null = null;
@@ -47,6 +49,10 @@ export class Panel {
     this.root.remove();
     if (current === this) current = null;
     this.opts.onClose?.();
+  }
+
+  get isPause(): boolean {
+    return !!this.opts.pause;
   }
 
   get isClosed(): boolean {

@@ -386,7 +386,7 @@ export class GameUI {
 
   pauseMenu(): void {
     const g = this.g;
-    const p = this.panel({ title: 'Paused', subtitle: `${g.playerName} · Day ${g.day}` });
+    const p = this.panel({ title: 'Paused', subtitle: `${g.playerName} · Day ${g.day}`, pause: true });
     p.body.append(
       row('Cash', money(g.money)),
       row('Net worth', money(g.netWorth())),

@@ -322,3 +322,22 @@ body.cine-on .hud-dialog { bottom: calc(11vh + 14px); }
 .mc-chat.open .mc-bar { display: block; }
 .mc-input { width: 100%; padding: 8px 10px; border: none; border-radius: 0; background: rgba(0, 0, 0, 0.6); color: #fff; font: 800 15px var(--body-font); outline: 2px solid rgba(255, 255, 255, 0.15); }
 .mc-input:focus { outline-color: rgba(255, 255, 255, 0.4); }
+
+/* ---------------------------------------------------------------- mouse not captured */
+.lock-hint {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, 40px);
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: rgba(11, 21, 48, 0.82);
+  color: #fff;
+  font: 700 15px var(--ui-font, 'Nunito', sans-serif);
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s;
+  z-index: 6;
+}
+.lock-hint.on { opacity: 1; }

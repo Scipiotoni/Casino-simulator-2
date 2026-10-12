@@ -51,9 +51,10 @@ export class Input {
     el.addEventListener('mousedown', (e) => {
       this.mouseDown[e.button] = true;
       this.buttonsPressed.add(e.button);
+      // Grabbing the mouse again is never suppressed: that click is how you get back in.
+      if (this.wantLock && !this.locked && e.button === 0 && !this.touchMode) this.requestLock();
       if (performance.now() < this.suppressUntil) return;
       this.clicks.push({ x: e.clientX, y: e.clientY, button: e.button });
-      if (this.wantLock && !this.locked && e.button === 0 && !this.touchMode) this.requestLock();
     });
     window.addEventListener('mouseup', (e) => {
       this.mouseDown[e.button] = false;
@@ -83,6 +84,10 @@ export class Input {
     );
     document.addEventListener('pointerlockchange', () => {
       this.locked = document.pointerLockElement === this.el;
+    });
+    // The browser can refuse (e.g. for a moment after Esc released the mouse): the next click retries.
+    document.addEventListener('pointerlockerror', () => {
+      this.locked = false;
     });
     el.addEventListener('touchstart', (e) => this.onTouch(e, 'start'), { passive: false });
     el.addEventListener('touchmove', (e) => this.onTouch(e, 'move'), { passive: false });

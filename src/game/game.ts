@@ -189,6 +189,8 @@ export class Game {
       this.applySave(save);
       this.hud.setVisible(true);
       this.minimap.setVisible(true);
+      // Down from the title's fly-over to the player (it was left up in the sky).
+      this.camera.mode = this.player.firstPerson ? 'first' : 'third';
       this.mode = 'play';
       this.input.wantLock = true;
       this.hud.banner('WELCOME BACK', save.name.toUpperCase(), 2600);
@@ -507,7 +509,13 @@ export class Game {
 
   leaveMenu(): void {
     if (this.mode === 'menu') this.mode = 'play';
-    if (this.mode === 'play') this.input.wantLock = true;
+    if (this.mode === 'play') {
+      this.input.wantLock = true;
+      // Closing with a click (Resume, a shop's button) counts as the gesture that may grab
+      // the mouse, so mouse look comes straight back; if the browser says no, the
+      // "click to look around" hint asks for one more click.
+      if (!this.input.touchMode && !this.input.locked) this.input.requestLock();
+    }
     this.input.suppressClicks(200);
   }
 
@@ -562,9 +570,28 @@ export class Game {
       console.error(e);
     }
     this.renderer.render();
+    this.updateLockHint(dt);
     this.input.endFrame();
     requestAnimationFrame(this.loop);
   };
+
+  private lockHint: HTMLDivElement | null = null;
+  private unlockedT = 0;
+
+  /** Playing with a mouse that isn't captured (after Esc, or a refused lock): say how to get it back. */
+  private updateLockHint(dt: number): void {
+    if (!this.uiRoot) return;
+    const inp = this.input;
+    const want = this.mode === 'play' && inp.wantLock && !inp.locked && !inp.touchMode && !this.director.playing && !this.chat.open && (this.camera.mode === 'third' || this.camera.mode === 'first' || this.camera.mode === 'vehicle');
+    this.unlockedT = want ? this.unlockedT + dt : 0;
+    if (!this.lockHint) {
+      this.lockHint = document.createElement('div');
+      this.lockHint.className = 'lock-hint';
+      this.lockHint.textContent = 'Click to look around';
+      this.uiRoot.appendChild(this.lockHint);
+    }
+    this.lockHint.classList.toggle('on', this.unlockedT > 0.6);
+  }
 
   get canMove(): boolean {
     return this.mode === 'play' && !this.hud.dialogOpen && this.player.mode !== 'dead';
@@ -585,7 +612,7 @@ export class Game {
     this.director.update(dt);
     // Menus: Esc closes the open panel; Esc / P / M open the pause menu and the map.
     if (this.mode === 'menu' && this.minimap.big && (inp.pressed('Escape') || inp.pressed('KeyM'))) this.minimap.setBig(false);
-    else if (this.mode === 'menu' && inp.pressed('Escape')) Panel.open?.close();
+    else if (this.mode === 'menu' && (inp.pressed('Escape') || (inp.pressed('KeyP') && Panel.open?.isPause))) Panel.open?.close();
     else if (this.mode === 'play' && !this.hud.dialogOpen) {
       if (inp.pressed('KeyP') || (inp.pressed('Escape') && !inp.locked)) this.ui.pauseMenu();
       else if (inp.pressed('KeyM')) this.minimap.setBig(true);
