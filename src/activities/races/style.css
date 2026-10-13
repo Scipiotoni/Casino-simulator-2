@@ -1,0 +1,109 @@
+/* Street races: the start card, the race timer and the countdown. */
+.race-hud {
+  position: absolute;
+  right: 16px;
+  top: 214px;
+  display: none;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 190px;
+  padding: 8px 14px 9px;
+  border-radius: 12px;
+  border-right: 4px solid #ff3d6e;
+  background: rgba(10, 22, 60, 0.84);
+  color: #fff;
+  font-family: var(--ui-font);
+  pointer-events: none;
+  z-index: 9;
+}
+.race-hud.on { display: flex; }
+.rh-name { font-size: 12px; letter-spacing: 0.1em; color: #ff8fab; text-transform: uppercase; white-space: nowrap; }
+.rh-time { font-size: 40px; line-height: 1; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; -webkit-text-stroke: 1px rgba(0, 0, 0, 0.4); }
+.rh-row { display: flex; gap: 10px; align-items: baseline; font-size: 14px; letter-spacing: 0.06em; white-space: nowrap; }
+.rh-cp { color: #cfe3ff; }
+.rh-target { color: var(--yellow); }
+.rh-split { display: none; font-size: 22px; line-height: 1.1; }
+.rh-split.ahead { display: block; color: var(--green); }
+.rh-split.behind { display: block; color: var(--red); }
+.rh-warn { display: none; margin-top: 4px; padding: 3px 10px; border-radius: 6px; background: rgba(255, 77, 94, 0.9); font-family: var(--body-font); font-weight: 800; font-size: 13px; animation: raceWarn 0.8s ease-in-out infinite; }
+.rh-warn.on { display: block; }
+@keyframes raceWarn { 50% { opacity: 0.55; } }
+
+.race-card {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: none;
+  width: 290px;
+  padding: 12px 16px 14px;
+  border-radius: 14px;
+  border-left: 5px solid #ff3d6e;
+  background: linear-gradient(180deg, rgba(12, 26, 70, 0.94), rgba(8, 16, 44, 0.94));
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4);
+  color: #fff;
+  font-family: var(--ui-font);
+  pointer-events: none;
+  z-index: 9;
+  animation: raceCardIn 0.2s ease;
+}
+.race-card.on { display: block; }
+@keyframes raceCardIn { from { opacity: 0; transform: translateY(-50%) translateX(-12px); } }
+.rc-tag { display: inline-block; padding: 2px 10px; border-radius: 5px; background: #e8285c; font-size: 12px; letter-spacing: 0.12em; transform: skewX(-8deg); }
+.rc-name { margin-top: 6px; font-size: 25px; line-height: 1.05; }
+.rc-sub { margin-top: 4px; font-family: var(--body-font); font-weight: 700; font-size: 13px; line-height: 1.35; color: #c9d6f2; }
+.rc-facts { margin-top: 6px; font-size: 13px; letter-spacing: 0.05em; color: #9fc4ff; }
+.rc-best { margin-top: 8px; font-family: var(--body-font); font-weight: 800; font-size: 14px; color: #e8e2d6; }
+.rc-best b { font-family: var(--ui-font); font-weight: 400; font-size: 17px; color: #fff; }
+.rc-ms { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.rc-m { display: grid; grid-template-columns: 26px 1fr auto; align-items: center; gap: 6px; padding: 4px 10px 4px 6px; border-radius: 7px; background: rgba(255, 255, 255, 0.07); font-size: 17px; }
+.rc-m .i { font-size: 18px; line-height: 1; }
+.rc-m .t { font-variant-numeric: tabular-nums; }
+.rc-m .p { color: var(--yellow); font-size: 15px; }
+.rc-m.gold { border-left: 3px solid #ffd23d; }
+.rc-m.silver { border-left: 3px solid #cfd6e4; }
+.rc-m.bronze { border-left: 3px solid #d98a4a; }
+.rc-m.got { opacity: 0.6; }
+.rc-m.got .p { color: var(--green); }
+.rc-hint { margin-top: 10px; padding: 6px 10px; border-radius: 8px; background: rgba(255, 210, 61, 0.14); color: var(--yellow); font-family: var(--body-font); font-weight: 800; font-size: 14px; text-align: center; }
+.rc-hint.warn { background: rgba(255, 77, 94, 0.18); color: #ff9aa5; }
+.rc-hint.go { background: rgba(61, 220, 132, 0.18); color: #8dffb8; }
+.race-card.result { text-align: center; }
+.rc-medal { margin-top: 8px; font-size: 30px; line-height: 1.1; }
+.rc-medal.gold { color: #ffd23d; }
+.rc-medal.silver { color: #e4e9f2; }
+.rc-medal.bronze { color: #f0a466; }
+.rc-time { font-size: 44px; line-height: 1.05; font-variant-numeric: tabular-nums; }
+
+.race-count {
+  position: absolute;
+  left: 50%;
+  top: 38%;
+  transform: translate(-50%, -50%);
+  display: none;
+  font-family: var(--ui-font);
+  font-size: clamp(96px, 18vw, 190px);
+  line-height: 1;
+  color: #fff;
+  -webkit-text-stroke: 5px #0b1a45;
+  paint-order: stroke fill;
+  text-shadow: 0 8px 0 rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  z-index: 11;
+}
+.race-count.on { display: block; }
+.race-count.go { color: var(--green); }
+.race-count.pop { animation: racePop 0.45s cubic-bezier(0.2, 1.6, 0.4, 1); }
+@keyframes racePop { from { opacity: 0; transform: translate(-50%, -50%) scale(1.8); } }
+
+@media (max-width: 700px) {
+  .race-hud { right: 12px; top: 156px; min-width: 0; padding: 6px 10px 7px; }
+  .rh-time { font-size: 30px; }
+  .rh-row { font-size: 12px; gap: 8px; }
+  .race-card { left: 12px; top: 160px; transform: none; width: min(270px, calc(100vw - 24px)); padding: 10px 12px 12px; }
+  @keyframes raceCardIn { from { opacity: 0; transform: translateX(-12px); } }
+  .rc-name { font-size: 21px; }
+  .rc-sub { font-size: 12px; }
+  .rc-m { font-size: 15px; }
+}
