@@ -391,6 +391,12 @@ body.cine-on .hud-dialog { bottom: calc(11vh + 14px); }
 .lk-sect { display: flex; flex-direction: column; gap: 6px; }
 .lk-chip { font-size: 14px; padding: 5px 10px; }
 .lk-chip.locked { opacity: 0.55; }
+.lk-thumbs { gap: 6px; }
+.lk-thumb { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 4px 5px; border: 2px solid rgba(255, 255, 255, 0.14); border-radius: 12px; background: rgba(255, 255, 255, 0.06); color: #dfe8ff; font: 800 12px var(--body-font); cursor: pointer; }
+.lk-thumb canvas { border-radius: 8px; display: block; }
+.lk-thumb.sel { border-color: var(--yellow); background: rgba(255, 210, 61, 0.16); color: #fff; }
+.lk-thumb:active { transform: scale(0.96); }
+@media (max-width: 699px) { .lk-thumb canvas { width: 52px !important; height: 39px !important; } }
 .lk-hint { flex: none; font-size: 12.5px; font-weight: 700; color: #9fb6e0; line-height: 1.3; }
 .lk-hint:empty { display: none; }
 .lk-foot { flex: none; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; padding-top: 4px; border-top: 1px solid rgba(255, 255, 255, 0.12); }

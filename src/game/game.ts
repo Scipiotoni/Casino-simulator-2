@@ -4,6 +4,7 @@ import { Input } from '../core/input';
 import { World } from './world';
 import { CharacterModel, BONES } from '../chars/model';
 import { loadBodies } from '../chars/bodies';
+import { setFaceDetail } from '../chars/faces';
 import { Animator, ROLL_TIME, rollSwell, type Pose } from '../chars/anim';
 import { SKINS, appearanceFromSkin, lockPieces, skinById, type Appearance } from '../chars/skins';
 import { Player } from './player';
@@ -112,6 +113,7 @@ export class Game {
 
   constructor(private app: HTMLElement) {
     this.renderer = new Renderer(app);
+    setFaceDetail(this.renderer.settings.quality === 'low');
     this.input = new Input(this.renderer.gl.domElement);
     this.world = new World(this.renderer);
     this.camera = new CameraRig(this.renderer.camera);
@@ -502,6 +504,7 @@ export class Game {
 
   applyQuality(): void {
     const spec = this.renderer.spec;
+    setFaceDetail(this.renderer.settings.quality === 'low');
     this.world.terrainMesh.setDetail(spec.terrain);
     this.world.sky.setShadows(spec.shadows, spec.shadowSize);
   }
