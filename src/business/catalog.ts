@@ -36,31 +36,31 @@ const flat = () => 1;
 export const BIZ: BizDef[] = [
   {
     type: 'casino', name: 'Casino', icon: '🎰', desc: 'Fill the floor with slots and tables. Guests gamble, the house edge pays the bills.',
-    cost: 25000, minArea: 1000, buildTime: 45, income: 0, district: { strip: 1.6, beach: 1.3, downtown: 1.2, midtown: 1, harbor: 0.75, heights: 0.7, oldtown: 0.7 }, hours: (h) => (h >= 19 || h < 4 ? 1.4 : 0.85), theme: 'classic', color: '#ffd23d',
+    cost: 12000, minArea: 600, buildTime: 15, income: 0, district: { strip: 1.6, beach: 1.3, downtown: 1.2, midtown: 1, harbor: 0.75, heights: 0.7, oldtown: 0.7 }, hours: (h) => (h >= 19 || h < 4 ? 1.4 : 0.85), theme: 'classic', color: '#ffd23d',
   },
   {
     type: 'bar', name: 'Bar & Lounge', icon: '🍸', desc: 'Cheap to open, steady money, busiest in the evening.',
-    cost: 4000, minArea: 600, buildTime: 20, income: 95, district: { beach: 1.4, strip: 1.3, oldtown: 1.2, downtown: 1.1, midtown: 1, harbor: 0.9, heights: 0.7 }, hours: (h) => (h >= 17 || h < 2 ? 1.8 : 0.5), theme: 'tavern', color: '#ff9f2e',
+    cost: 4000, minArea: 600, buildTime: 8, income: 95, district: { beach: 1.4, strip: 1.3, oldtown: 1.2, downtown: 1.1, midtown: 1, harbor: 0.9, heights: 0.7 }, hours: (h) => (h >= 17 || h < 2 ? 1.8 : 0.5), theme: 'tavern', color: '#ff9f2e',
   },
   {
     type: 'shop', name: 'Convenience Store', icon: '🛒', desc: 'Snacks, sunscreen, lottery tickets. Small, steady and open all day.',
-    cost: 5000, minArea: 500, buildTime: 20, income: 80, district: { heights: 1.3, midtown: 1.2, oldtown: 1.1, downtown: 1, harbor: 0.9, beach: 1.1, strip: 0.9 }, hours: dayCurve, theme: 'lagoon', color: '#3ddc84',
+    cost: 5000, minArea: 500, buildTime: 8, income: 80, district: { heights: 1.3, midtown: 1.2, oldtown: 1.1, downtown: 1, harbor: 0.9, beach: 1.1, strip: 0.9 }, hours: dayCurve, theme: 'lagoon', color: '#3ddc84',
   },
   {
     type: 'restaurant', name: 'Restaurant', icon: '🍽️', desc: 'Lunch and dinner rushes make the money.',
-    cost: 12000, minArea: 900, buildTime: 30, income: 210, district: { downtown: 1.3, beach: 1.3, strip: 1.2, midtown: 1.1, oldtown: 1, heights: 0.9, harbor: 0.8 }, hours: mealCurve, theme: 'classic', color: '#ff6b6b',
+    cost: 12000, minArea: 900, buildTime: 12, income: 210, district: { downtown: 1.3, beach: 1.3, strip: 1.2, midtown: 1.1, oldtown: 1, heights: 0.9, harbor: 0.8 }, hours: mealCurve, theme: 'classic', color: '#ff6b6b',
   },
   {
     type: 'nightclub', name: 'Nightclub', icon: '🪩', desc: 'Dead by day, packed after dark. Big money at night.',
-    cost: 40000, minArea: 1500, buildTime: 40, income: 560, district: { strip: 1.5, downtown: 1.3, beach: 1.2, midtown: 1, harbor: 1.1, heights: 0.6, oldtown: 0.7 }, hours: nightCurve, theme: 'neon', color: '#d68bff',
+    cost: 40000, minArea: 1500, buildTime: 18, income: 560, district: { strip: 1.5, downtown: 1.3, beach: 1.2, midtown: 1, harbor: 1.1, heights: 0.6, oldtown: 0.7 }, hours: nightCurve, theme: 'neon', color: '#d68bff',
   },
   {
     type: 'hotel', name: 'Hotel', icon: '🏨', desc: 'A tower of rooms. Earns around the clock, and fills casinos nearby.',
-    cost: 150000, minArea: 4000, buildTime: 60, income: 1500, district: { strip: 1.5, beach: 1.5, downtown: 1.2, midtown: 1, harbor: 0.8, heights: 0.7, oldtown: 0.8 }, hours: flat, theme: 'royal', color: '#3aa7ff',
+    cost: 150000, minArea: 4000, buildTime: 30, income: 1500, district: { strip: 1.5, beach: 1.5, downtown: 1.2, midtown: 1, harbor: 0.8, heights: 0.7, oldtown: 0.8 }, hours: flat, theme: 'royal', color: '#3aa7ff',
   },
   {
     type: 'house', name: 'House', icon: '🏠', desc: 'Your home: a place to sleep, save and park your cars. Adds to your net worth.',
-    cost: 15000, minArea: 500, buildTime: 30, income: 0, district: {}, hours: flat, theme: 'classic', color: '#9fe8ff',
+    cost: 15000, minArea: 500, buildTime: 12, income: 0, district: {}, hours: flat, theme: 'classic', color: '#9fe8ff',
   },
 ];
 

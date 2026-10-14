@@ -15,6 +15,13 @@ import { audio } from '../core/audio';
  * type, its level, the district and the time of day.
  */
 
+/** What a new casino opens with: two slot machines and a video poker, just inside the doors. */
+const STARTER_FLOOR = [
+  { kind: 'slots', x: -2.5, z: -8.5, yaw: 0 },
+  { kind: 'slots', x: -1, z: -8.5, yaw: 0 },
+  { kind: 'videopoker', x: 1, z: -8.5, yaw: 0 },
+];
+
 export class Business {
   venue: Venue | null = null;
   visual: THREE.Group | null = null;
@@ -333,9 +340,13 @@ export class BusinessSystem {
         b.save.building -= dt;
         if (b.save.building <= 0) {
           b.save.building = 0;
+          // A new casino opens with a few machines on the floor, so it earns from the first hour.
+          const starter = b.save.type === 'casino' && !b.save.items.length;
+          if (starter) b.save.items.push(...STARTER_FLOOR.map((it) => ({ ...it, level: 1 })));
           this.refresh(b);
           audio.play('levelup');
-          g.hud.banner('GRAND OPENING', b.save.name.toUpperCase(), 3200, 'gold');
+          g.hud.banner('GRAND OPENING', starter ? `${b.save.name.toUpperCase()} · 3 MACHINES ON THE FLOOR` : b.save.name.toUpperCase(), 3200, 'gold');
+          if (starter) g.hud.toast('Add more slots and tables from Manage → Edit the floor', 'good', 5200);
           g.save();
         } else if (Math.ceil(b.save.building) !== before && b.site && Math.ceil(b.save.building) % 5 === 0) {
           // Let the site grow now and then.
@@ -382,7 +393,7 @@ export class BusinessSystem {
 }
 
 export function districtName(d: string): string {
-  return { strip: 'The Strip', downtown: 'Downtown', midtown: 'Midtown', beach: 'Ocean Drive', harbor: 'Harbor District', heights: 'Palm Heights', oldtown: 'Coral Cove' }[d] ?? d;
+  return { strip: 'The Strip', downtown: 'Downtown', midtown: 'Midtown', beach: 'Ocean Drive', harbor: 'Harbor District', heights: 'Palm Heights', oldtown: 'Coral Cove', desert: 'Dustwater', north: 'Halibut Bay' }[d] ?? d;
 }
 
 export function defaultName(t: BizType | string, player: string): string {

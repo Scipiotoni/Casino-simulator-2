@@ -8,8 +8,8 @@ import { appearanceFromSkin, sanitizeAppearance, type Appearance } from '../char
 
 export const SAVE_KEY = 'cs2.save.v1';
 
-/** Cash in your pocket on day one (plus your flat and your car). */
-export const START_MONEY = 10000;
+/** Cash in your pocket on day one (plus your flat): enough for a small lot and a first casino. */
+export const START_MONEY = 30000;
 
 export interface OwnedVehicle {
   id: string;

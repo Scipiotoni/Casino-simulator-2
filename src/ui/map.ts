@@ -5,6 +5,7 @@ import { BRIDGE } from '../world/bridge';
 import type { Game } from '../game/game';
 import { el } from './dom';
 import { audio } from '../core/audio';
+import { MapLots } from './mapLots';
 
 /**
  * The island map, drawn the way the first game draws its city map: a dark panel in the
@@ -135,6 +136,8 @@ export class Minimap {
   private view = { cx: 0, cz: 0, s: 1, rot: 0 };
   private roads: { w: number; p: Path2D }[] | null = null;
   private blocks: Path2D | null = null;
+  /** Property on the big map: filters, parcels and the lot card. */
+  readonly lots: MapLots;
 
   constructor(private game: Game, parent: HTMLElement, private map: IslandMap) {
     this.root = el('div', 'minimap');
@@ -179,7 +182,10 @@ export class Minimap {
     this.canvas = el('canvas', 'mm-canvas') as HTMLCanvasElement;
     this.canvas.setAttribute('aria-label', 'Island map: click to set a waypoint');
     this.c = this.canvas.getContext('2d')!;
-    this.root.append(head, this.canvas);
+    this.lots = new MapLots(game, () => this.setBig(false));
+    const stage = el('div', 'mm-stage');
+    stage.append(this.canvas, this.lots.card);
+    this.root.append(head, this.lots.bar, stage);
     this.root.addEventListener('pointerdown', (e) => e.stopPropagation());
     this.bindInput();
     parent.appendChild(this.root);
@@ -194,6 +200,7 @@ export class Minimap {
     const g = this.game;
     this.big = big;
     this.root.classList.toggle('big', big);
+    if (!big) this.lots.hideCard();
     this.center = null;
     this.t = 0;
     if (big) g.enterMenu();
@@ -252,8 +259,10 @@ export class Minimap {
       if (!d || d.moved) return;
       const p = pos(e);
       const w = this.toWorld(p.x, p.y);
-      this.game.setUserWaypoint(w.x, w.z, 'Waypoint');
       this.t = 0;
+      // On the big map a click on a lot opens its card; anywhere else sets a waypoint.
+      if (this.big && this.lots.click(w.x, w.z, 6 / Math.max(1e-3, this.view.s))) return;
+      this.game.setUserWaypoint(w.x, w.z, 'Waypoint');
     });
     cv.addEventListener('wheel', (e) => {
       e.preventDefault();
@@ -346,10 +355,12 @@ export class Minimap {
       c.stroke(r.p);
     }
     c.restore();
-    // Your businesses' lots in green, the island's casinos in gold.
-    for (const b of g.business.owned) {
-      c.fillStyle = 'rgba(53, 224, 138, 0.85)';
-      c.fillRect(X(b.lot.x0), Z(b.lot.z0), (b.lot.x1 - b.lot.x0) * s, (b.lot.z1 - b.lot.z0) * s);
+    // Your businesses' lots in green (on the big map the property layer goes over the markers), the island's casinos in gold.
+    if (!this.big) {
+      for (const b of g.business.owned) {
+        c.fillStyle = 'rgba(53, 224, 138, 0.85)';
+        c.fillRect(X(b.lot.x0), Z(b.lot.z0), (b.lot.x1 - b.lot.x0) * s, (b.lot.z1 - b.lot.z0) * s);
+      }
     }
     for (const v of g.world.venues) {
       if (v.opts.id.startsWith('mine:')) continue;
@@ -392,6 +403,11 @@ export class Minimap {
         txt(mk.label, x, y, -r - 8 * dpr);
         c.shadowBlur = 0;
       }
+    }
+    // The property layer: every lot the filters pick, over the markers so none hides under a pin.
+    if (this.big) {
+      this.lots.refresh();
+      this.lots.draw(c, X, Z, s, W, H, dpr);
     }
     // Your waypoint: a dashed line and a gold pin.
     const wp = g.waypoint.target;
@@ -458,7 +474,7 @@ export class Minimap {
       c.textBaseline = 'middle';
       c.fillText('N', ax, ay + 0.5);
     }
-    this.title.textContent = this.big ? 'JACKPOT ISLAND · CLICK TO SET A WAYPOINT' : this.areaName(meX, meZ);
+    this.title.textContent = this.big ? 'JACKPOT ISLAND · CLICK A LOT, OR ANYWHERE FOR A WAYPOINT' : this.areaName(meX, meZ);
   }
 
   /** The nearest named place, for the panel's title. */
