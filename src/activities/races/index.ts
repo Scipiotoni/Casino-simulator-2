@@ -42,6 +42,9 @@ const SPLIT_TIME = 3;
 
 const PINK = 0xff3d6e;
 const AMBER = 0xffb020;
+/** Opacity of a start ring's floor glow and curtain of light. */
+const DISC_GLOW = 0.55;
+const WALL_GLOW = 0.45;
 /** The medals in the order of a route's target times. */
 const PODIUM = ['gold', 'silver', 'bronze'] as const;
 
@@ -118,6 +121,9 @@ export class Races implements Activity {
   private gateMat!: THREE.MeshBasicMaterial;
   private finishMat!: THREE.MeshBasicMaterial;
   private burstMat!: THREE.MeshBasicMaterial;
+  /** The start rings' glow and curtain (shared; they fade while you sit inside one). */
+  private discMat!: THREE.MeshBasicMaterial;
+  private wallMat!: THREE.MeshBasicMaterial;
   private finishSign!: THREE.Sprite;
   // HUD.
   private card: HTMLDivElement;
@@ -163,8 +169,8 @@ export class Races implements Activity {
     const flagGeo = new THREE.PlaneGeometry(2.4, 1.5);
     flagGeo.translate(1.2, 0, 0);
     const ringMat = additive(PINK, 0.95);
-    const discMat = additive(PINK, 0.55, gradientTexture(true));
-    const wallMat = additive(PINK, 0.45, gradientTexture(false));
+    const discMat = (this.discMat = additive(PINK, DISC_GLOW, gradientTexture(true)));
+    const wallMat = (this.wallMat = additive(PINK, WALL_GLOW, gradientTexture(false)));
     const poleMat = new THREE.MeshLambertMaterial({ color: 0xd8dce4 });
     const flagMat = new THREE.MeshBasicMaterial({ map: checker, side: THREE.DoubleSide, toneMapped: false });
     for (const c of this.courses) {
@@ -247,7 +253,7 @@ export class Races implements Activity {
       this.splitT = Math.max(0, this.splitT - dt);
       this.burstT = Math.max(0, this.burstT - dt);
     }
-    this.draw(playing);
+    this.draw(playing, dt);
   }
 
   /** Not racing: watch the start rings (and say what to do at the nearest one). */
@@ -369,6 +375,7 @@ export class Races implements Activity {
     const g = this.game;
     const r = this.run;
     this.run = null;
+    this.goT = 0;
     if (r?.phase === 'racing') g.clearUserWaypoint();
     if (fail) {
       audio.play('error');
@@ -401,7 +408,7 @@ export class Races implements Activity {
 
   // ---------------------------------------------------------------- drawing
 
-  private draw(playing: boolean): void {
+  private draw(playing: boolean, dt: number): void {
     const g = this.game;
     const r = this.run;
     const racing = r?.phase === 'racing';
@@ -409,12 +416,18 @@ export class Races implements Activity {
     const v = g.vehicles.driving;
     const p = v ? v.pos : g.player.pos;
     const pulse = 1 + Math.sin(this.t * 3) * 0.04;
+    let inRing = false;
     for (const s of this.starts) {
       s.group.visible = !racing && Math.abs(p.x - s.x) < DRAW_RANGE && Math.abs(p.z - s.z) < DRAW_RANGE;
       if (!s.group.visible) continue;
       s.ring.scale.set(pulse, pulse, 1);
       s.flag.rotation.y = Math.sin(this.t * 2.3 + s.x) * 0.25;
+      if (Math.hypot(p.x - s.x, p.z - s.z) < START_R + 3) inRing = true;
     }
+    // Sitting in a ring, its light would wash over the whole view: dim it.
+    const k = Math.min(1, dt * 5);
+    this.discMat.opacity += ((inRing ? 0.25 : DISC_GLOW) - this.discMat.opacity) * k;
+    this.wallMat.opacity += ((inRing ? 0.1 : WALL_GLOW) - this.wallMat.opacity) * k;
     // Checkpoint rings.
     const gates = r && racing ? r.course.gates : null;
     const cur = gates ? gates[r!.next] : null;
@@ -532,6 +545,8 @@ export class Races implements Activity {
   // ---------------------------------------------------------------- map and saves
 
   markers(full: boolean): MapMarker[] {
+    // The big map is drawn from the minimap's markers, so name things whenever it's open.
+    full ||= this.game.minimap.big;
     const r = this.run;
     if (r && r.phase === 'racing') {
       // The waypoint marks the checkpoint to reach; show the one after it and the finish.

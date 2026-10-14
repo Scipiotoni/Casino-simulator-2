@@ -58,10 +58,15 @@ export const ROUTES: readonly RouteDef[] = [
   {
     id: 'coast',
     name: 'Sunset Coast Run',
-    blurb: 'Route 1 out of Coral Cove, along Sunset Beach and into the harbour',
-    legs: [{ road: 'route1', from: [-1760, 2700], to: [1300, 1560] }],
+    blurb: 'Up from Coral Cove Marina, along Route 1 past Sunset Beach and into the harbour on Dock Street',
+    // Starts east of Coral Cove's main street (its houses crowd Route 1 through the town).
+    legs: [
+      { road: 'marina', from: [-885, 3150], to: [-875, 2832] },
+      { road: 'route1', from: [-875, 2832], to: [1300, 1500] },
+      { road: 'z1500', from: [1300, 1500], to: [2250, 1500] },
+    ],
     checkpoints: 10,
-    medals: [92, 108, 130],
+    medals: [110, 128, 155],
   },
   {
     id: 'thunder',
@@ -90,14 +95,17 @@ export const ROUTES: readonly RouteDef[] = [
   {
     id: 'loop',
     name: 'Grand Island Loop',
-    blurb: 'Route 1 all the way round: the heights, the west coast, Coral Cove and back',
+    blurb: 'Route 1 up the west coast past Fort Hammerhead, across the desert on Route 44 and back down the Sagebrush Freeway',
     legs: [
-      { road: 'x1300', from: [1300, 1300], to: [1300, -2100] },
-      { road: 'route1', from: [1300, -2100], to: [1300, 1500] },
-      { road: 'x1300', from: [1300, 1500], to: [1300, 1300] },
+      { road: 'z-2100', from: [1800, -2100], to: [1300, -2100] },
+      { road: 'route1', from: [1300, -2100], to: [-3350, -1650] },
+      { road: 'route1n', from: [-3350, -1650], to: [-3700, -4700] },
+      { road: 'route44', from: [-3700, -4700], to: [1750, -4800] },
+      { road: 'freeway', from: [1750, -4800], to: [2600, -2100] },
+      { road: 'z-2100', from: [2600, -2100], to: [1800, -2100] },
     ],
     checkpoints: 20,
-    medals: [430, 500, 610],
+    medals: [425, 505, 620],
     loop: true,
   },
 ];
