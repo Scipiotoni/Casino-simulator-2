@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CHIP_COUNT, CHIP_REWARD, CHIP_SPOTS, MILESTONES, milestoneAt, parseFound, settle } from '../src/activities/collectibles/spots';
 import { Terrain } from '../src/world/terrain';
-import { mainlandY } from '../src/world/bridge';
+import { BRIDGE, mainlandY } from '../src/world/bridge';
 import { SKINS } from '../src/chars/skins';
 
 describe('lucky chip spots', () => {
@@ -19,6 +19,10 @@ describe('lucky chip spots', () => {
     expect(CHIP_SPOTS.filter((s) => s.z < -3000).length).toBeGreaterThanOrEqual(15);
     expect(CHIP_SPOTS.filter((s) => s.z > -3000).length).toBeGreaterThanOrEqual(15);
     expect(CHIP_SPOTS.filter((s) => s.x < 0).length).toBeGreaterThanOrEqual(15);
+  });
+
+  it('keeps them all on the island (the mainland end of the bridge asks whether to cross)', () => {
+    for (const s of CHIP_SPOTS) expect(s.x).toBeLessThan(BRIDGE.x1);
   });
 
   it('puts every chip on dry, walkable ground, clear of the lots', () => {

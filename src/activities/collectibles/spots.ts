@@ -18,18 +18,18 @@ const { port, marina, airstrip } = LANDMARKS;
 const B = LANDMARKS.base;
 
 export const CHIP_SPOTS: ChipSpot[] = [
-  // Fortuna City: back alleys behind the casinos and shops.
-  { x: 1500, z: -150 }, // downtown, the alley behind Real Estate
-  { x: 2347, z: -640 }, // the Strip, the service alley behind the Golden Viper
+  // Fortuna City: back alleys and yards between the blocks.
+  { x: 1500, z: -150 }, // downtown, a back alley a block off Route 1
+  { x: 2347, z: -640 }, // the Strip, a service alley up from Sahara Avenue
   { x: 3200, z: -975 }, // midtown, between the back yards
-  { x: 2780, z: 1275 }, // the harbor district, behind the car dealer
-  { x: 1950, z: 1275 }, // the harbor district's warehouses
-  { x: 3600, z: -470 }, // the grass above the beach, behind your flat
-  // Interstate 15: at the foot of the bridge, up on its deck, and under its far end.
+  { x: 2780, z: 1275 }, // the harbor district, between Harbor Road and Dock Street
+  { x: 1950, z: 1275 }, // the harbor district, its quiet west end
+  { x: 3600, z: -470 }, // the grass above the beach, by the island end of the bridge
+  // Interstate 15: under the island end of the bridge and up on its deck.
   { x: 3728, z: -300 }, // the island end, down on the bank right under the deck
-  { x: 4620, z: -290.5, deck: true }, // the top of the bridge, by the first pylon
-  { x: 6375, z: -300 }, // the mainland beach, under the deck where it comes ashore
+  { x: 4598, z: -291, deck: true }, // up on the bridge, on the walkway just short of the first pylon
   // The Port of Fortuna and the waterfront.
+  { x: 3660, z: 600 }, // the sea front below Ocean Drive
   { x: 3496, z: 1765 }, // a lane through the container stacks
   { x: port.x1 + 4, z: port.z1 - 31, deck: true }, // the boat pontoon at the end of the quay
   { x: 3060, z: -2330 }, // Point Fortuna, by the lighthouse
@@ -48,7 +48,7 @@ export const CHIP_SPOTS: ChipSpot[] = [
   { x: -4250, z: 300 }, // the west beach
   { x: -3120, z: 2230 }, // the south-west beach
   // Fort Hammerhead's perimeter (outside the fence: the guards shoot at trespassers).
-  { x: -2530, z: B.z + B.d / 2 + 20 }, // by the gate
+  { x: -2556, z: B.z + B.d / 2 + 16 }, // just outside the gate
   { x: B.x - B.w / 2 - 15, z: B.z - B.d / 2 - 15 }, // the far north-west corner
   { x: -3600, z: -2700 }, // the coast west of the fort
   // The foothills between the city and Saguaro County.

@@ -177,13 +177,16 @@ export class Collectibles implements Activity {
     let any = false;
     for (let i = 0; i < CHIP_COUNT; i++) {
       const c = this.chips[i];
-      if (c.pick >= 0) c.pick += dt;
+      if (c.pick >= 0) {
+        c.pick += dt;
+        if (c.pick >= PICK_TIME) c.pick = -1;
+      }
       const d = c.pos ? Math.hypot(c.pos.x - p.x, c.pos.z - p.z) : Infinity;
-      const live = show && c.pos && d < NEAR && (!c.found || (c.pick >= 0 && c.pick < PICK_TIME));
+      const live = show && d < NEAR && (!c.found || c.pick >= 0);
       if (!live || !c.pos) {
         mesh.setMatrixAt(i, ZERO);
         gc.setXYZ(i, 0, 0, 0);
-        for (let k = 0; k < SPARKS; k++) sc.setXYZ(i * SPARKS + k, 0, 0, 0);
+        for (let n = 0; n < SPARKS; n++) sc.setXYZ(i * SPARKS + n, 0, 0, 0);
         continue;
       }
       any = true;
