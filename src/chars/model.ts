@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { matrixOf, type Xf } from '../render/kit';
 import { withRim } from '../render/materials';
-import { expressionOffset, faceAtlas, type Expression } from './faces';
+import { beardMask, expressionOffset, faceAtlas, type Expression } from './faces';
 import { bodyParts, frontAt } from './bodies';
-import type { Appearance, Outfit } from './skins';
+import type { Appearance, Beard, Outfit } from './skins';
 
 /**
  * Stylized hero characters. The whole body is ONE skinned mesh (plus a painted face decal):
@@ -496,6 +496,7 @@ function buildBody(a: Appearance): { geometry: THREE.BufferGeometry; face: THREE
 
   const hy = R.head[1] - 0.03;
   buildHair(sb, a);
+  buildBeard(sb, a, LOW ? body.lo : body.hi);
   buildHat(sb, a);
   buildGlasses(sb, a, hy);
 
@@ -686,6 +687,131 @@ function buildHair(sb: SkinBuilder, a: Appearance): void {
   // Regions: the hair, its ties and bands, and the shaved sides of a mohawk.
   const shaved = mix(a.skin, c, 0.35);
   sb.add(geo.clone(), { bone: B.head, color: (_x, _y, _z, r) => (r === 1 || r === 2 ? a.outfit.accent : r === 3 ? shaved : c) });
+}
+
+/** How far each style of facial hair stands off the skin (m), and how much more on the chin. */
+const BEARD_DEPTH: Record<Beard, [number, number]> = {
+  none: [0, 0], stubble: [0, 0], short: [0.0045, 0.002], moustache: [0.0055, 0], goatee: [0.007, 0.007], chinstrap: [0.005, 0.001], full: [0.009, 0.011],
+};
+
+/**
+ * Modelled facial hair: the head's own surface where the style grows, puffed out along its
+ * normals (most on the chin, nothing at the edges, so it grows out of the skin), wrapping
+ * under the chin for the fuller styles. The painted stubble under it shades the edges.
+ */
+function buildBeard(sb: SkinBuilder, a: Appearance, src: THREE.BufferGeometry): void {
+  const kind = a.face?.beard ?? 'none';
+  if (kind === 'none' || kind === 'stubble') return;
+  const [depth, chin] = BEARD_DEPTH[kind];
+  const under = kind === 'full' || kind === 'short' || kind === 'goatee';
+  const g = src.index ? src.toNonIndexed() : src;
+  const p = g.getAttribute('position');
+  const nr = g.getAttribute('normal');
+  const uv = g.getAttribute('uv');
+  // How thick it grows at a point: the painted style's mask on the front of the face, carried on
+  // under the jaw for the styles that hang below the chin.
+  const wraps = kind === 'full' || kind === 'short' || kind === 'chinstrap';
+  const grow = (x: number, y: number, z: number): number => {
+    // Round the jaw as far back as the ears (the sideburns), not over the back of the head.
+    const back = smooth01(-0.055, -0.012, z);
+    if (back <= 0) return 0;
+    let mx = x * 1000;
+    let my = y * 1000;
+    // The painted style's outline is drawn for the front of the face; round the side of the jaw
+    // it carries on by the angle round the head, as if at the edge of the front.
+    let side = 1;
+    if (wraps) {
+      const th = Math.atan2(Math.abs(x), z + 0.01);
+      if (th > 0.75) {
+        mx = Math.sign(mx) * Math.min(Math.abs(mx), 72);
+        // ...rising towards the ear into a sideburn.
+        my -= (th - 0.75) * 40;
+      }
+      side = smooth01(1.78, 1.5, th);
+    }
+    const m = beardMask(kind, mx, my) * back * side;
+    if (m > 0 || !under) return m;
+    const jaw = 1537 + 0.0034 * mx * mx;
+    if (my > jaw) return 0;
+    return beardMask(kind, mx, jaw + 2) * smooth01(jaw - (kind === 'full' ? 38 : 22), jaw - 2, my) * smooth01(-0.01, 0.03, z);
+  };
+  // The head is low-poly for the beard's outline (and the mouth it has to clear), so every
+  // triangle it touches is cut into a fine grid first.
+  const step = LOW ? 0.012 : 0.0045;
+  const pos: number[] = [];
+  const nor: number[] = [];
+  const col: number[] = [];
+  const hair = new THREE.Color(a.hairColor);
+  const skin = new THREE.Color(a.skin);
+  const A = new THREE.Vector3();
+  const Bv = new THREE.Vector3();
+  const C = new THREE.Vector3();
+  const nA = new THREE.Vector3();
+  const nB = new THREE.Vector3();
+  const nC = new THREE.Vector3();
+  const v = new THREE.Vector3();
+  const n = new THREE.Vector3();
+  const c = new THREE.Color();
+  const vert = (u: number, w: number, out: number[]): number => {
+    // Barycentric (1 - u - w, u, w) over the triangle, the normal blended to match.
+    v.copy(A).multiplyScalar(1 - u - w).addScaledVector(Bv, u).addScaledVector(C, w);
+    n.copy(nA).multiplyScalar(1 - u - w).addScaledVector(nB, u).addScaledVector(nC, w).normalize();
+    const m = grow(v.x, v.y, v.z);
+    // Thickest low on the chin, tapering up the cheeks and to nothing at the edges.
+    const d = 0.0006 + (depth + chin * smooth01(1.62, 1.55, v.y)) * Math.pow(m, 0.8);
+    out.push(v.x + n.x * d, v.y + n.y * d, v.z + n.z * d, n.x, n.y, n.z, m);
+    return m;
+  };
+  const tri: number[] = [];
+  for (let t = 0; t < p.count; t += 3) {
+    if (uv && Math.floor(uv.getX(t)) !== REGION.head) continue;
+    A.fromBufferAttribute(p, t);
+    Bv.fromBufferAttribute(p, t + 1);
+    C.fromBufferAttribute(p, t + 2);
+    // Skip triangles the style doesn't reach (sampled at the corners, edges and middle).
+    let reach = 0;
+    for (const [u, w] of [[0, 0], [1, 0], [0, 1], [0.5, 0], [0, 0.5], [0.5, 0.5], [0.33, 0.33]]) {
+      v.copy(A).multiplyScalar(1 - u - w).addScaledVector(Bv, u).addScaledVector(C, w);
+      reach = Math.max(reach, grow(v.x, v.y, v.z));
+    }
+    if (reach < 0.02) continue;
+    nA.fromBufferAttribute(nr, t);
+    nB.fromBufferAttribute(nr, t + 1);
+    nC.fromBufferAttribute(nr, t + 2);
+    const edge = Math.max(A.distanceTo(Bv), Bv.distanceTo(C), C.distanceTo(A));
+    const k = Math.max(1, Math.min(10, Math.ceil(edge / step)));
+    for (let i = 0; i < k; i++) {
+      for (let j = 0; j < k - i; j++) {
+        // Two little triangles per grid cell (one at the far edge).
+        for (const up of [false, true]) {
+          if (up && j === k - i - 1) continue;
+          tri.length = 0;
+          const corners: [number, number][] = up ? [[i + 1, j], [i + 1, j + 1], [i, j + 1]] : [[i, j], [i + 1, j], [i, j + 1]];
+          let mx = 0;
+          for (const [a0, b0] of corners) mx = Math.max(mx, vert(a0 / k, b0 / k, tri));
+          if (mx < 0.03) continue;
+          for (let q = 0; q < 3; q++) {
+            const o = q * 7;
+            pos.push(tri[o], tri[o + 1], tri[o + 2]);
+            nor.push(tri[o + 3], tri[o + 4], tri[o + 5]);
+            // Clumps of lighter and darker hair, fading into the skin at the edges.
+            const x = tri[o];
+            const y = tri[o + 1];
+            const tone = 0.84 + 0.26 * (0.5 + 0.5 * Math.sin(x * 520 + Math.sin(y * 260) * 2.3) * Math.cos(y * 190 - x * 110));
+            c.copy(hair).multiplyScalar(tone).lerp(skin, 1 - smooth01(0.04, 0.4, tri[o + 6]));
+            col.push(c.getHex());
+          }
+        }
+      }
+    }
+  }
+  if (g !== src) g.dispose();
+  if (!pos.length) return;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  let at = 0;
+  sb.add(geo, { bone: B.head, color: () => col[at++] ?? a.hairColor });
 }
 
 function buildHat(sb: SkinBuilder, a: Appearance): void {
@@ -892,7 +1018,7 @@ const BLOB_GEO = new THREE.PlaneGeometry(0.9, 0.9).rotateX(-Math.PI / 2);
 const BLOB_MAT = new THREE.MeshBasicMaterial({ map: BLOB_TEX, transparent: true, depthWrite: false });
 
 function appearanceKey(a: Appearance): string {
-  return JSON.stringify([a.body, a.skin, a.hair, a.hairColor, a.outfit, a.build]);
+  return JSON.stringify([a.body, a.skin, a.hair, a.hairColor, a.outfit, a.build, a.face?.beard ?? 'none']);
 }
 
 export class CharacterModel {
@@ -957,7 +1083,7 @@ export class CharacterModel {
     // The face decal rides on the head bone.
     this.faceTex = faceAtlas(appearance.eyes, appearance.face, appearance.hairColor).clone();
     this.faceTex.needsUpdate = true;
-    const faceMat = new THREE.MeshLambertMaterial({ map: this.faceTex, transparent: true, alphaTest: 0.05, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 });
+    const faceMat = new THREE.MeshLambertMaterial({ map: this.faceTex, transparent: true, alphaTest: 0.004, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 });
     const fg = built.face.clone();
     const hp = this.rest.head;
     fg.translate(-hp[0], -hp[1], -hp[2]);

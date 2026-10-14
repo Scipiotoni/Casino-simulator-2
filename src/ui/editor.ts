@@ -2,10 +2,10 @@ import * as THREE from 'three';
 import type { Game } from '../game/game';
 import { audio } from '../core/audio';
 import {
-  BACKS, BEARDS, BOTTOMS, BROWS, BUILD_RANGE, CLOTH_COLORS, DEFAULT_FACE, EYES, GLASSES, HAIRS, HAIR_COLORS, HATS, HEIGHT_RANGE, LIPS, MARKS, NECKS,
-  SHOES, SKIN_TONES, TOPS, pieceSources, pieceUnlocked, type Appearance, type FaceStyle, type Outfit, type PieceKind,
+  BACKS, BEARDS, BOTTOMS, BROWS, BUILD_RANGE, CLOTH_COLORS, DEFAULT_FACE, EYES, EYE_SHAPES, GLASSES, HAIRS, HAIR_COLORS, HATS, HEIGHT_RANGE, LIPS, LIP_SHAPES,
+  MAKEUPS, MAKEUP_COLORS, MARKS, NECKS, PAINT_COLORS, SHOES, SKIN_TONES, TOPS, pieceSources, pieceUnlocked, type Appearance, type FaceStyle, type Outfit, type PieceKind,
 } from '../chars/skins';
-import { EYE_COLORS } from '../chars/faces';
+import { EYE_COLORS, faceThumb, type FacePart } from '../chars/faces';
 import { MAX_LOOKS } from '../game/save';
 import { el, esc } from './dom';
 import { btn } from './panel';
@@ -40,7 +40,11 @@ const LABELS: Record<string, string> = {
   soft: 'Soft', thick: 'Bold', thin: 'Thin', arched: 'Arched', straight: 'Straight',
   stubble: 'Stubble', moustache: 'Moustache', goatee: 'Goatee', chinstrap: 'Chinstrap', full: 'Full beard',
   natural: 'Natural', nude: 'Nude', pink: 'Pink', red: 'Red', plum: 'Plum', black: 'Black',
-  freckles: 'Freckles', blush: 'Blush', beauty: 'Beauty mark', scar: 'Scar', star: 'Star', warpaint: 'War paint',
+  freckles: 'Freckles', blush: 'Blush', beauty: 'Beauty mark', scar: 'Scar', star: 'Star', warpaint: 'War paint', warband: 'Eye band', claws: 'Claw marks',
+  'beard:short': 'Short beard', 'beard:none': 'None',
+  'eye:almond': 'Almond', 'eye:round': 'Round', 'eye:narrow': 'Narrow', 'eye:hooded': 'Hooded',
+  'makeup:none': 'None', 'makeup:liner': 'Eyeliner', 'makeup:smoky': 'Smoky', 'makeup:shadow': 'Eyeshadow',
+  'lip:thin': 'Thin', 'lip:medium': 'Medium', 'lip:full': 'Full',
 };
 const label = (v: string, kind = ''): string => LABELS[`${kind}:${v}`] ?? LABELS[v] ?? v;
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
@@ -229,6 +233,11 @@ export class LookEditor {
       lips: f && r() < 0.6 ? pick(LIPS) : 'natural',
       marks: r() < 0.65 ? 'none' : pick(MARKS),
       lashes: f ? r() < 0.8 : false,
+      eyeShape: pick(EYE_SHAPES),
+      makeup: f && r() < 0.5 ? pick(MAKEUPS) : 'none',
+      makeupColor: pick(MAKEUP_COLORS),
+      lipShape: pick(LIP_SHAPES),
+      paintColor: pick(PAINT_COLORS),
     };
     const tops = free('top', TOPS).filter((t) => t !== 'armor' && (f || t !== 'dress' || r() < 0.2));
     const o: Outfit = {
@@ -295,12 +304,18 @@ export class LookEditor {
         sect('Build', this.slider(BUILD_RANGE, () => a.build, (v) => (a.build = v), (v) => (v < 0.97 ? 'Slim' : v < 1.05 ? 'Average' : 'Broad')));
         break;
       case 'face':
-        sect('Eyes', this.swatches(EYES.map((_, i) => i), () => EYES.indexOf(a.eyes), (i) => (a.eyes = EYES[i]), false, (i) => EYE_COLORS[EYES[i]]));
-        sect('Eyebrows', this.chips(BROWS, () => face.brows, (v) => (face.brows = v)));
-        sect('Facial hair', this.chips(BEARDS, () => face.beard, (v) => (face.beard = v)));
-        sect('Lips', this.chips(LIPS, () => face.lips, (v) => (face.lips = v)));
-        sect('Face details', this.chips(MARKS, () => face.marks, (v) => (face.marks = v)));
-        sect('Lashes', this.chips([false, true] as const, () => face.lashes, (v) => (face.lashes = v), (v) => (v ? 'Long' : 'Natural')));
+        sect('Eye colour', this.swatches(EYES.map((_, i) => i), () => EYES.indexOf(a.eyes), (i) => (a.eyes = EYES[i]), false, (i) => EYE_COLORS[EYES[i]]));
+        sect('Eye shape', this.faceChips('eyeShape', EYE_SHAPES, (v) => label(v, 'eye')));
+        sect('Eye make-up', this.faceChips('makeup', MAKEUPS, (v) => label(v, 'makeup')));
+        if (face.makeup === 'shadow') sect('Eyeshadow colour', this.swatches(MAKEUP_COLORS, () => face.makeupColor, (v) => (face.makeupColor = v), true));
+        sect('Lashes', this.faceChips('lashes', [false, true] as const, (v) => (v ? 'Long' : 'Natural')));
+        sect('Eyebrows', this.faceChips('brows', BROWS, (v) => label(v)));
+        sect('Lips', this.faceChips('lips', LIPS, (v) => label(v)));
+        sect('Lip shape', this.faceChips('lipShape', LIP_SHAPES, (v) => label(v, 'lip')));
+        sect('Facial hair', this.faceChips('beard', BEARDS, (v) => label(v, 'beard')));
+        sect('Face details', this.faceChips('marks', MARKS, (v) => label(v)));
+        if (face.marks === 'warpaint' || face.marks === 'warband' || face.marks === 'claws') sect('Paint colour', this.swatches(PAINT_COLORS, () => face.paintColor, (v) => (face.paintColor = v), true));
+        this.hint.textContent = 'Facial hair and eyebrows take the hair colour (Hair tab).';
         break;
       case 'hair':
         sect('Hairstyle', this.chips(HAIRS, () => a.hair, (v) => (a.hair = v)));
@@ -332,6 +347,24 @@ export class LookEditor {
         break;
     }
     this.body.scrollTop = top;
+  }
+
+  /** A row of face options, each with a little painted preview on your own face. */
+  private faceChips<K extends FacePart, T extends FaceStyle[K]>(part: K, list: readonly T[], name: (v: T) => string): HTMLDivElement {
+    const row = el('div', 'cr-row lk-thumbs');
+    const a = this.a;
+    const face = a.face!;
+    for (const v of list) {
+      const b = el('button', `lk-thumb ${face[part] === v ? 'sel' : ''}`);
+      b.appendChild(faceThumb(part, { ...face, [part]: v }, a.skin, a.eyes, a.hairColor, 64, 48));
+      b.appendChild(el('span', '', esc(name(v))));
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.change(() => (face[part] = v));
+      });
+      row.appendChild(b);
+    }
+    return row;
   }
 
   /** A row of choices. `kind` marks outfit pieces (they may be locked). */

@@ -15,9 +15,12 @@ export type Back = 'none' | 'backpack' | 'surfboard' | 'dice' | 'wings' | 'cape'
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic';
 export type Neck = 'none' | 'chain' | 'bowtie' | 'tie' | 'scarf' | 'mask';
 export type Brows = 'soft' | 'thick' | 'thin' | 'arched' | 'straight';
-export type Beard = 'none' | 'stubble' | 'moustache' | 'goatee' | 'chinstrap' | 'full';
+export type Beard = 'none' | 'stubble' | 'short' | 'moustache' | 'goatee' | 'chinstrap' | 'full';
 export type Lips = 'natural' | 'red' | 'pink' | 'plum' | 'nude' | 'black';
-export type Marks = 'none' | 'freckles' | 'blush' | 'scar' | 'star' | 'warpaint' | 'beauty';
+export type Marks = 'none' | 'freckles' | 'blush' | 'scar' | 'star' | 'warpaint' | 'warband' | 'claws' | 'beauty';
+export type EyeShape = 'almond' | 'round' | 'narrow' | 'hooded';
+export type Makeup = 'none' | 'liner' | 'smoky' | 'shadow';
+export type LipShape = 'thin' | 'medium' | 'full';
 
 export interface Outfit {
   top: Top;
@@ -39,16 +42,29 @@ export interface Outfit {
   glow: boolean;
 }
 
-/** The painted face's details (the eyes' colour is Appearance.eyes). */
+/**
+ * The face's details (the eyes' colour is Appearance.eyes). Facial hair other than stubble is
+ * modelled; the rest is painted. Looks saved before a field existed get its default.
+ */
 export interface FaceStyle {
   brows: Brows;
   beard: Beard;
   lips: Lips;
   marks: Marks;
   lashes: boolean;
+  eyeShape: EyeShape;
+  makeup: Makeup;
+  /** Eyeshadow colour (for the 'shadow' make-up). */
+  makeupColor: number;
+  lipShape: LipShape;
+  /** War paint colour. */
+  paintColor: number;
 }
 
-export const DEFAULT_FACE: FaceStyle = { brows: 'soft', beard: 'none', lips: 'natural', marks: 'none', lashes: false };
+export const DEFAULT_FACE: FaceStyle = {
+  brows: 'soft', beard: 'none', lips: 'natural', marks: 'none', lashes: false,
+  eyeShape: 'almond', makeup: 'none', makeupColor: 0x8a4fd8, lipShape: 'medium', paintColor: 0x1d1b22,
+};
 
 export interface Appearance {
   body: BodyType;
@@ -84,9 +100,15 @@ export const GLASSES: Glasses[] = ['none', 'shades', 'aviators', 'round', 'goggl
 export const BACKS: Back[] = ['none', 'backpack', 'surfboard', 'guitar', 'jetpack', 'chips', 'dice', 'cape', 'wings'];
 export const NECKS: Neck[] = ['none', 'chain', 'tie', 'bowtie', 'scarf', 'mask'];
 export const BROWS: Brows[] = ['soft', 'thick', 'thin', 'arched', 'straight'];
-export const BEARDS: Beard[] = ['none', 'stubble', 'moustache', 'goatee', 'chinstrap', 'full'];
+export const BEARDS: Beard[] = ['none', 'stubble', 'short', 'moustache', 'goatee', 'chinstrap', 'full'];
 export const LIPS: Lips[] = ['natural', 'nude', 'pink', 'red', 'plum', 'black'];
-export const MARKS: Marks[] = ['none', 'freckles', 'blush', 'beauty', 'scar', 'star', 'warpaint'];
+export const MARKS: Marks[] = ['none', 'freckles', 'blush', 'beauty', 'scar', 'star', 'warpaint', 'warband', 'claws'];
+export const EYE_SHAPES: EyeShape[] = ['almond', 'round', 'narrow', 'hooded'];
+export const MAKEUPS: Makeup[] = ['none', 'liner', 'smoky', 'shadow'];
+export const LIP_SHAPES: LipShape[] = ['thin', 'medium', 'full'];
+/** Quick picks for eyeshadow and war paint (any colour is allowed). */
+export const MAKEUP_COLORS = [0x8a4fd8, 0x3a6fd8, 0x1fa89a, 0x2fa84f, 0xd4a017, 0xc9773a, 0xd9486e, 0xb8202f, 0x5a3a2a, 0x2b2b30];
+export const PAINT_COLORS = [0x1d1b22, 0xf4f1ea, 0xc8202f, 0x2f6fd8, 0xf2c230, 0x2fa84f, 0x8a4fd8, 0xff7a3d];
 export const EYES = ['brown', 'hazel', 'blue', 'green', 'grey', 'amber', 'violet'];
 /** Height and build ranges (1 = average). */
 export const HEIGHT_RANGE: [number, number] = [0.92, 1.08];
@@ -319,6 +341,11 @@ export function sanitizeAppearance(raw: unknown, base: Appearance): Appearance {
         lips: oneOf(LIPS, rf.lips, bf.lips),
         marks: oneOf(MARKS, rf.marks, bf.marks),
         lashes: typeof rf.lashes === 'boolean' ? rf.lashes : bf.lashes,
+        eyeShape: oneOf(EYE_SHAPES, rf.eyeShape, bf.eyeShape ?? DEFAULT_FACE.eyeShape),
+        makeup: oneOf(MAKEUPS, rf.makeup, bf.makeup ?? DEFAULT_FACE.makeup),
+        makeupColor: color(rf.makeupColor, bf.makeupColor ?? DEFAULT_FACE.makeupColor),
+        lipShape: oneOf(LIP_SHAPES, rf.lipShape, bf.lipShape ?? DEFAULT_FACE.lipShape),
+        paintColor: color(rf.paintColor, bf.paintColor ?? DEFAULT_FACE.paintColor),
       }
     : from.face;
   return {
