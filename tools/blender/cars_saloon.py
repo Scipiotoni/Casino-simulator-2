@@ -59,7 +59,7 @@ def sedan_params():
         return 'paint'
 
     def hull_region(i, hull):
-        if p['livery'] != 'police' or i['seg'] in ('bot', 'in', 'cap'):
+        if p['livery'] != 'police' or i['seg'] in ('bot', 'in'):
             return None
         # Black and white: white doors, the rest black.
         if 0.86 > i['x'] > -1.06 and i['seg'] in ('low', 'up', 'sill', 'sh') and i['c'].z > 0.3:
@@ -165,7 +165,7 @@ def taxi_extra(o, res, pr, prg, hull, p):
     if res:
         # TAXI in black on the front and the back of the sign.
         ps = Projector(sign_box)
-        for frame, sg in (('front', -1), ('rear', 1)):
+        for frame, sg in (('front', 1), ('rear', -1)):
             for r in P.letters('TAXI', 0.0, z + 0.085, 0.09, sign=sg):
                 flat(o, ps, frame, r, 'gap', 0.003, rings=1)
         # Chequers: two rows along the doors.

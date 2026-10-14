@@ -542,6 +542,14 @@ def patch(proj, frame, outline, region, lift=0.004, dome=0.0, rings=3, bezel=Non
     m = Mesh()
     n = len(outline)
     c = centre or (sum(p[0] for p in outline) / n, sum(p[1] for p in outline) / n)
+    # A big patch on a curved panel (a grille across the bumper) needs a fine mesh: long
+    # chords between far-apart points cut under the curved paint and leave only scraps showing.
+    size = max(math.hypot(p[0] - c[0], p[1] - c[1]) for p in outline)
+    if size > 0.12:
+        fine = rings > 1
+        outline = resample(outline, max(0.035, size / (14 if fine else 5)))
+        n = len(outline)
+        rings = max(rings, math.ceil(size / (0.055 if fine else 0.16)))
     rows = []
     last = None
     for k in range(rings):
@@ -588,10 +596,29 @@ def patch(proj, frame, outline, region, lift=0.004, dome=0.0, rings=3, bezel=Non
     return m
 
 
+def resample(pts, step, closed=True):
+    """A polyline (or closed outline) with no segment longer than `step`."""
+    out = []
+    n = len(pts)
+    for i in range(n if closed else n - 1):
+        a = pts[i]
+        b = pts[(i + 1) % n]
+        k = max(1, math.ceil(math.hypot(b[0] - a[0], b[1] - a[1]) / step))
+        for j in range(k):
+            out.append((a[0] + (b[0] - a[0]) * j / k, a[1] + (b[1] - a[1]) * j / k))
+    if not closed:
+        out.append(tuple(pts[-1]))
+    return out
+
+
 def strip(proj, frame, pts, width, region, lift=0.002, closed=False):
     """A band `width` wide along a 2D polyline laid on the surface (trim, panel gaps)."""
     O, U, V, D = _frame(frame)
     m = Mesh()
+    # Long straight runs across a curved panel would cut under it: follow the surface.
+    pts = resample(pts, 0.05, closed)
+    if closed and len(pts) > 1 and pts[0] == pts[-1]:
+        pts = pts[:-1]
     P = [Vector(p) for p in pts]
     n = len(P)
     L, R = [], []
