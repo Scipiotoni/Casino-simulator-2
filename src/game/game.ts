@@ -4,6 +4,7 @@ import { Input } from '../core/input';
 import { World } from './world';
 import { CharacterModel, BONES } from '../chars/model';
 import { loadBodies } from '../chars/bodies';
+import { loadCars } from '../vehicles/carModels';
 import { Animator, ROLL_TIME, rollSwell, type Pose } from '../chars/anim';
 import { SKINS, appearanceFromSkin, lockPieces, skinById, type Appearance } from '../chars/skins';
 import { Player } from './player';
@@ -125,6 +126,8 @@ export class Game {
     };
     await step(0.02, 'Dressing the locals');
     await loadBodies((n) => (BONES as readonly string[]).indexOf(n));
+    await step(0.03, 'Waxing the cars');
+    await loadCars(VEHICLES);
     await this.world.build((f, m) => step(f * 0.85, m));
     this.uiRoot = document.createElement('div');
     this.uiRoot.className = 'ui-root';
