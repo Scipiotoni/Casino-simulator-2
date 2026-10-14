@@ -85,10 +85,12 @@ def sculpt_body(f):
     # into the chest (one surface, no step or ball where the torso meets the shoulder).
     if f:
         # Hips curvy but slim, clear of the hands hanging beside them.
+        # From the hips in to the waist, then evenly out to the bust: each band overlaps the next
+        # and none is wider than both its neighbours (that left bumps on the sides of the belly).
         torso.ellipsoid((0, 0.93, -0.02), (0.134, 0.098, 0.102))
-        torso.ellipsoid((0, 1.06, 0), (0.118, 0.085, 0.084))
-        torso.ellipsoid((0, 1.17, 0.004), (0.128, 0.075, 0.09))
-        torso.ellipsoid((0, 1.29, 0.004), (0.126, 0.095, 0.1))
+        torso.ellipsoid((0, 1.06, 0), (0.114, 0.1, 0.084))
+        torso.ellipsoid((0, 1.17, 0.004), (0.118, 0.098, 0.09))
+        torso.ellipsoid((0, 1.29, 0.004), (0.126, 0.1, 0.1))
         torso.ellipsoid((0, 1.395, -0.006), (0.138, 0.06, 0.088))
         for s in (-1, 1):
             torso.ellipsoid((s * 0.056, 1.295, 0.06), (0.062, 0.058, 0.05))
@@ -96,9 +98,11 @@ def sculpt_body(f):
             torso.ball((s * 0.165, 1.362, 0), 0.05)
         torso.capsule((0, 1.44, -0.004), (0, 1.585, 0.006), 0.046)
     else:
+        # One even taper from the waist up to the chest: each band overlaps the next and none is
+        # wider than both its neighbours (that left bumps on the sides of the belly).
         torso.ellipsoid((0, 0.935, -0.012), (0.128, 0.098, 0.1))
-        torso.ellipsoid((0, 1.06, 0), (0.132, 0.09, 0.096))
-        torso.ellipsoid((0, 1.17, 0.006), (0.152, 0.08, 0.104))
+        torso.ellipsoid((0, 1.06, 0), (0.128, 0.1, 0.096))
+        torso.ellipsoid((0, 1.17, 0.006), (0.133, 0.1, 0.104))
         # Narrow enough under the arms that they hang free of the chest (no webbing when raised).
         torso.ellipsoid((0, 1.3, 0.01), (0.14, 0.1, 0.122))
         torso.ellipsoid((0, 1.4, -0.006), (0.165, 0.065, 0.106))
