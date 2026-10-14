@@ -5,8 +5,8 @@ A 3D open-world casino game that runs in the browser, even on old computers.
 
 **Play it:** https://scipiotoni.github.io/Casino-simulator-2/
 
-You arrive over the Interstate 15 bridge with a little cash and a one-room flat in Palm
-Court. There's no story and nobody talks at you: the island is yours to make your fortune
+You arrive over the Interstate 15 bridge in a rental with $30,000 and a one-room flat in
+Palm Court (no car: buy one at a dealer, or fast-travel from the map). There's no story and nobody talks at you: the island is yours to make your fortune
 on, gambling, buying lots and building on them, and getting into trouble.
 
 ## What's on the island
@@ -22,10 +22,14 @@ on, gambling, buying lots and building on them, and getting into trouble.
   The minimap and the big map (M) work like the first game's.
 - **Casinos with real rules.** Sit down at blackjack, roulette, craps, baccarat, three card
   poker, video poker and the slots and play in first person; the only interface is the betting options.
-- **Lots and businesses.** Buy a lot from Paradise Realty (or the laptop in your flat) and
-  choose what to build on it; casinos grow as you invest.
+- **Lots and businesses.** Buy a lot on the big map, from Paradise Realty or the laptop in
+  your flat, and choose what to build on it. A first casino costs $12,000, goes up in 15
+  seconds and opens with three machines on the floor; casinos grow as you invest.
+- **Property map.** The big map (M) filters the lots: for sale, ones you can afford with the
+  cash you have, ones big enough for a casino, by price, size and district, and your own.
+  Click a lot to buy it, mark it or teleport to its street; 🏠 Home teleports you to your flat.
 - **Your flat.** Sleep to pass the night and save, change outfits at the wardrobe, browse the
-  property listings on the laptop. Your car is parked outside.
+  property listings on the laptop.
 - **Shoplifting.** Sunny Mart corner stores are all over the island. Pocket things off the
   shelves while the clerk is on their phone; if they look up and catch you, the alarm goes
   off. Tagged stock can trip the door gates on the way out. Draw a gun at the counter to rob
@@ -51,7 +55,7 @@ on, gambling, buying lots and building on them, and getting into trouble.
 | E | Use: doors, seats, shelves, counters, cars, boats; get out |
 | 1–7 | Draw a weapon (Q to put it away), left click to shoot, right click to aim, R to reload |
 | V | First / third person |
-| M | Big map (click to set a waypoint) |
+| M | Big map: property filters, click a lot to buy it or teleport there, anywhere else for a waypoint |
 | T or Enter | Chat (`/help`, `/players`) |
 | P or Esc | Pause menu (settings, graphics quality, save) |
 

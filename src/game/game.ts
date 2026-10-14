@@ -5,6 +5,7 @@ import { World } from './world';
 import { CharacterModel, BONES } from '../chars/model';
 import { loadBodies } from '../chars/bodies';
 import { loadCars } from '../vehicles/carModels';
+import { setFaceDetail } from '../chars/faces';
 import { Animator, ROLL_TIME, rollSwell, type Pose } from '../chars/anim';
 import { SKINS, appearanceFromSkin, lockPieces, skinById, type Appearance } from '../chars/skins';
 import { Player } from './player';
@@ -32,9 +33,9 @@ import { GameUI } from '../ui/menus';
 import { Panel } from '../ui/panel';
 import { IslandMap, Minimap, type MapMarker } from '../ui/map';
 import { loadSave, newSave, writeSave, type SaveData, type SavedLook } from './save';
-import { vehicleDef } from '../vehicles/models';
+import { VEHICLES, vehicleDef } from '../vehicles/models';
 import { BIZ } from '../business/catalog';
-import { money as fmtMoney } from '../ui/dom';
+import { el, money as fmtMoney } from '../ui/dom';
 import type { Venue } from '../casino/venue';
 import type { Activity } from '../activities/activity';
 import { createActivities } from '../activities';
@@ -113,6 +114,7 @@ export class Game {
 
   constructor(private app: HTMLElement) {
     this.renderer = new Renderer(app);
+    setFaceDetail(this.renderer.settings.quality === 'low');
     this.input = new Input(this.renderer.gl.domElement);
     this.world = new World(this.renderer);
     this.camera = new CameraRig(this.renderer.camera);
@@ -477,6 +479,48 @@ export class Game {
     this.combat?.reattach();
   }
 
+  /**
+   * Quick travel from the map: a short fade to black and you're standing there on foot, facing
+   * `yaw` (a car you were driving stays where you left it). Not with the police after you.
+   */
+  fastTravel(x: number, z: number, yaw: number, label: string): boolean {
+    if (this.combat.wanted > 0) {
+      this.hud.toast('Lose the police first', 'bad');
+      audio.play('error');
+      return false;
+    }
+    if (this.player.mode === 'dead' || this.director.playing || this.mode === 'seated' || this.mode === 'build' || this.travelling) return false;
+    const v = this.vehicles.driving;
+    if (v) {
+      if (v.isBoat) {
+        this.hud.toast('Bring the boat back to land first', 'bad');
+        return false;
+      }
+      v.speed = 0;
+      this.vehicles.exit();
+      if (this.vehicles.driving) return false;
+    }
+    this.minimap.setBig(false);
+    this.travelling = true;
+    const fade = el('div', 'travel-fade');
+    this.uiRoot.appendChild(fade);
+    requestAnimationFrame(() => fade.classList.add('on'));
+    audio.play('whoosh');
+    window.setTimeout(() => {
+      this.player.teleport(x, this.world.groundY(x, z), z, yaw);
+      this.camera.yaw = yaw + Math.PI;
+      this.camera.pitch = -0.12;
+      this.hud.toast(`📍 ${label}`, 'info');
+      fade.classList.remove('on');
+      window.setTimeout(() => fade.remove(), 450);
+      this.travelling = false;
+      this.save();
+    }, 380);
+    return true;
+  }
+
+  private travelling = false;
+
   /** The most open direction round the player, and how far it is to a wall that way (for framing them). */
   openFacing(): { yaw: number; room: number } {
     const p = this.player.pos;
@@ -505,6 +549,7 @@ export class Game {
 
   applyQuality(): void {
     const spec = this.renderer.spec;
+    setFaceDetail(this.renderer.settings.quality === 'low');
     this.world.terrainMesh.setDetail(spec.terrain);
     this.world.sky.setShadows(spec.shadows, spec.shadowSize);
   }

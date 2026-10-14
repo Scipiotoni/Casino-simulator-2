@@ -1,3 +1,5 @@
+/// <reference types="vitest/config" />
+import { configDefaults } from 'vitest/config';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
@@ -10,5 +12,9 @@ export default defineConfig({
   },
   server: {
     host: true,
+  },
+  test: {
+    // Work-in-progress checkouts under .claude/ are not part of this one.
+    exclude: [...configDefaults.exclude, '.claude/**'],
   },
 });

@@ -13,8 +13,9 @@ export async function playIntro(g: Game, d: Director): Promise<void> {
   const z = BRIDGE.z - 3.5; // westbound lane
   const flat = g.flat;
   g.hours = 19.05;
-  // Your car, scripted for the cutscene; it's yours afterwards.
-  const car = g.vehicles.spawn('hatch', 6700, z, -Math.PI / 2, { color: 0x4fc3f7, id: 'starter', owned: true });
+  // A rental for the drive over, scripted for the cutscene and handed back at the flat (you
+  // start without a car of your own).
+  const car = g.vehicles.spawn('hatch', 6700, z, -Math.PI / 2, { color: 0x4fc3f7, id: 'rental' });
   car.scripted = true;
   g.vehicles.driving = car;
   g.player.mode = 'driving';
@@ -75,14 +76,13 @@ export async function playIntro(g: Game, d: Director): Promise<void> {
   await d.wait(0.6);
   await d.title('CASINO SIMULATOR 2', 'JACKPOT ISLAND', 4.2);
   await d.fade(true, 0.8);
-  // End state (also what a skip leaves you with): parked outside your flat, standing at the door.
+  // End state (also what a skip leaves you with): the rental gone back, standing at your door.
   tweens.finish('cine');
   car.scripted = false;
-  car.place(flat.parking.x, flat.parking.z, flat.parking.heading, g.world);
   car.speed = 0;
   g.vehicles.driving = null;
   car.driver = null;
-  g.vehicles.parked(car);
+  g.vehicles.remove(car);
   g.player.mode = 'walk';
   g.player.poseOverride = null;
   const p = new THREE.Vector3(flat.door.x + Math.sin(flat.yaw) * 1.5, 0, flat.door.z + Math.cos(flat.yaw) * 1.5);
@@ -91,4 +91,5 @@ export async function playIntro(g: Game, d: Director): Promise<void> {
   g.camera.pitch = -0.15;
   g.hours = Math.max(g.hours, 19.4);
   void d.fade(false, 1.0);
+  window.setTimeout(() => g.hud.toast('Open the map (M): filter the lots you can afford, buy one and build your first casino. Teleport there from the map.', 'info', 9000), 1600);
 }

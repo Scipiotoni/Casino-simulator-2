@@ -137,14 +137,16 @@ export class GameUI {
   buildPanel(b: Business): void {
     const g = this.g;
     const l = b.lot;
-    let pick: BizType | null = null;
-    let name = '';
+    // A casino is what most people come for: chosen already when the lot fits one.
+    let pick: BizType | null = lotArea(l) >= bizDef('casino').minArea ? 'casino' : null;
+    let name = pick ? defaultName(pick, g.playerName) : '';
     const p = this.panel({ title: 'What will you build?', subtitle: `${l.street} · ${districtName(l.district)} · ${Math.round(lotArea(l)).toLocaleString('en-US')} m²`, wide: true, accent: '#ffd23d' });
     const grid = el('div', 'pgrid');
     const nameRow = el('div', 'pname');
     const input = el('input', 'pinput') as HTMLInputElement;
     input.maxLength = 28;
     input.placeholder = 'Name it';
+    input.value = name;
     input.addEventListener('input', () => (name = input.value));
     input.addEventListener('keydown', (e) => e.stopPropagation());
     nameRow.append(el('span', '', 'Name'), input);
@@ -506,7 +508,7 @@ export class GameUI {
       t.innerHTML = `
         <div class="logo big"><div class="l1">CASINO SIMULATOR</div><div class="l2">2</div><div class="l3">JACKPOT ISLAND</div></div>
         <div class="title-menu"></div>
-        <div class="title-foot">Version 2 · everyone starts with $10,000 and a flat</div>`;
+        <div class="title-foot">Version 2 · everyone starts with $30,000 and a flat</div>`;
       const menu = t.querySelector('.title-menu') as HTMLDivElement;
       const go = (c: 'new' | 'continue') => {
         audio.unlock();
@@ -527,7 +529,7 @@ export class GameUI {
       menu.appendChild(btn('Settings', 'pbtn big', () => this.settings()));
       // The first game is across Interstate 15.
       const back = mainlandName();
-      if (arrivedFromMainland()) menu.prepend(el('div', 'title-hello', esc(`Welcome across Interstate 15${back ? `, ${back}` : ''}! On the island everyone starts with $10,000 and a flat.`)));
+      if (arrivedFromMainland()) menu.prepend(el('div', 'title-hello', esc(`Welcome across Interstate 15${back ? `, ${back}` : ''}! On the island everyone starts with $30,000 and a flat.`)));
       menu.appendChild(btn('◂ Back to the mainland: Casino Simulator 1', 'title-link', () => goToMainland(g)));
       g.uiRoot.appendChild(t);
     });
@@ -551,7 +553,7 @@ export class GameUI {
         start: withFace(appearanceFromSkin('rookie')),
         mode: 'create',
         title: 'WHO ARE YOU?',
-        subtitle: 'Everyone on Jackpot Island starts with $10,000 and a flat.',
+        subtitle: 'Everyone on Jackpot Island starts with $30,000 and a flat.',
         top: input,
         actions: [start],
       });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { appearanceFromSkin, lockPieces, pieceUnlocked, sanitizeAppearance, type Appearance } from '../src/chars/skins';
+import { DEFAULT_FACE, appearanceFromSkin, lockPieces, pieceUnlocked, sanitizeAppearance, type Appearance } from '../src/chars/skins';
 
 const base = appearanceFromSkin('rookie');
 
@@ -7,7 +7,7 @@ function custom(): Appearance {
   return {
     ...appearanceFromSkin('rookieF'),
     skinId: 'custom',
-    face: { brows: 'arched', beard: 'none', lips: 'red', marks: 'freckles', lashes: true },
+    face: { ...DEFAULT_FACE, brows: 'arched', beard: 'none', lips: 'red', marks: 'freckles', lashes: true, eyeShape: 'round', makeup: 'shadow', makeupColor: 0x3a6fd8 },
     hairColor: 0x123456,
     height: 1.04,
     build: 0.95,
@@ -33,7 +33,7 @@ describe('custom looks', () => {
     expect(a.outfit.c1).toBe(base.outfit.c1);
     expect(a.outfit.pants).toBe(base.outfit.pants);
     expect(a.outfit.gloves).toBe(base.outfit.gloves);
-    expect(a.face).toEqual({ brows: 'soft', beard: 'full', lips: 'natural', marks: 'none', lashes: false });
+    expect(a.face).toEqual({ ...DEFAULT_FACE, beard: 'full' });
     expect(a.eyes).toBe(base.eyes);
     expect(a.height).toBe(1.08);
     expect(a.build).toBe(1);
@@ -46,6 +46,17 @@ describe('custom looks', () => {
     expect(a.face?.lips).toBe('red');
     expect(a.hairColor).toBe(0x123456);
     expect(a.body).toBe('f');
+  });
+
+  it('fills in face fields that older saves and other players leave out', () => {
+    const raw = { ...custom(), face: { brows: 'thin', beard: 'goatee', lips: 'pink', marks: 'none', lashes: false } };
+    const a = sanitizeAppearance(raw, base);
+    expect(a.face).toEqual({ ...DEFAULT_FACE, brows: 'thin', beard: 'goatee', lips: 'pink' });
+  });
+
+  it('checks the new face fields too', () => {
+    const raw = { ...custom(), face: { ...DEFAULT_FACE, eyeShape: 'cat', makeup: 'glitter', makeupColor: -1, lipShape: 'huge', paintColor: 'blue' } };
+    expect(sanitizeAppearance(raw, base).face).toEqual(DEFAULT_FACE);
   });
 
   it('falls back on junk', () => {
