@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Kit } from '../render/kit';
+import { buildModelled } from './carModels';
 
 /**
  * The vehicle catalog and the modeller. Bodies are side profiles extruded across the car
@@ -231,6 +232,9 @@ function buildBoat(d: VehicleDef, color: number): BuiltVehicle {
 
 export function buildVehicle(d: VehicleDef, color = d.color): BuiltVehicle {
   if (d.cls === 'boat') return buildBoat(d, color);
+  // The cars modelled in Blender; the simple builder below for any that aren't (yet).
+  const modelled = buildModelled(d, color);
+  if (modelled) return modelled;
   const k = new Kit();
   const glow = new Kit();
   const L = d.L;
