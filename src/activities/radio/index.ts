@@ -127,10 +127,10 @@ export class Radio implements Activity {
     };
   }
 
-  /** Dev check: render every station offline for `seconds` and measure how loud it is. */
-  async measure(seconds = 8): Promise<Level[]> {
+  /** Dev check: render every station offline for `seconds` (from bar `bar`) and measure how loud it is. */
+  async measure(seconds = 8, bar?: number): Promise<Level[]> {
     const out: Level[] = [];
-    for (const st of STATIONS) out.push(await renderStation(st, seconds));
+    for (const st of STATIONS) out.push(await renderStation(st, seconds, bar));
     return out;
   }
 

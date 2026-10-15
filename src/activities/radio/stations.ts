@@ -133,15 +133,15 @@ const jackpot: StationDef = {
   echo: [8, 0.18],
   level: 1,
   kit: {
-    kick: { kind: 'kick', gain: 0.4, f0: 105, f1: 46, d: 0.15 },
-    ride: { kind: 'noise', gain: 0.075, pan: 0.3, filter: { type: 'highpass', freq: 6200 }, a: 0.001, d: 0.28, verb: 0.15 },
-    pedal: { kind: 'noise', gain: 0.05, pan: -0.25, filter: { type: 'highpass', freq: 8000 }, d: 0.03 },
-    brush: { kind: 'noise', gain: 0.08, pan: -0.1, filter: { type: 'bandpass', freq: 2400, q: 0.6 }, a: 0.012, d: 0.12, verb: 0.2 },
-    crash: { kind: 'noise', gain: 0.045, pan: 0.35, filter: { type: 'highpass', freq: 4500 }, d: 1.1, verb: 0.3 },
-    bass: { kind: 'tone', wave: 'triangle', gain: 0.5, filter: { type: 'lowpass', freq: 800 }, a: 0.004, d: 0.25, s: 0.4, r: 0.07 },
-    ep: { kind: 'fm', gain: 0.12, pan: -0.15, ratio: 1, index: 1.4, a: 0.003, d: 1.1, s: 0.35, r: 0.25, verb: 0.25, trem: [4.5, 0.16] },
-    vibes: { kind: 'mallet', gain: 0.16, pan: 0.2, partials: [[4, 0.22, 0.28], [10, 0.04, 0.12]], d: 1.2, r: 0.35, verb: 0.35, echo: 0.08, trem: [5.5, 0.35] },
-    horn: { kind: 'tone', wave: 'sawtooth', gain: 0.06, pan: 0.15, filter: { type: 'lowpass', freq: 1600, q: 0.7 }, a: 0.04, d: 0.3, s: 0.75, r: 0.12, wobble: [5.2, 14], verb: 0.3 },
+    kick: { kind: 'kick', gain: 0.34, f0: 105, f1: 46, d: 0.15 },
+    ride: { kind: 'noise', gain: 0.17, pan: 0.3, filter: { type: 'highpass', freq: 6200 }, a: 0.001, d: 0.28, verb: 0.15 },
+    pedal: { kind: 'noise', gain: 0.2, pan: -0.25, filter: { type: 'highpass', freq: 8000 }, d: 0.03 },
+    brush: { kind: 'noise', gain: 0.3, pan: -0.1, filter: { type: 'bandpass', freq: 2400, q: 0.6 }, a: 0.012, d: 0.12, verb: 0.2 },
+    crash: { kind: 'noise', gain: 0.08, pan: 0.35, filter: { type: 'highpass', freq: 4500 }, d: 1.1, verb: 0.3 },
+    bass: { kind: 'tone', wave: 'triangle', gain: 0.24, filter: { type: 'lowpass', freq: 800 }, a: 0.004, d: 0.25, s: 0.4, r: 0.07 },
+    ep: { kind: 'fm', gain: 0.24, pan: -0.15, ratio: 1, index: 1.4, a: 0.003, d: 1.1, s: 0.35, r: 0.25, verb: 0.25, trem: [4.5, 0.16] },
+    vibes: { kind: 'mallet', gain: 0.28, pan: 0.2, partials: [[4, 0.22, 0.28], [10, 0.04, 0.12]], d: 1.2, r: 0.35, verb: 0.35, echo: 0.08, trem: [5.5, 0.35] },
+    horn: { kind: 'tone', wave: 'sawtooth', gain: 0.2, pan: 0.15, filter: { type: 'lowpass', freq: 1600, q: 0.7 }, a: 0.04, d: 0.3, s: 0.75, r: 0.12, wobble: [5.2, 14], verb: 0.3 },
   },
   bar(b) {
     const out: Note[] = [];
@@ -197,16 +197,16 @@ const neon: StationDef = {
   echo: [3, 0.36],
   level: 1,
   kit: {
-    kick: { kind: 'kick', gain: 0.55, f0: 150, f1: 44, d: 0.2 },
-    snare: { kind: 'snare', gain: 0.28, f0: 185, d: 0.2, filter: { type: 'highpass', freq: 900 }, verb: 0.65 },
-    hat: { kind: 'noise', gain: 0.05, pan: -0.2, filter: { type: 'highpass', freq: 8000 }, d: 0.04 },
-    open: { kind: 'noise', gain: 0.035, pan: 0.2, filter: { type: 'highpass', freq: 7000 }, d: 0.2 },
-    tom: { kind: 'tom', gain: 0.28, d: 0.22, verb: 0.4 },
-    crash: { kind: 'noise', gain: 0.045, filter: { type: 'highpass', freq: 4000 }, d: 1.3, verb: 0.3 },
-    bass: { kind: 'tone', wave: 'sawtooth', gain: 0.2, filter: { type: 'lowpass', freq: 650, q: 3 }, a: 0.004, d: 0.18, s: 0.45, r: 0.05 },
-    arp: { kind: 'tone', wave: 'square', gain: 0.045, pan: 0.25, filter: { type: 'lowpass', freq: 2200, q: 2 }, a: 0.002, d: 0.14, s: 0, r: 0.05, echo: 0.4, verb: 0.2 },
-    pad: { kind: 'tone', wave: 'sawtooth', unison: 10, gain: 0.04, filter: { type: 'lowpass', freq: 1300, q: 0.5 }, a: 0.5, d: 1, s: 0.8, r: 0.9, verb: 0.5, wobble: [0.3, 6] },
-    lead: { kind: 'tone', wave: 'square', unison: 5, gain: 0.06, pan: -0.05, filter: { type: 'lowpass', freq: 2800 }, a: 0.015, d: 0.3, s: 0.75, r: 0.18, wobble: [5.5, 12], echo: 0.3, verb: 0.35 },
+    kick: { kind: 'kick', gain: 0.28, f0: 150, f1: 44, d: 0.2 },
+    snare: { kind: 'snare', gain: 0.55, f0: 185, d: 0.2, filter: { type: 'highpass', freq: 900 }, verb: 0.65 },
+    hat: { kind: 'noise', gain: 0.2, pan: -0.2, filter: { type: 'highpass', freq: 8000 }, d: 0.04 },
+    open: { kind: 'noise', gain: 0.09, pan: 0.2, filter: { type: 'highpass', freq: 7000 }, d: 0.2 },
+    tom: { kind: 'tom', gain: 0.35, d: 0.22, verb: 0.4 },
+    crash: { kind: 'noise', gain: 0.09, filter: { type: 'highpass', freq: 4000 }, d: 1.3, verb: 0.3 },
+    bass: { kind: 'tone', wave: 'sawtooth', gain: 0.25, filter: { type: 'lowpass', freq: 650, q: 3 }, a: 0.004, d: 0.18, s: 0.45, r: 0.05 },
+    arp: { kind: 'tone', wave: 'square', gain: 0.18, pan: 0.25, filter: { type: 'lowpass', freq: 2200, q: 2 }, a: 0.002, d: 0.14, s: 0, r: 0.05, echo: 0.4, verb: 0.2 },
+    pad: { kind: 'tone', wave: 'sawtooth', unison: 10, gain: 0.09, filter: { type: 'lowpass', freq: 1300, q: 0.5 }, a: 0.5, d: 1, s: 0.8, r: 0.9, verb: 0.5, wobble: [0.3, 6] },
+    lead: { kind: 'tone', wave: 'square', unison: 5, gain: 0.17, pan: -0.05, filter: { type: 'lowpass', freq: 2800 }, a: 0.015, d: 0.3, s: 0.75, r: 0.18, wobble: [5.5, 12], echo: 0.3, verb: 0.35 },
   },
   bar(b) {
     const out: Note[] = [];
@@ -272,14 +272,14 @@ const island: StationDef = {
   echo: [3, 0.2],
   level: 1,
   kit: {
-    kick: { kind: 'kick', gain: 0.48, f0: 120, f1: 50, d: 0.15 },
-    clave: { kind: 'wood', gain: 0.1, pan: 0.35, f0: 2300, d: 0.04, verb: 0.25 },
-    shaker: { kind: 'noise', gain: 0.055, pan: -0.3, filter: { type: 'bandpass', freq: 7000, q: 0.9 }, a: 0.006, d: 0.045 },
+    kick: { kind: 'kick', gain: 0.24, f0: 120, f1: 50, d: 0.15 },
+    clave: { kind: 'wood', gain: 0.28, pan: 0.35, f0: 2300, d: 0.04, verb: 0.25 },
+    shaker: { kind: 'noise', gain: 0.2, pan: -0.3, filter: { type: 'bandpass', freq: 7000, q: 0.9 }, a: 0.006, d: 0.045 },
     conga: { kind: 'tom', gain: 0.2, pan: -0.2, d: 0.16, verb: 0.15 },
-    bass: { kind: 'tone', wave: 'triangle', gain: 0.5, filter: { type: 'lowpass', freq: 650 }, a: 0.005, d: 0.2, s: 0.5, r: 0.06 },
-    steel: { kind: 'mallet', gain: 0.2, pan: 0.1, partials: [[2, 0.4, 0.55], [3, 0.14, 0.35], [4.1, 0.06, 0.2]], d: 0.9, r: 0.25, verb: 0.3, echo: 0.12 },
-    uke: { kind: 'pluck', gain: 0.12, pan: 0.3, bright: 0.55, d: 1.2, r: 0.08, verb: 0.15 },
-    marimba: { kind: 'mallet', gain: 0.13, pan: -0.25, partials: [[4, 0.18, 0.18], [9.9, 0.04, 0.08]], d: 0.45, r: 0.2, verb: 0.2 },
+    bass: { kind: 'tone', wave: 'triangle', gain: 0.22, filter: { type: 'lowpass', freq: 650 }, a: 0.005, d: 0.2, s: 0.5, r: 0.06 },
+    steel: { kind: 'mallet', gain: 0.34, pan: 0.1, partials: [[2, 0.4, 0.55], [3, 0.14, 0.35], [4.1, 0.06, 0.2]], d: 0.9, r: 0.25, verb: 0.3, echo: 0.12 },
+    uke: { kind: 'pluck', gain: 0.45, pan: 0.3, bright: 0.55, d: 1.2, r: 0.08, verb: 0.15 },
+    marimba: { kind: 'mallet', gain: 0.26, pan: -0.25, partials: [[4, 0.18, 0.18], [9.9, 0.04, 0.08]], d: 0.45, r: 0.2, verb: 0.2 },
   },
   bar(b) {
     const out: Note[] = [];
@@ -351,16 +351,16 @@ const desert: StationDef = {
     rest: 0.3, leap: 0.25, hold: 8,
   },
   echo: [3, 0.3],
-  level: 1,
+  level: 0.85,
   kit: {
-    kick: { kind: 'kick', gain: 0.48, f0: 95, f1: 44, d: 0.2 },
-    snare: { kind: 'snare', gain: 0.18, f0: 175, d: 0.14, filter: { type: 'bandpass', freq: 2000, q: 0.5 }, verb: 0.45 },
-    rim: { kind: 'wood', gain: 0.1, f0: 1500, d: 0.03, verb: 0.3 },
-    shaker: { kind: 'noise', gain: 0.04, pan: 0.3, filter: { type: 'highpass', freq: 5500 }, a: 0.01, d: 0.06 },
-    bass: { kind: 'tone', wave: 'triangle', gain: 0.5, filter: { type: 'lowpass', freq: 520 }, a: 0.008, d: 0.5, s: 0.35, r: 0.1 },
-    twang: { kind: 'pluck', gain: 0.28, pan: -0.1, bright: 0.9, bend: 2, d: 1.6, r: 0.15, echo: 0.3, verb: 0.4, filter: { type: 'highpass', freq: 120 } },
-    strum: { kind: 'pluck', gain: 0.1, pan: 0.35, bright: 0.45, d: 1.6, r: 0.12, verb: 0.3 },
-    organ: { kind: 'tone', wave: 'triangle', gain: 0.045, pan: -0.3, filter: { type: 'lowpass', freq: 1500 }, a: 0.3, d: 0.5, s: 0.85, r: 0.6, trem: [5, 0.5], verb: 0.5 },
+    kick: { kind: 'kick', gain: 0.27, f0: 95, f1: 44, d: 0.2 },
+    snare: { kind: 'snare', gain: 0.5, f0: 175, d: 0.14, filter: { type: 'bandpass', freq: 2000, q: 0.5 }, verb: 0.45 },
+    rim: { kind: 'wood', gain: 0.3, f0: 1500, d: 0.03, verb: 0.3 },
+    shaker: { kind: 'noise', gain: 0.2, pan: 0.3, filter: { type: 'highpass', freq: 5500 }, a: 0.01, d: 0.06 },
+    bass: { kind: 'tone', wave: 'triangle', gain: 0.26, filter: { type: 'lowpass', freq: 520 }, a: 0.008, d: 0.5, s: 0.35, r: 0.1 },
+    twang: { kind: 'pluck', gain: 1.2, pan: -0.1, bright: 0.9, bend: 2, d: 1.6, r: 0.15, echo: 0.3, verb: 0.4, filter: { type: 'highpass', freq: 120 } },
+    strum: { kind: 'pluck', gain: 0.5, pan: 0.35, bright: 0.45, d: 2.4, r: 0.12, verb: 0.3 },
+    organ: { kind: 'tone', wave: 'triangle', gain: 0.11, pan: -0.3, filter: { type: 'lowpass', freq: 1500 }, a: 0.3, d: 0.5, s: 0.85, r: 0.6, trem: [5, 0.5], verb: 0.5 },
   },
   bar(b) {
     const out: Note[] = [];
@@ -375,7 +375,7 @@ const desert: StationDef = {
     }
     const full = isSong(b) || (kind === 'outro' && n < 6);
     // Guitar: a ringing strum in the quiet parts, a lazy down-down-up-down otherwise.
-    if (kind === 'intro' || kind === 'break') out.push(...hit('strum', 0, 16, gtr, 0.65, 0.16));
+    if (kind === 'intro' || kind === 'break') out.push(...hit('strum', 0, 8, gtr, 0.65, 0.16), ...hit('strum', 8, 8, gtr.slice(1), 0.5, 0.14));
     else {
       out.push(...hit('strum', 0, 6, gtr, 0.62, 0.14));
       out.push(...hit('strum', 8, 2, gtr.slice(1), 0.48, 0.1));
@@ -395,7 +395,7 @@ const desert: StationDef = {
       if (fillBar(b) && rng() < 0.6) out.push(...beat('............o.ox', 'snare'));
     } else if (kind === 'intro' && n >= 4) out.push(...beat('....x.......x...', 'rim'), ...beat('x.o.x.o.x.o.x.o.', 'shaker'));
     else if (kind === 'break') out.push(...beat('x...............', 'kick'));
-    if (kind === 'B' || kind === 'break') out.push(...hit('organ', 0, 16, voicing(c, 52), 0.55));
+    if (kind === 'B' || kind === 'break' || kind === 'intro') out.push(...hit('organ', 0, 16, voicing(c, 52), 0.55));
     if (kind !== 'intro') out.push(...tuneOn(b, 'twang'));
     return out;
   },
@@ -436,14 +436,14 @@ const lofi: StationDef = {
   tone: 4200,
   level: 1,
   kit: {
-    kick: { kind: 'kick', gain: 0.55, f0: 85, f1: 42, d: 0.2 },
-    snare: { kind: 'snare', gain: 0.22, f0: 210, d: 0.1, filter: { type: 'bandpass', freq: 1800, q: 0.6 }, verb: 0.25 },
-    hat: { kind: 'noise', gain: 0.04, pan: 0.2, filter: { type: 'bandpass', freq: 8500, q: 0.7 }, d: 0.035 },
-    keys: { kind: 'fm', gain: 0.12, pan: -0.1, ratio: 1, index: 1.1, a: 0.006, d: 1.8, s: 0.35, r: 0.5, wobble: [0.55, 10], verb: 0.3 },
-    bass: { kind: 'tone', wave: 'sine', gain: 0.55, filter: { type: 'lowpass', freq: 420 }, a: 0.01, d: 0.35, s: 0.6, r: 0.12 },
-    bell: { kind: 'mallet', gain: 0.12, pan: 0.15, partials: [[4, 0.12, 0.25]], d: 1.1, r: 0.4, wobble: [0.55, 10], echo: 0.3, verb: 0.4 },
-    flute: { kind: 'tone', wave: 'triangle', gain: 0.07, pan: 0.1, filter: { type: 'lowpass', freq: 2200 }, a: 0.05, d: 0.2, s: 0.8, r: 0.25, wobble: [4.8, 10], echo: 0.25, verb: 0.4 },
-    vinyl: { kind: 'hiss', gain: 0.03 },
+    kick: { kind: 'kick', gain: 0.23, f0: 85, f1: 42, d: 0.2 },
+    snare: { kind: 'snare', gain: 0.66, f0: 210, d: 0.1, filter: { type: 'bandpass', freq: 1800, q: 0.6 }, verb: 0.25 },
+    hat: { kind: 'noise', gain: 0.2, pan: 0.2, filter: { type: 'bandpass', freq: 5000, q: 0.8 }, d: 0.035 },
+    keys: { kind: 'fm', gain: 0.19, pan: -0.1, ratio: 1, index: 1.1, a: 0.006, d: 1.8, s: 0.35, r: 0.5, wobble: [0.55, 10], verb: 0.3 },
+    bass: { kind: 'tone', wave: 'sine', gain: 0.2, filter: { type: 'lowpass', freq: 420 }, a: 0.01, d: 0.35, s: 0.6, r: 0.12 },
+    bell: { kind: 'mallet', gain: 0.3, pan: 0.15, partials: [[4, 0.12, 0.25]], d: 1.1, r: 0.4, wobble: [0.55, 10], echo: 0.3, verb: 0.4 },
+    flute: { kind: 'tone', wave: 'triangle', gain: 0.16, pan: 0.1, filter: { type: 'lowpass', freq: 2200 }, a: 0.05, d: 0.2, s: 0.8, r: 0.25, wobble: [4.8, 10], echo: 0.25, verb: 0.4 },
+    vinyl: { kind: 'hiss', gain: 0.04 },
   },
   bar(b) {
     const out: Note[] = [];

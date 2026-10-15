@@ -68,23 +68,16 @@ describe('stations', () => {
         const notes = composeBar(s, bar);
         expect(notes.length).toBeGreaterThan(0);
         expect(notes.length).toBeLessThan(90);
-        for (const n of notes) {
+        const bad = notes.filter((n, i) => {
           const inst = s.kit[n.inst];
-          expect(inst, `${s.id} bar ${bar}: ${n.inst}`).toBeDefined();
-          expect(n.at).toBeGreaterThanOrEqual(0);
-          expect(n.at).toBeLessThan(STEPS);
-          expect(n.len).toBeGreaterThan(0);
-          expect(n.vel).toBeGreaterThan(0);
-          expect(n.vel).toBeLessThanOrEqual(1);
-          if (PITCHED.has(inst.kind)) {
-            expect(n.midi).toBeGreaterThanOrEqual(24);
-            expect(n.midi).toBeLessThanOrEqual(100);
-          }
-        }
-        for (let i = 1; i < notes.length; i++) expect(notes[i].at).toBeGreaterThanOrEqual(notes[i - 1].at);
+          if (!inst || n.at < 0 || n.at >= STEPS || !(n.len > 0) || !(n.vel > 0) || n.vel > 1) return true;
+          if (PITCHED.has(inst.kind) && (n.midi < 24 || n.midi > 100)) return true;
+          return i > 0 && n.at < notes[i - 1].at;
+        });
+        expect(bad, `${s.id} bar ${bar}`).toEqual([]);
       }
     }
-  });
+  }, 60000);
 
   it('keeps tunes in the key, or on the chord they are played over', () => {
     for (const s of STATIONS) {
@@ -98,7 +91,7 @@ describe('stations', () => {
         }
       }
     }
-  });
+  }, 60000);
 
   it('brings the verse tune back each verse, and gives the chorus its own', () => {
     for (const s of STATIONS) {

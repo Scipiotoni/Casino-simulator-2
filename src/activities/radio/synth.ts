@@ -239,7 +239,7 @@ function bank(ctx: BaseAudioContext): Bank {
     const d = noise.getChannelData(0);
     const rnd = mulberry32(37);
     for (let i = 0; i < d.length; i++) d[i] = rnd() * 2 - 1;
-    b = { room: renderRoom(ctx, 1.8), noise };
+    b = { room: renderRoom(ctx, 1.3), noise };
     banks.set(ctx, b);
   }
   return b;
@@ -658,6 +658,10 @@ export interface Level {
   rms: number;
   peak: number;
   notes: number;
+  /** How long rendering took (ms): a rough measure of the station's cost. */
+  ms: number;
+  /** RMS of each second (to spot a silent stretch). */
+  seconds: number[];
 }
 
 /** Render `seconds` of a station offline (from the top of the first verse by default) and measure it. */
@@ -665,21 +669,27 @@ export async function renderStation(st: StationDef, seconds = 8, startBar = SECT
   const w = globalThis as unknown as { OfflineAudioContext?: typeof OfflineAudioContext; webkitOfflineAudioContext?: typeof OfflineAudioContext };
   const Ctor = w.OfflineAudioContext ?? w.webkitOfflineAudioContext;
   if (!Ctor) throw new Error('No OfflineAudioContext');
+  const t0 = performance.now();
   const ctx = new Ctor(2, Math.ceil(seconds * sampleRate), sampleRate);
   const p = new StationPlayer(ctx, st, ctx.destination);
   p.start(0.02, startBar, 0);
   p.pump(seconds, 0);
   const buf = await ctx.startRendering();
+  const ms = performance.now() - t0;
   let sum = 0;
   let peak = 0;
+  const per = new Array<number>(Math.ceil(seconds)).fill(0);
   for (let ch = 0; ch < buf.numberOfChannels; ch++) {
     const d = buf.getChannelData(ch);
     for (let i = 0; i < d.length; i++) {
-      sum += d[i] * d[i];
+      const e = d[i] * d[i];
+      sum += e;
+      per[Math.floor(i / sampleRate)] += e;
       peak = Math.max(peak, Math.abs(d[i]));
     }
   }
   const rms = Math.sqrt(sum / (buf.length * buf.numberOfChannels));
+  const persec = per.map((e) => Math.sqrt(e / (sampleRate * buf.numberOfChannels)));
   p.dispose();
-  return { id: st.id, name: st.name, rms, peak, notes: p.notes };
+  return { id: st.id, name: st.name, rms, peak, notes: p.notes, ms, seconds: persec };
 }
