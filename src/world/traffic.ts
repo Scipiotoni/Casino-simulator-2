@@ -21,7 +21,8 @@ interface Node {
   links: Node[];
 }
 
-const MODELS = ['hatch', 'sedan', 'sedan', 'taxi', 'suv', 'van', 'convertible', 'pickup', 'muscle', 'limo'];
+/** The cars you see on the streets (the game downloads these models at boot). */
+export const TRAFFIC_MODELS = ['hatch', 'sedan', 'sedan', 'taxi', 'suv', 'van', 'convertible', 'pickup', 'muscle', 'limo'];
 const COLORS = [0xe8e8ea, 0x15151a, 0xc8202f, 0x1e6bff, 0x9aa0ab, 0x2bd96b, 0xffd23d, 0xff7a1a, 0x7b2ff7, 0x6a3f22];
 
 class TrafficCar {
@@ -38,7 +39,7 @@ class TrafficCar {
 
   constructor(scene: THREE.Scene, seed: number) {
     const r = mulberry32(seed);
-    const def = MODELS[Math.floor(r() * MODELS.length)];
+    const def = TRAFFIC_MODELS[Math.floor(r() * TRAFFIC_MODELS.length)];
     this.v = new Vehicle(def, def === 'taxi' ? undefined : COLORS[Math.floor(r() * COLORS.length)], `traffic${seed}`);
     this.v.scripted = true;
     this.v.driver = 'npc';

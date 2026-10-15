@@ -9,7 +9,7 @@ import { buildModelled } from './carModels';
  * merged meshes plus four wheels.
  */
 
-export type VehicleClass = 'compact' | 'sedan' | 'sports' | 'muscle' | 'suv' | 'pickup' | 'van' | 'limo' | 'buggy' | 'super' | 'jeep' | 'tank' | 'police' | 'taxi' | 'convertible' | 'boat';
+export type VehicleClass = 'compact' | 'sedan' | 'sports' | 'muscle' | 'suv' | 'pickup' | 'van' | 'limo' | 'buggy' | 'super' | 'jeep' | 'tank' | 'police' | 'taxi' | 'convertible' | 'boat' | 'classic' | 'luxury' | 'truck';
 
 export interface VehicleDef {
   id: string;
@@ -35,6 +35,8 @@ export interface VehicleDef {
   engine: 'four' | 'v8' | 'sport' | 'diesel' | 'electric' | 'buggy' | 'tank';
   extras?: ('spoiler' | 'wing' | 'rack' | 'lightbar' | 'taxisign' | 'bullbar' | 'scoop' | 'bed' | 'cage' | 'stripes' | 'openTop' | 'turret' | 'snorkel')[];
   stripe?: number;
+  /** One line for the dealer's card: what it is, after the real car it's based on. */
+  blurb?: string;
 }
 
 export const VEHICLES: VehicleDef[] = [
@@ -55,6 +57,41 @@ export const VEHICLES: VehicleDef[] = [
   { id: 'speedboat', name: 'Sea Dart', cls: 'boat', price: 0, L: 6.4, W: 2.3, belt: 0.75, roof: 1.5, clearance: 0, wheelR: 0.3, cabin: [0.35, 0.62], rake: [0.3, 0.3], color: 0xff4f5a, top: 32, accel: 8, grip: 0.6, seats: 4, engine: 'sport' },
   { id: 'cruiser', name: 'Coral Cruiser', cls: 'boat', price: 0, L: 9.5, W: 3.2, belt: 1.0, roof: 2.6, clearance: 0, wheelR: 0.3, cabin: [0.3, 0.7], rake: [0.3, 0.3], color: 0xf4f4f6, top: 24, accel: 5, grip: 0.55, seats: 6, engine: 'diesel' },
   { id: 'tank', name: 'Rhino Tank', cls: 'tank', price: 0, L: 7.2, W: 3.4, belt: 1.5, roof: 2.4, clearance: 0.3, wheelR: 0.42, cabin: [0.3, 0.7], rake: [0.2, 0.2], color: 0x5d6b3a, top: 22, accel: 4, grip: 0.98, seats: 2, engine: 'tank', extras: ['turret'] },
+  // ---- Everyday cars (Island Motors).
+  { id: 'civic', name: 'Sakura Civica', cls: 'compact', price: 19000, L: 4.55, W: 1.8, belt: 0.9, roof: 1.43, clearance: 0.14, wheelR: 0.33, cabin: [0.18, 0.68], rake: [0.35, 0.45], color: 0xc8202f, top: 50, accel: 8, grip: 0.86, seats: 4, engine: 'four', blurb: 'The sporty Japanese family hatchback everybody’s cousin drives' },
+  { id: 'golf', name: 'Wolfburg Gulf', cls: 'compact', price: 21000, L: 4.28, W: 1.79, belt: 0.92, roof: 1.46, clearance: 0.14, wheelR: 0.32, cabin: [0.12, 0.7], rake: [0.3, 0.42], color: 0x1e6bff, top: 52, accel: 8.5, grip: 0.87, seats: 4, engine: 'four', blurb: 'The sensible German hatch with the thick back pillar' },
+  { id: 'mini', name: 'Bulldog Mini', cls: 'compact', price: 24000, L: 3.85, W: 1.73, belt: 0.88, roof: 1.41, clearance: 0.13, wheelR: 0.3, cabin: [0.1, 0.72], rake: [0.15, 0.4], color: 0x1f5a3a, top: 50, accel: 9, grip: 0.9, seats: 4, engine: 'four', blurb: 'The cheeky British city car with a white roof and go-kart handling' },
+  { id: 'prius', name: 'Kaido Prism', cls: 'compact', price: 23000, L: 4.54, W: 1.76, belt: 0.9, roof: 1.47, clearance: 0.14, wheelR: 0.32, cabin: [0.1, 0.72], rake: [0.45, 0.55], color: 0x5fa0c8, top: 46, accel: 6.5, grip: 0.84, seats: 4, engine: 'electric', blurb: 'The wedge-shaped hybrid every rideshare driver swears by' },
+  { id: 'model3', name: 'Edison Volt 3', cls: 'sedan', price: 42000, L: 4.7, W: 1.85, belt: 0.9, roof: 1.44, clearance: 0.14, wheelR: 0.34, cabin: [0.2, 0.75], rake: [0.3, 0.55], color: 0xf4f4f6, top: 62, accel: 13, grip: 0.88, seats: 4, engine: 'electric', blurb: 'The smooth electric saloon with a glass roof and no grille' },
+  { id: 'rav4', name: 'Kaido Trail4', cls: 'suv', price: 29000, L: 4.6, W: 1.86, belt: 1.02, roof: 1.69, clearance: 0.2, wheelR: 0.36, cabin: [0.1, 0.72], rake: [0.15, 0.4], color: 0x6a7a5a, top: 48, accel: 7.5, grip: 0.82, seats: 5, engine: 'four', blurb: 'The boxy, rugged-looking compact crossover from Japan' },
+  { id: 'minivan', name: 'Sakura Odessa', cls: 'van', price: 32000, L: 5.15, W: 1.99, belt: 1.0, roof: 1.74, clearance: 0.15, wheelR: 0.34, cabin: [0.04, 0.8], rake: [0.1, 0.5], color: 0x9aa0ab, top: 46, accel: 6.5, grip: 0.8, seats: 7, engine: 'four', blurb: 'The seven-seat family minivan with sliding doors' },
+  // ---- Exotics and luxury (Fortuna Exotics).
+  { id: 'p911', name: 'Zuffen 9-Eleven', cls: 'sports', price: 185000, L: 4.52, W: 1.85, belt: 0.86, roof: 1.3, clearance: 0.12, wheelR: 0.34, cabin: [0.25, 0.62], rake: [0.4, 0.55], color: 0xc0c4ca, top: 80, accel: 15, grip: 0.94, seats: 2, engine: 'sport', blurb: 'The rear-engined German icon with frog-eye headlights' },
+  { id: 'ferrari', name: 'Cavallo Rosso F8', cls: 'super', price: 380000, L: 4.61, W: 1.98, belt: 0.8, roof: 1.2, clearance: 0.11, wheelR: 0.34, cabin: [0.36, 0.64], rake: [0.5, 0.65], color: 0xd01818, top: 88, accel: 16, grip: 0.94, seats: 2, engine: 'sport', blurb: 'The red mid-engined Italian V8 with the prancing-horse swagger' },
+  { id: 'mclaren', name: 'Woking 720', cls: 'super', price: 420000, L: 4.54, W: 1.93, belt: 0.8, roof: 1.2, clearance: 0.11, wheelR: 0.34, cabin: [0.38, 0.66], rake: [0.55, 0.7], color: 0xff7a1a, top: 90, accel: 16.5, grip: 0.95, seats: 2, engine: 'sport', blurb: 'The papaya British supercar with eye-socket headlights' },
+  { id: 'lambo', name: 'Toro Furioso', cls: 'super', price: 520000, L: 4.8, W: 2.03, belt: 0.8, roof: 1.14, clearance: 0.11, wheelR: 0.35, cabin: [0.38, 0.66], rake: [0.6, 0.75], color: 0x9ad01e, top: 92, accel: 17, grip: 0.95, seats: 2, engine: 'sport', blurb: 'The angular Italian V12 wedge, all hexagons and scissor doors' },
+  { id: 'bugatti', name: 'Molsheim Chimera', cls: 'super', price: 2500000, L: 4.54, W: 2.04, belt: 0.82, roof: 1.21, clearance: 0.11, wheelR: 0.36, cabin: [0.36, 0.64], rake: [0.5, 0.6], color: 0x1a2a6a, top: 110, accel: 19, grip: 0.96, seats: 2, engine: 'sport', blurb: 'The 1,500-horsepower French hypercar with the horseshoe grille' },
+  { id: 'gclass', name: 'Gelände G', cls: 'suv', price: 160000, L: 4.82, W: 1.93, belt: 1.15, roof: 1.97, clearance: 0.24, wheelR: 0.4, cabin: [0.1, 0.66], rake: [0.05, 0.12], color: 0x15151a, top: 58, accel: 9, grip: 0.82, seats: 5, engine: 'v8', blurb: 'The German army truck turned rapper’s brick, flat glass and all' },
+  { id: 'phantom', name: 'Regal Phantasm', cls: 'luxury', price: 460000, L: 5.76, W: 2.02, belt: 1.0, roof: 1.65, clearance: 0.16, wheelR: 0.38, cabin: [0.22, 0.66], rake: [0.2, 0.4], color: 0x2a1a3a, top: 66, accel: 9, grip: 0.84, seats: 4, engine: 'v8', blurb: 'The stately British limousine with the temple grille' },
+  { id: 'bentley', name: 'Crewe Continent GT', cls: 'luxury', price: 240000, L: 4.85, W: 1.95, belt: 0.9, roof: 1.4, clearance: 0.13, wheelR: 0.36, cabin: [0.3, 0.62], rake: [0.35, 0.55], color: 0x0e3b2e, top: 82, accel: 13, grip: 0.9, seats: 4, engine: 'v8', blurb: 'The British grand tourer: twin round lamps and a mesh grille' },
+  // ---- Used cars (Honest Eddie’s).
+  { id: 'beetle', name: 'Käfer Classic', cls: 'compact', price: 4500, L: 4.08, W: 1.54, belt: 0.85, roof: 1.5, clearance: 0.16, wheelR: 0.33, cabin: [0.25, 0.7], rake: [0.2, 0.5], color: 0x7fbfe0, top: 32, accel: 4.5, grip: 0.74, seats: 4, engine: 'four', blurb: 'The round air-cooled people’s car from the ’60s' },
+  { id: 'wagon240', name: 'Svea 240 Wagon', cls: 'sedan', price: 3500, L: 4.79, W: 1.71, belt: 0.92, roof: 1.46, clearance: 0.15, wheelR: 0.32, cabin: [0.05, 0.68], rake: [0.05, 0.3], color: 0x5a1f22, top: 44, accel: 5.5, grip: 0.78, seats: 5, engine: 'four', blurb: 'The boxy Swedish estate that refuses to die' },
+  { id: 'crownvic', name: 'Crown Victor', cls: 'sedan', price: 6000, L: 5.39, W: 1.98, belt: 0.95, roof: 1.44, clearance: 0.16, wheelR: 0.34, cabin: [0.27, 0.66], rake: [0.3, 0.4], color: 0x23324a, top: 50, accel: 7, grip: 0.75, seats: 5, engine: 'v8', blurb: 'The big body-on-frame V8 saloon, ex-cab, ex-cop, still going' },
+  { id: 'miata', name: 'Zoom Roadster', cls: 'convertible', price: 9500, L: 3.95, W: 1.68, belt: 0.82, roof: 1.22, clearance: 0.12, wheelR: 0.3, cabin: [0.25, 0.55], rake: [0.4, 0.5], color: 0xc8202f, top: 54, accel: 9, grip: 0.92, seats: 2, engine: 'four', extras: ['openTop'], blurb: 'The little Japanese two-seat roadster with pop-up headlights' },
+  // ---- Trucks and off-roaders (Dustwater 4x4).
+  { id: 'hilux', name: 'Kaido Hilo', cls: 'pickup', price: 28000, L: 5.33, W: 1.86, belt: 1.08, roof: 1.82, clearance: 0.26, wheelR: 0.38, cabin: [0.42, 0.7], rake: [0.12, 0.35], color: 0xe8e8ea, top: 46, accel: 7, grip: 0.8, seats: 5, engine: 'diesel', extras: ['bed'], blurb: 'The indestructible Japanese double-cab pickup' },
+  { id: 'wrangler', name: 'Trail Rambler', cls: 'jeep', price: 36000, L: 4.33, W: 1.88, belt: 1.1, roof: 1.84, clearance: 0.28, wheelR: 0.4, cabin: [0.25, 0.65], rake: [0.03, 0.1], color: 0xffd23d, top: 46, accel: 7.5, grip: 0.85, seats: 4, engine: 'four', blurb: 'The seven-slot-grille American off-roader, doors optional' },
+  { id: 'f150', name: 'Fjord Rancher 150', cls: 'pickup', price: 46000, L: 5.89, W: 2.03, belt: 1.15, roof: 1.96, clearance: 0.24, wheelR: 0.4, cabin: [0.42, 0.68], rake: [0.12, 0.35], color: 0x2a4a8a, top: 52, accel: 8, grip: 0.8, seats: 5, engine: 'v8', extras: ['bed'], blurb: 'America’s best-selling full-size crew-cab pickup' },
+  { id: 'cybertruck', name: 'Edison Cyberwedge', cls: 'pickup', price: 98000, L: 5.68, W: 2.2, belt: 1.1, roof: 1.79, clearance: 0.3, wheelR: 0.4, cabin: [0.3, 0.75], rake: [0.5, 0.5], color: 0xb8bcc4, top: 62, accel: 14, grip: 0.84, seats: 5, engine: 'electric', blurb: 'The flat-panelled stainless-steel electric wedge of a pickup' },
+  { id: 'hummer', name: 'Hammer H1', cls: 'suv', price: 115000, L: 4.69, W: 2.2, belt: 1.25, roof: 1.95, clearance: 0.4, wheelR: 0.45, cabin: [0.3, 0.7], rake: [0.15, 0.25], color: 0xc8b48a, top: 44, accel: 6, grip: 0.86, seats: 4, engine: 'diesel', blurb: 'The military truck sold to civilians: wide, flat, unstoppable' },
+  { id: 'bigrig', name: 'Longhaul W9 Rig', cls: 'truck', price: 140000, L: 7.2, W: 2.5, belt: 1.6, roof: 3.4, clearance: 0.35, wheelR: 0.52, cabin: [0.45, 0.8], rake: [0.05, 0.15], color: 0xc8202f, top: 36, accel: 3.5, grip: 0.78, seats: 2, engine: 'diesel', blurb: 'The long-nosed American semi tractor with chrome stacks' },
+  // ---- Classics (Halibut Bay Classics).
+  { id: 'belair', name: 'Bel Aire ’57', cls: 'classic', price: 58000, L: 5.0, W: 1.96, belt: 0.9, roof: 1.48, clearance: 0.17, wheelR: 0.36, cabin: [0.3, 0.62], rake: [0.3, 0.35], color: 0x4fd0c8, top: 48, accel: 6.5, grip: 0.72, seats: 5, engine: 'v8', blurb: 'The two-tone ’50s hardtop with tail fins and a chrome grin' },
+  { id: 'etype', name: 'Coventry E-Type', cls: 'classic', price: 135000, L: 4.45, W: 1.66, belt: 0.8, roof: 1.22, clearance: 0.13, wheelR: 0.34, cabin: [0.12, 0.42], rake: [0.35, 0.45], color: 0x1a4a2e, top: 66, accel: 9.5, grip: 0.82, seats: 2, engine: 'sport', blurb: 'The long-bonnet British ’60s coupé, called the most beautiful car ever' },
+  { id: 'delorean', name: 'DeLuna DMC', cls: 'classic', price: 88000, L: 4.21, W: 1.99, belt: 0.82, roof: 1.14, clearance: 0.14, wheelR: 0.34, cabin: [0.3, 0.62], rake: [0.5, 0.55], color: 0xb8bcc4, top: 56, accel: 7, grip: 0.8, seats: 2, engine: 'four', blurb: 'The brushed-steel gull-wing wedge from the ’80s (flux capacitor not included)' },
+  { id: 'vwbus', name: 'Wolfburg Hippie Bus', cls: 'van', price: 42000, L: 4.5, W: 1.72, belt: 1.0, roof: 1.95, clearance: 0.18, wheelR: 0.33, cabin: [0.02, 0.95], rake: [0.02, 0.1], color: 0xff9a3a, top: 30, accel: 4, grip: 0.74, seats: 7, engine: 'four', blurb: 'The split-windscreen ’60s microbus, two-tone with a V on the nose' },
+  { id: 'countach', name: 'Toro Countdown', cls: 'super', price: 650000, L: 4.14, W: 2.0, belt: 0.78, roof: 1.07, clearance: 0.12, wheelR: 0.35, cabin: [0.38, 0.66], rake: [0.65, 0.75], color: 0xf4f4f6, top: 82, accel: 13, grip: 0.88, seats: 2, engine: 'sport', extras: ['wing'], blurb: 'The ’80s bedroom-poster wedge with the big rear wing' },
 ];
 
 export function vehicleDef(id: string): VehicleDef {
@@ -117,6 +154,8 @@ export interface BuiltVehicle {
   /** Wheel positions (x along, z across) for physics and suspension. */
   wheelPos: [number, number][];
   lights: THREE.Mesh[];
+  /** Wheels from this index on steer (the front ones; 2 when unset). */
+  steerFrom?: number;
   turret?: THREE.Group;
   barrel?: THREE.Object3D;
   /** Where the driver's head is (for first person and cutscenes). */
