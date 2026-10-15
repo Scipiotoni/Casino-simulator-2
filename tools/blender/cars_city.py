@@ -636,11 +636,11 @@ def rav4_decor(o, res, pr, prg, hull, p):
             handle(o, pr, x, z, 'paint')
     # Chunky black cladding: square-ish bands round the arches, along the sills and the bumpers.
     R = p['R']
-    r = R + 0.08
+    r = R + 0.115
     for xc in (p['xf'], p['xr']):
         arch = [(xc + r + 0.03, 0.36), (xc + r, R + 0.12), (xc + 0.62 * r, R + r), (xc - 0.62 * r, R + r), (xc - r, R + 0.12), (xc - r - 0.03, 0.36)]
-        line(o, pr, 'side', arch, 0.14, 'black', 0.006, both=True)
-    line(o, pr, 'side', [(p['xf'] - r - 0.03, 0.34), (p['xr'] + r + 0.03, 0.34)], 0.2, 'black', 0.006, both=True)
+        line(o, pr, 'side', arch, 0.12, 'black', 0.006, both=True)
+    line(o, pr, 'side', [(p['xf'] - r - 0.03, 0.37), (p['xr'] + r + 0.03, 0.37)], 0.16, 'black', 0.006, both=True)
     flat(o, pr, 'rear', [(-0.72, 0.33), (0.72, 0.33), (0.72, 0.5), (-0.72, 0.5)], 'black', 0.004, res=res, rings=1)
     flat(o, pr, 'front', [(-0.72, 0.3), (0.72, 0.3), (0.72, 0.41), (-0.72, 0.41)], 'black', 0.003, res=res, rings=1)
     rails(o, res, p, -1.75, -0.15, 0.08)
