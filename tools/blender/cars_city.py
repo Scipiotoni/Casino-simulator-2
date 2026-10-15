@@ -1,0 +1,290 @@
+"""
+The everyday city cars: the Sakura Civica (an 11th-generation Civic-style five-door hatch),
+the Wolfburg Gulf (a Golf Mk7-style hatch), the Edison Volt 3 (a Model 3-style electric
+saloon), the Kaido Prism (a wedge-shaped Prius-style hybrid), the Svea 240 Wagon (a boxy
+1980s Swedish estate) and the Kaido Trail4 (a fifth-generation RAV4-style crossover).
+
+Each car is a parameter dict for carcommon.closed_car plus a decor function; the helpers at
+the top (window regions, cabin, door gaps, cowl) are shared between them.
+"""
+import math
+
+from mathutils import Vector
+
+from carkit import C, const, rbox, cyl, tube, rrect_pts, circle_pts
+from carbody import aim
+from carcommon import car, closed_car, lamp, flat, line, gaps, handle, plate, rounded, arch_pts, along
+
+
+# ------------------------------------------------------------------ shared helpers
+
+def windows(p, ws_top, bl_top, side, corner=None, front_black=None):
+    """
+    A glass_region: the windscreen above xr > ws_top, the back window below xr < bl_top, the
+    side seg by `side` = [(xb_lo, xb_hi, region)] ranges (first match wins, glass otherwise),
+    the roof corner by corner(xr) (paint by default).
+    """
+    def glass_region(i):
+        seg, xb, xr = i['seg'], i['xb'], i['xr']
+        if seg == 'side':
+            if i['zone'] == 'front':
+                return 'black'
+            if i['zone'] == 'rear':
+                return p.get('rear_side', 'paint')
+            for (a, b, r) in side:
+                if a < xb < b:
+                    return r
+            return 'glass'
+        if seg == 'corner':
+            return corner(xr) if corner else 'paint'
+        if xr > ws_top or xr < bl_top:
+            return 'glass'
+        return p.get('roof_region', 'paint')
+    return glass_region
+
+
+def cabin(p, ws, rear=True, seats=4, hip_dx=0.0, z=0.0, bench_w=1.28):
+    """Dash, steering wheel, driver's hip and the rear bench placed from the windscreen base `ws`."""
+    d = ws - 0.93
+    p.update(
+        driver_y=0.36, hip_f=(-0.12 + d + hip_dx, 0.53 + z),
+        dash=(0.9 + d, 0.5 + d, 0.72, 0.6 + z, 0.92 + z), wheel_c=(0.34 + d + hip_dx, 0.86 + z),
+        benches=[(-0.98 + d + hip_dx * 1.5, bench_w, 0.56 + z)] if rear else [], seats=seats,
+    )
+
+
+def cowl(o, res, pr, p, w=0.72, wipers=True):
+    """Black cowl under the windscreen, wipers on it."""
+    cx = p['ws_base'] - 0.035
+    line(o, pr, 'top', [(cx, -w), (cx, w)], 0.08, 'black', 0.003)
+    if res and wipers:
+        for (a, b) in ((0.52, -0.06), (-0.02, -0.6)):
+            o.body.extend(tube([Vector((cx - 0.03, a, p['roof_z'](cx - 0.03) + 0.01)), Vector((cx - 0.075, b, p['roof_z'](cx - 0.075) + 0.012))], 0.007, 'black', 4))
+
+
+def doors(o, pr, p, fd, bp, rd, sill=0.33, top=None):
+    """
+    Door gaps on the side: the front door's leading edge `fd` (polyline from the top down), the
+    B-pillar at x = bp, the rear door's trailing edge from x = rd round the rear arch, the sill.
+    """
+    xr, R = p['xr'], p['R']
+    sh = p['shoulder']
+    t = top or (lambda x: sh(x) + 0.03)
+    ra = p['R'] + p['arch_gap'] + 0.05
+    rear_arch = arch_pts(xr, R, ra, 70, 6, 6)
+    gaps(o, pr, [
+        fd,
+        [(bp, t(bp)), (bp, sill)],
+        [(rd, t(rd)), (rd, R + ra * math.sin(math.radians(70)) + 0.02)] + rear_arch + [(xr + ra, sill)],
+        [(fd[-1][0], sill), (xr + ra, sill)],
+    ])
+
+
+def tailgate(o, pr, z0, z1, w0, w1, r=0.04):
+    """The tailgate's cut line seen from behind: up both sides from the bottom edge."""
+    gaps(o, pr, [[(-w1, z1), (-w0, z0 + r), (-w0 + r, z0), (w0 - r, z0), (w0, z0 + r), (w1, z1)]], frame='rear', both=False)
+
+
+def rails(o, res, p, x0, x1, y, h=0.045, region='black'):
+    """Roof rails along the roof edges, on short feet."""
+    rz = p['roof_z']
+    rw = p['rail_w']
+    for s in (1, -1):
+        pts = []
+        n = 8
+        for k in range(n + 1):
+            x = x0 + (x1 - x0) * k / n
+            pts.append(Vector((x, s * (rw(x) - y), rz(x) - 0.035 + h)))
+        o.body.extend(tube(pts, 0.016, region, 6 if res else 4))
+        for x in (x0 + 0.04, x1 - 0.04):
+            o.body.extend(rbox((x, s * (rw(x) - y), rz(x) - 0.03 + h / 2), (0.05, 0.018, h / 2 + 0.01), 0.008, region, 1))
+
+
+# ------------------------------------------------------------------ Sakura Civica (Civic hatch)
+
+def civic_params():
+    L, W = 4.55, 1.8
+    x0, x1 = -L / 2, L / 2
+    xf, xr = 1.33, -1.405
+    R = 0.33
+    ws, bl = 0.8, x0 + 0.2
+    p = dict(
+        L=L, W=W, xf=xf, xr=xr, R=R, tyre_w=0.235, track=1.55, arch_gap=0.05, rim='twin', spokes=5, color=0xc8202f,
+        rim_ratio=0.7,
+        bottom=C((x0, 0.38), (x0 + 0.1, 0.3), (x0 + 0.4, 0.22), (xr - 0.3, 0.17), (xr, 0.16), (xf, 0.16), (xf + 0.5, 0.19), (x1 - 0.1, 0.22), (x1, 0.27)),
+        shoulder=C((x0, 0.97), (x0 + 0.06, 1.0), (x0 + 0.3, 1.02), (-1.6, 1.0), (-0.6, 0.95), (0.8, 0.9), (1.4, 0.84), (2.0, 0.76), (x1 - 0.05, 0.7), (x1, 0.66)),
+        top=C((x0, 1.0), (x0 + 0.06, 1.035), (x0 + 0.3, 1.055), (-1.7, 1.05), (0.8, 0.915), (1.4, 0.865), (2.0, 0.785), (x1 - 0.05, 0.72), (x1, 0.68)),
+        width=C((x0, 0.87), (-1.6, 0.9), (1.4, 0.9), (x1, 0.87)),
+        tuck=const(0.075), tumble=const(0.065), cfrac=C((x0, 0.78), (-1.2, 0.8), (1.0, 0.76), (x1, 0.8)),
+        rb=const(0.07), rs=C((x0, 0.035), (x0 + 0.3, 0.05), (1.2, 0.05), (x1 - 0.3, 0.035), (x1, 0.03)),
+        front=(0.42, 2.6), rear=(0.28, 3.0),
+        flares=[(xf, 0.55, 0.012, 0.62, 0.25), (xr, 0.6, 0.018, 0.66, 0.26)],
+        open=[(-1.35, ws - 0.02, 0.26)],
+        bl_base=bl, ws_base=ws, inset=0.03,
+        roof_z=C((bl, 1.03), (-1.9, 1.1), (-1.6, 1.2), (-1.25, 1.3), (-0.9, 1.37), (-0.5, 1.405), (-0.15, 1.415), (0.1, 1.37), (0.35, 1.23), (0.6, 1.06), (ws, 0.91)),
+        rail_z=C((bl, 1.02), (-1.9, 1.08), (-1.6, 1.17), (-1.25, 1.26), (-0.9, 1.325), (-0.5, 1.36), (-0.15, 1.368), (0.1, 1.325), (0.35, 1.19), (0.6, 1.03), (ws, 0.89)),
+        rail_w=C((bl, 0.7), (-1.5, 0.69), (-0.5, 0.68), (0.3, 0.7), (ws, 0.78)),
+        corner=C((-1.0, 0.07), (0.1, 0.06), (0.6, 0.045)),
+        lines=[(-1.66, -1.36), (-1.32, -1.14), (-1.25, -1.1), (-0.36, -0.3), (-0.26, -0.2), (0.6, 0.5)],
+        mirror=(0.66, 0.84, 0.935),
+        keys=[-1.9],
+    )
+    cabin(p, ws)
+    p['glass_region'] = windows(p, 0.06, -1.3,
+                                [(0.6, 9, 'black'), (-0.36, -0.26, 'gloss'), (-1.32, -1.25, 'gloss'), (-9, -1.66, 'paint')])
+    p['decor'] = civic_decor
+    return p
+
+
+def civic_decor(o, res, pr, prg, hull, p):
+    L = p['L']
+    x0, x1 = -L / 2, L / 2
+    # Slim headlights swept back into the wings, an LED strip along the top of each.
+    hf = aim((x1 - 0.2, 0.6, 0.69), 0.82, 0.12)
+    head = rounded([(-0.24, -0.03), (0.12, -0.022), (0.28, 0.006), (0.32, 0.034), (0.22, 0.04), (-0.25, 0.022)], 2)
+    lamp(o, pr, hf, head, 'head', res, 'gloss', 0.008, 0.006, bw=0.012)
+    if res:
+        line(o, pr, hf, [(-0.22, 0.012), (0.12, 0.018), (0.26, 0.03)], 0.009, 'white', 0.016, both=True)
+        for s in (-0.13, -0.02):
+            lamp(o, pr, hf, circle_pts((s, -0.006), 0.02, 10), 'chrome', res, 'gloss', 0.004, 0.016, bw=0.005, rings=2)
+    # A black honeycomb band joining the headlights.
+    up = rounded([(-0.46, 0.66), (-0.38, 0.632), (0.38, 0.632), (0.46, 0.66), (0.42, 0.69), (-0.42, 0.69)], 1)
+    flat(o, pr, 'front', up, 'grille', 0.004, bezel=(0.008, 'gloss', 0.003), res=res)
+    # The wide lower grille, a honeycomb of dots on it, the plate in the middle.
+    low = rounded([(-0.5, 0.5), (0.5, 0.5), (0.62, 0.3), (-0.62, 0.3)], 2)
+    flat(o, pr, 'front', low, 'grille', 0.004, bezel=(0.016, 'gloss', 0.003), res=res)
+    if res:
+        for k, z in enumerate((0.47, 0.43, 0.39, 0.35, 0.32)):
+            w = 0.5 + (0.5 - z) * 0.55
+            line(o, pr, 'front', [(-w, z), (w, z)], 0.006, 'gloss', 0.006)
+    plate(o, pr, 'front', (0.0, 0.4))
+    # Corner intakes: black triangles low on the bumper.
+    fv = aim((x1 - 0.2, 0.68, 0.38), 0.6, 0.0)
+    flat(o, pr, fv, rounded([(-0.08, -0.08), (0.08, -0.07), (0.07, 0.07)], 1), 'grille', 0.004, both=True, bezel=(0.012, 'gloss', 0.003), res=res)
+    line(o, pr, 'front', [(-0.7, 0.26), (0.7, 0.26)], 0.035, 'black', 0.003)
+
+    # Boomerang tail lamps wrapping round the corners, a light bar across the tailgate.
+    tf = aim((x0 + 0.12, 0.66, 0.96), math.pi - 0.85, 0.04)
+    tail = rounded([(0.26, -0.03), (0.26, 0.035), (-0.05, 0.045), (-0.26, 0.03), (-0.3, 0.0), (-0.2, -0.02), (0.05, -0.028)], 2)
+    lamp(o, pr, tf, tail, 'tail', res, 'gloss', 0.006, 0.006, bw=0.008)
+    line(o, pr, 'rear', [(-0.5, 0.965), (0.5, 0.965)], 0.03, 'tail', 0.008)
+    if res:
+        line(o, pr, 'rear', [(-0.5, 0.94), (0.5, 0.94)], 0.012, 'gloss', 0.008)
+        line(o, pr, tf, [(0.1, 0.022), (-0.22, 0.016)], 0.007, 'red', 0.013, both=True)
+    # Body-colour lip spoiler at the foot of the back window.
+    line(o, pr, 'rear', [(-0.6, 1.025), (0.6, 1.025)], 0.03, 'gloss', 0.01)
+    plate(o, pr, 'rear', (0.0, 0.76))
+    # Black diffuser with the twin centre exhausts.
+    flat(o, pr, 'rear', rounded([(-0.7, 0.36), (0.7, 0.36), (0.66, 0.46), (-0.66, 0.46)], 1), 'black', 0.004, res=res)
+    if res:
+        for s in (0.09, -0.09):
+            o.body.extend(cyl((x0 + 0.12, s, 0.4), (x0 - 0.015, s, 0.4), 0.04, 'chrome', 12))
+            o.body.extend(cyl((x0 - 0.01, s, 0.4), (x0 - 0.016, s, 0.4), 0.03, 'gap', 12))
+        tailgate(o, pr, 0.6, 1.0, 0.58, 0.62)
+        doors(o, pr, p, [(0.7, 0.97), (0.72, 0.78), (0.69, 0.52), (0.66, 0.33)], -0.3, -1.2)
+        gaps(o, pr, [[(0.8, 0.74), (1.5, 0.71), (2.05, 0.63), (2.2, 0.5)]], frame='top')
+        line(o, pr, 'side', rounded(rrect_pts((-1.82, 0.88), 0.16, 0.11, 0.03, 2), 1), 0.006, 'gap', 0.0015, closed=True)
+        for (x, z) in ((0.06, 0.875), (-0.98, 0.905)):
+            handle(o, pr, x, z, 'paint')
+        # A black sill along the bottom of the doors.
+        line(o, pr, 'side', [(0.85, 0.27), (-1.0, 0.27)], 0.06, 'black', 0.004, both=True)
+        # Shark-fin aerial.
+        o.body.extend(rbox((-0.95, 0, p['roof_z'](-0.95) + 0.012), (0.075, 0.022, 0.028), 0.018, 'black', 1))
+    cowl(o, res, pr, p)
+
+
+@car
+def civic(res):
+    return closed_car(res, civic_params())
+
+
+# ------------------------------------------------------------------ Wolfburg Gulf (Golf Mk7)
+
+def golf_params():
+    L, W = 4.28, 1.79
+    x0, x1 = -L / 2, L / 2
+    xf, xr = 1.26, -1.377
+    R = 0.32
+    ws, bl = 0.62, x0 + 0.14
+    p = dict(
+        L=L, W=W, xf=xf, xr=xr, R=R, tyre_w=0.225, track=1.54, arch_gap=0.05, rim='multi', spokes=5, color=0x1e6bff,
+        bottom=C((x0, 0.4), (x0 + 0.1, 0.32), (x0 + 0.35, 0.22), (xr - 0.3, 0.17), (xr, 0.16), (xf, 0.16), (xf + 0.45, 0.19), (x1 - 0.1, 0.24), (x1, 0.3)),
+        shoulder=C((x0, 0.98), (x0 + 0.05, 1.0), (x0 + 0.25, 1.005), (-1.4, 0.985), (-0.4, 0.96), (0.6, 0.925), (1.2, 0.865), (1.8, 0.79), (x1 - 0.05, 0.735), (x1, 0.7)),
+        top=C((x0, 1.0), (x0 + 0.05, 1.02), (x0 + 0.25, 1.03), (-1.6, 1.03), (0.6, 0.94), (1.2, 0.885), (1.8, 0.805), (x1 - 0.05, 0.75), (x1, 0.715)),
+        width=C((x0, 0.87), (-1.5, 0.895), (1.3, 0.895), (x1, 0.87)),
+        tuck=const(0.07), tumble=const(0.07), cfrac=const(0.84),
+        rb=const(0.07), rs=C((x0, 0.03), (x0 + 0.3, 0.045), (1.2, 0.045), (x1 - 0.3, 0.03), (x1, 0.03)),
+        front=(0.38, 2.6), rear=(0.22, 3.4),
+        flares=[(xf, 0.5, 0.008, 0.62, 0.25), (xr, 0.55, 0.012, 0.66, 0.26)],
+        open=[(-1.45, ws - 0.02, 0.26)],
+        bl_base=bl, ws_base=ws, inset=0.03,
+        roof_z=C((bl, 1.01), (-1.9, 1.17), (-1.75, 1.31), (-1.6, 1.405), (-1.4, 1.445), (-0.9, 1.46), (-0.3, 1.46), (0.0, 1.43), (0.2, 1.33), (0.42, 1.15), (ws, 0.96)),
+        rail_z=C((bl, 1.0), (-1.9, 1.15), (-1.75, 1.28), (-1.6, 1.365), (-1.4, 1.4), (-0.9, 1.415), (-0.3, 1.415), (0.0, 1.385), (0.2, 1.29), (0.42, 1.12), (ws, 0.94)),
+        rail_w=C((bl, 0.72), (-1.6, 0.7), (-0.5, 0.69), (0.2, 0.7), (ws, 0.78)),
+        corner=C((-1.0, 0.07), (0.1, 0.06), (0.5, 0.045)),
+        lines=[(-1.9, -1.9), (-1.8, -1.8), (-1.65, -1.65), (-1.34, -1.1), (-0.44, -0.4), (-0.32, -0.28), (0.46, 0.36)],
+        mirror=(0.5, 0.84, 0.95),
+    )
+    cabin(p, ws, hip_dx=0.08)
+    p['glass_region'] = windows(p, -0.02, -1.56, [(0.46, 9, 'black'), (-0.44, -0.32, 'gloss'), (-9, -1.34, 'paint')])
+    p['decor'] = golf_decor
+    return p
+
+
+def golf_decor(o, res, pr, prg, hull, p):
+    L = p['L']
+    x0, x1 = -L / 2, L / 2
+    # Slim headlights, kinked down at the inner end, joined by a narrow grille with a chrome bar.
+    hf = aim((x1 - 0.16, 0.58, 0.705), 0.75, 0.1)
+    head = rounded([(-0.22, -0.05), (0.2, -0.035), (0.29, 0.0), (0.28, 0.045), (-0.12, 0.045), (-0.2, 0.03)], 1)
+    lamp(o, pr, hf, head, 'head', res, 'gloss', 0.008, 0.006, bw=0.012)
+    if res:
+        for s in (-0.1, 0.05):
+            lamp(o, pr, hf, circle_pts((s, -0.002), 0.03, 10), 'chrome', res, 'gloss', 0.004, 0.016, bw=0.005, rings=2)
+        line(o, pr, hf, [(-0.19, -0.04), (0.2, -0.026), (0.27, 0.0)], 0.009, 'white', 0.016, both=True)
+    up = [(-0.4, 0.635), (0.4, 0.635), (0.42, 0.7), (-0.42, 0.7)]
+    flat(o, pr, 'front', up, 'grille', 0.004, bezel=(0.006, 'gloss', 0.003), res=res)
+    line(o, pr, 'front', [(-0.48, 0.668), (0.48, 0.668)], 0.014, 'chrome', 0.008)
+    # Bumper: the lower grille with slats, the plate above it, fog lamps in the corners.
+    low = rounded([(-0.42, 0.45), (0.42, 0.45), (0.5, 0.3), (-0.5, 0.3)], 1)
+    flat(o, pr, 'front', low, 'grille', 0.004, bezel=(0.014, 'gloss', 0.003), res=res)
+    if res:
+        for z in (0.41, 0.37, 0.33):
+            w = 0.42 + (0.45 - z) * 0.53
+            line(o, pr, 'front', [(-w, z), (w, z)], 0.01, 'gloss', 0.006)
+    plate(o, pr, 'front', (0.0, 0.53), w=0.36, h=0.11)
+    fv = aim((x1 - 0.17, 0.66, 0.38), 0.55, 0.0)
+    flat(o, pr, fv, rounded(rrect_pts((0.0, 0.0), 0.2, 0.09, 0.03, 2), 1), 'grille', 0.004, both=True, bezel=(0.01, 'gloss', 0.003), res=res)
+    if res:
+        lamp(o, pr, fv, circle_pts((0.04, 0.0), 0.03, 10), 'head', res, 'chrome', 0.004, 0.009, bw=0.006, rings=2)
+    line(o, pr, 'front', [(-0.7, 0.28), (0.7, 0.28)], 0.03, 'black', 0.003)
+
+    # Horizontal two-part tail lamps: the outer half on the body, the inner on the tailgate.
+    tf = aim((x0 + 0.1, 0.62, 0.92), math.pi - 0.75, 0.03)
+    tail = rounded([(-0.26, -0.035), (0.24, -0.06), (0.28, -0.02), (0.27, 0.05), (-0.1, 0.06), (-0.27, 0.04)], 1)
+    lamp(o, pr, tf, tail, 'tail', res, 'gloss', 0.006, 0.006, bw=0.008)
+    if res:
+        line(o, pr, tf, [(-0.24, 0.0), (0.24, -0.02)], 0.012, 'red', 0.014, both=True)
+        line(o, pr, tf, [(0.07, 0.06), (0.07, -0.055)], 0.006, 'gap', 0.016, both=True)
+        lamp(o, pr, tf, rounded(rrect_pts((-0.17, 0.03), 0.1, 0.025, 0.008, 1), 1), 'white', res, None, 0.002, 0.016)
+    plate(o, pr, 'rear', (0.0, 0.73))
+    # Roof spoiler over the back window, body colour.
+    sx = -1.56
+    o.body.extend(rbox((sx - 0.03, 0, p['roof_z'](sx) - 0.005), (0.09, 0.64, 0.022), 0.018, 'paint', 2 if res else 1))
+    flat(o, pr, 'rear', rounded([(-0.68, 0.36), (0.68, 0.36), (0.64, 0.46), (-0.64, 0.46)], 1), 'black', 0.004, res=res)
+    if res:
+        o.body.extend(cyl((x0 + 0.15, -0.5, 0.37), (x0 + 0.01, -0.5, 0.37), 0.035, 'chrome', 12))
+        tailgate(o, pr, 0.6, 1.0, 0.56, 0.6)
+        doors(o, pr, p, [(0.52, 0.98), (0.55, 0.8), (0.53, 0.52), (0.5, 0.33)], -0.38, -1.25)
+        gaps(o, pr, [[(0.6, 0.74), (1.3, 0.72), (1.9, 0.65), (2.05, 0.5)]], frame='top')
+        line(o, pr, 'side', rounded(rrect_pts((-1.72, 0.87), 0.15, 0.11, 0.03, 2), 1), 0.006, 'gap', 0.0015, closed=True)
+        for (x, z) in ((-0.05, 0.875), (-1.05, 0.9)):
+            handle(o, pr, x, z, 'paint')
+        line(o, prg, 'side', along(p['shoulder'], 0.46, -1.3, 12, -0.004), 0.012, 'chrome', 0.004, both=True)
+        o.body.extend(rbox((-1.3, 0, p['roof_z'](-1.3) + 0.012), (0.07, 0.022, 0.026), 0.018, 'paint', 1))
+    cowl(o, res, pr, p)
+
+
+@car
+def golf(res):
+    return closed_car(res, golf_params())
