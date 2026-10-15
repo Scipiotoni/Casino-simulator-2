@@ -701,3 +701,262 @@ def van_decor(o, res, pr, p):
 @car
 def van(res):
     return van_build(res, van_params())
+
+
+# ------------------------------------------------------------------ the main battle tank
+
+def solid(points, region):
+    """The convex hull of some points as a faceted solid (armour blocks, the turret)."""
+    import bmesh
+    bm = bmesh.new()
+    for p in points:
+        bm.verts.new(p)
+    res = bmesh.ops.convex_hull(bm, input=list(bm.verts))
+    bmesh.ops.delete(bm, geom=[g for g in res['geom_interior'] + res['geom_unused'] if isinstance(g, bmesh.types.BMVert)], context='VERTS')
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    m = Mesh()
+    idx = {v: m.vert(v.co.copy()) for v in bm.verts}
+    for f in bm.faces:
+        m.face([idx[v] for v in f.verts], region)
+    bm.free()
+    return m
+
+
+def slab(outline, y0, y1, region):
+    """A flat side-view outline (x, z) extruded across the car from y0 to y1, sharp edged."""
+    from carkit import prism
+    return prism(outline, y0, y1, region)
+
+
+def arc_pts(c, r, a0, a1, n):
+    return [(c[0] + r * math.cos(math.radians(a0 + (a1 - a0) * k / n)), c[1] + r * math.sin(math.radians(a0 + (a1 - a0) * k / n))) for k in range(n + 1)]
+
+
+def belt(loop, y0, y1, t, region, grouser=0.0, step=0.17):
+    """A track: a closed side-view loop (outer surface, counter-clockwise in x, z), t thick, y0..y1 wide."""
+    from carkit import poly_offset
+    inner = poly_offset(loop, -t)
+    m = Mesh()
+    n = len(loop)
+    o0 = [m.vert((x, y0, z)) for (x, z) in loop]
+    o1 = [m.vert((x, y1, z)) for (x, z) in loop]
+    i0 = [m.vert((x, y0, z)) for (x, z) in inner]
+    i1 = [m.vert((x, y1, z)) for (x, z) in inner]
+    yc = (y0 + y1) / 2
+
+    def add(q, want):
+        if _fnormal(m, q).dot(want) < 0:
+            q = tuple(reversed(q))
+        m.face(q, region)
+
+    for k in range(n):
+        k2 = (k + 1) % n
+        dx, dz = loop[k2][0] - loop[k][0], loop[k2][1] - loop[k][1]
+        out = Vector((dz, 0.0, -dx))
+        add((o0[k], o0[k2], o1[k2], o1[k]), out)
+        add((i0[k], i1[k], i1[k2], i0[k2]), -out)
+        add((o0[k], i0[k], i0[k2], o0[k2]), Vector((0, -1, 0)))
+        add((o1[k], o1[k2], i1[k2], i1[k]), Vector((0, 1, 0)))
+    if grouser:
+        from carbody import resample
+        pts = resample(loop, step)
+        for k in range(0, len(pts)):
+            a, b = Vector(pts[k]), Vector(pts[(k + 1) % len(pts)])
+            d = (b - a)
+            if d.length < 1e-6:
+                continue
+            d.normalize()
+            nrm = Vector((d.y, -d.x))
+            c = a + nrm * grouser * 0.5
+            ang = math.atan2(d.y, d.x)
+            M = Matrix.Translation((c.x, yc, c.y)) @ Matrix.Rotation(-ang, 4, 'Y')
+            m.extend(rbox((0, 0, 0), (0.035, (y1 - y0) / 2 + 0.01, grouser / 2), 0.0, region, 1, M))
+    return m
+
+
+def road_wheel(R, w, res=1, seg=16, gap=0.1):
+    """A dual road wheel round its centre, axle along y: two rubber-tyred discs either side of the guide horn."""
+    from carkit import lathe
+    m = Mesh()
+    seg = seg if res else 8
+    for s in (1, -1):
+        y0 = s * gap / 2
+        y1 = s * (gap / 2 + w)
+        a, b = min(y0, y1), max(y0, y1)
+        prof = [(R * 0.8, a), (R, a + 0.012), (R, b - 0.012), (R * 0.8, b)]
+        m.extend(lathe(prof, 'tyre', seg, axis=(0, 1, 0)))
+        face = b if s > 0 else a
+        m.extend(lathe([(R * 0.8, face), (R * 0.55, face + s * 0.02), (R * 0.2, face + s * 0.03), (0.0, face + s * 0.035)][::s], 'metal', seg, axis=(0, 1, 0)))
+        if res:
+            m.extend(lathe([(R * 0.12, face + s * 0.03), (R * 0.1, face + s * 0.06), (0.0, face + s * 0.065)][::s], 'rim2', 8, axis=(0, 1, 0)))
+    return m
+
+
+def sprocket(R, w, teeth=11, res=1):
+    m = road_wheel(R * 0.82, w, res, 16)
+    m.recolor('metal', only='tyre')
+    if res:
+        for k in range(teeth):
+            a = 2 * math.pi * k / teeth
+            for s in (1, -1):
+                M = Matrix.Translation((math.cos(a) * R * 0.86, s * (0.05 + w / 2), math.sin(a) * R * 0.86)) @ Matrix.Rotation(-a, 4, 'Y')
+                m.extend(rbox((0, 0, 0), (0.07, w / 2, 0.035), 0.0, 'metal', 1, M))
+    return m
+
+
+TANK = dict(L=7.6, W=3.66, deck=1.52, ring=(-0.25, 1.52), trunnion=(1.78, 0.4), R=0.31, track_y=1.42, track_w=0.62,
+            wheels_x=[2.62, 1.76, 0.9, 0.04, -0.82, -1.68, -2.54], idler=(3.32, 0.62, 0.28), sprocket=(-3.36, 0.68, 0.32))
+
+
+def tank_hull(res):
+    T = TANK
+    m = Mesh()
+    d = T['deck']
+    # The hull: a lower tub between the tracks and the upper hull over them, a long shallow glacis.
+    m.extend(slab([(-3.6, 0.48), (3.15, 0.48), (3.8, 0.98), (3.8, 1.06), (-3.7, 1.06), (-3.7, 0.72)], -1.1, 1.1, 'paint'))
+    up = [(-3.72, 1.05), (3.6, 1.05), (3.86, 1.0), (3.86, 1.06), (2.3, d - 0.02), (2.15, d), (-3.55, d + 0.02), (-3.72, d - 0.06)]
+    m.extend(slab(up, -1.76, 1.76, 'paint'))
+    # Side skirts over the tracks, armoured blocks at the front, a rubber flap along the bottom.
+    for s in (1, -1):
+        y0, y1 = (1.76, 1.84) if s > 0 else (-1.84, -1.76)
+        m.extend(slab([(-3.64, 0.62), (2.0, 0.62), (2.0, 1.12), (-3.64, 1.12)], y0, y1, 'paint'))
+        m.extend(slab([(2.0, 0.6), (3.0, 0.6), (3.6, 0.8), (3.78, 1.06), (3.7, 1.12), (2.0, 1.12)], y0 + s * 0.02, y1 + s * 0.02, 'paint'))
+        m.extend(box_at((-0.82, s * 1.8, 0.6), (2.82, 0.035, 0.03), 'black'))
+    # The track and its wheels: road wheels, the idler at the front, the sprocket at the back.
+    ix, iz, ir = T['idler']
+    sx, sz, sr = T['sprocket']
+    t = 0.07
+    loop = [(-2.9, 0.0), (2.9, 0.0)] + arc_pts((ix, iz), ir + t, -70, 95, 8 if res else 4) + arc_pts((sx, sz), sr + t, 85, 255, 8 if res else 4)
+    for s in (1, -1):
+        y = s * T['track_y']
+        m.extend(belt(loop, y - T['track_w'] / 2, y + T['track_w'] / 2, t, 'track', 0.035 if res else 0.0))
+        m.extend(place(road_wheel(ir, 0.24, res), ix, y, iz))
+        m.extend(place(sprocket(sr, 0.22, 11, res), sx, y, sz))
+    # Front: headlamps in guards on the glacis corners, tow hooks; back: tail lamps, exhaust grille.
+    for s in (1, -1):
+        m.extend(box_at((3.6, s * 1.45, 1.13), (0.07, 0.11, 0.06), 'black'))
+        m.extend(box_at((3.67, s * 1.45, 1.13), (0.012, 0.08, 0.04), 'head'))
+        m.extend(box_at((-3.73, s * 1.55, 1.38), (0.012, 0.07, 0.04), 'tail'))
+        if res:
+            m.extend(cyl((3.84, s * 0.7, 0.93), (3.92, s * 0.7, 0.93), 0.06, 'metal', 8))
+            for k in (-1, 1):
+                m.extend(box_at((3.62, s * 1.45 + k * 0.12, 1.16), (0.09, 0.01, 0.08), 'paint'))
+    m.extend(box_at((-3.73, 0, 1.22), (0.012, 0.85, 0.18), 'grille'))
+    if res:
+        for k in range(6):
+            m.extend(box_at((-3.735, 0, 1.08 + k * 0.055), (0.01, 0.84, 0.008), 'metal'))
+        # Engine deck grilles, the driver's hatch with its periscopes, stowage boxes on the fenders.
+        for (x, w) in ((-2.3, 0.55), (-3.0, 0.45)):
+            m.extend(box_at((x, 0, d + 0.025), (w / 2, 0.85, 0.008), 'grille'))
+            for k in range(7):
+                m.extend(box_at((x, -0.72 + k * 0.24, d + 0.032), (w / 2, 0.012, 0.006), 'metal'))
+        m.extend(cyl((2.05, 0, d - 0.01), (2.05, 0, d + 0.05), 0.3, 'paint', 16))
+        for a in (-0.18, 0.0, 0.18):
+            m.extend(box_at((2.38, a, d + 0.04), (0.03, 0.06, 0.035), 'glass'))
+        for s in (1, -1):
+            m.extend(box_at((-1.2, s * 1.55, d + 0.12), (0.9, 0.18, 0.12), 'paint'))
+            m.extend(box_at((1.1, s * 1.58, d + 0.08), (0.45, 0.15, 0.08), 'paint'))
+            m.extend(box_at((-3.2, s * 1.4, d + 0.05), (0.3, 0.25, 0.05), 'paint'))
+    return m
+
+
+def box_at(c, half, region):
+    return rbox(c, half, 0.0, region, 1)
+
+
+def place(m, x, y, z):
+    return m.copy().transform(Matrix.Translation((x, y, z)))
+
+
+def tank_turret(res):
+    """The turret round its own pivot (the middle of the ring on the deck)."""
+    m = Mesh()
+    bot = [(1.9, 0.52), (1.75, 1.5), (-1.25, 1.6), (-2.2, 1.35), (-2.35, 0.9)]
+    top = [(1.62, 0.45), (1.5, 1.32), (-1.25, 1.44), (-2.1, 1.25), (-2.24, 0.85)]
+    pts = [(x, s * y, 0.05) for (x, y) in bot for s in (1, -1)] + [(x, s * y, 0.74) for (x, y) in top for s in (1, -1)]
+    m.extend(solid(pts, 'paint'))
+    # The ring under it.
+    m.extend(cyl((0, 0, -0.06), (0, 0, 0.06), 1.15, 'metal', 24 if res else 12))
+    # The gun's slot between the cheeks.
+    m.extend(box_at((1.86, 0, 0.42), (0.12, 0.46, 0.28), 'black'))
+    # The commander's cupola with its machine gun (right), the loader's hatch (left), the gunner's sight.
+    cx, cy = -0.35, -0.62
+    m.extend(cyl((cx, cy, 0.72), (cx, cy, 0.92), 0.36, 'paint', 16 if res else 8))
+    m.extend(cyl((cx, cy, 0.92), (cx, cy, 0.97), 0.3, 'paint', 16 if res else 8))
+    if res:
+        for k in range(6):
+            a = 2 * math.pi * k / 6
+            m.extend(box_at((cx + math.cos(a) * 0.34, cy + math.sin(a) * 0.34, 0.85), (0.03, 0.05, 0.03), 'glass'))
+    m.extend(box_at((cx + 0.15, cy, 1.05), (0.22, 0.06, 0.07), 'black'))
+    m.extend(cyl((cx + 0.35, cy, 1.07), (cx + 1.25, cy, 1.07), 0.022, 'black', 6))
+    m.extend(cyl((-0.1, 0.6, 0.72), (-0.1, 0.6, 0.79), 0.32, 'paint', 16 if res else 8))
+    m.extend(box_at((0.95, -0.85, 0.86), (0.25, 0.22, 0.13), 'paint'))
+    m.extend(box_at((1.205, -0.85, 0.88), (0.008, 0.16, 0.07), 'glass'))
+    if res:
+        # Smoke grenade launchers on the cheeks, the bustle rack, an aerial and the wind sensor.
+        for s in (1, -1):
+            for k in range(6):
+                m.extend(cyl((1.15, s * (1.25 + 0.06 * (k % 3)), 0.78 + 0.07 * (k // 3)), (1.38, s * (1.3 + 0.06 * (k % 3)), 0.86 + 0.07 * (k // 3)), 0.03, 'black', 6))
+            m.extend(cyl((-1.95, s * 0.95, 0.74), (-1.95, s * 0.95, 1.9), 0.008, 'black', 4))
+        for z in (0.95, 1.12):
+            m.extend(tube([Vector((-1.6, 1.42, z)), Vector((-2.45, 1.3, z)), Vector((-2.55, 0.0, z)), Vector((-2.45, -1.3, z)), Vector((-1.6, -1.42, z))], 0.02, 'metal', 4))
+        for (x, y) in ((-2.45, 1.3), (-2.55, 0.0), (-2.45, -1.3), (-1.6, 1.42), (-1.6, -1.42)):
+            m.extend(cyl((x, y, 0.6), (x, y, 1.12), 0.02, 'metal', 4))
+        m.extend(box_at((-2.2, 0.6, 0.98), (0.2, 0.35, 0.2), 'canvas'))
+        m.extend(box_at((-2.2, -0.5, 0.92), (0.18, 0.45, 0.16), 'canvas'))
+        m.extend(cyl((-1.7, 0.2, 0.74), (-1.7, 0.2, 1.05), 0.012, 'metal', 4))
+        m.extend(box_at((-1.7, 0.2, 1.06), (0.06, 0.06, 0.01), 'metal'))
+    return m
+
+
+def tank_barrel(res):
+    """The gun round its trunnion: the mantlet, the long tube with its fume extractor, the muzzle."""
+    m = Mesh()
+    seg = 16 if res else 8
+    m.extend(solid([(0.0, s * 0.42, t * 0.26) for s in (1, -1) for t in (1, -1)] + [(0.42, s * 0.34, t * 0.2) for s in (1, -1) for t in (1, -1)], 'paint'))
+    m.extend(cyl((0.42, 0, 0), (0.75, 0, 0), 0.15, 'paint', seg, r1=0.12))
+    m.extend(cyl((0.75, 0, 0), (5.0, 0, 0), 0.095, 'paint', seg, r1=0.085))
+    m.extend(cyl((2.6, 0, 0), (3.3, 0, 0), 0.14, 'paint', seg))
+    m.extend(cyl((5.0, 0, 0), (5.08, 0, 0), 0.105, 'paint', seg))
+    m.extend(cyl((5.07, 0, 0), (5.081, 0, 0), 0.06, 'gap', seg))
+    # The coaxial machine gun beside it.
+    m.extend(cyl((0.4, 0.26, 0.05), (0.62, 0.26, 0.05), 0.02, 'black', 6))
+    return m
+
+
+def tank_build(res):
+    T = TANK
+    o = Out()
+    o.body.extend(tank_hull(res))
+    rx, rz = T['ring']
+    tx, tz = T['trunnion']
+    o.parts['turret'] = tank_turret(res) if res else Mesh()
+    o.parts['barrel'] = tank_barrel(res) if res else Mesh()
+    if not res:
+        o.parts = {}
+    R = T['R']
+    wz = R + 0.07
+    wl = []
+    for x in T['wheels_x']:
+        for s in (1, -1):
+            wl.append([round(x, 4), round(wz, 4), round(-s * T['track_y'], 4), 'r'])
+    o.meta['wheels'] = wl
+    o.meta['wheelR'] = [R, R]
+    if res:
+        o.wheel['r'] = road_wheel(R, 0.24, res)
+    else:
+        rw = road_wheel(R, 0.24, 0, 8)
+        for x in T['wheels_x']:
+            for s in (1, -1):
+                o.body.extend(place(rw, x, s * T['track_y'], wz))
+    o.meta['turret'] = [rx, rz, 0.0]
+    o.meta['barrel'] = [tx, tz, 0.0]
+    cabin_meta(o, [(2.05, 0.0, 1.12), (rx - 0.35, -0.62, 1.55)], (2.1, 0.0, 1.78))
+    o.meta['dims'] = [T['L'], T['W'], 2.45]
+    o.meta['color'] = 0x5d6b3a
+    return o
+
+
+@car
+def tank(res):
+    return tank_build(res)

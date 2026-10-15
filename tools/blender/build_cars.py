@@ -184,7 +184,13 @@ def render_car(cid, hi, lo, cam):
         w.transform(Matrix.Translation((x, -z, y)))
         temp.append(w.to_object('prev_w', sharp_angle=math.radians(55)))
     for name, m in hi.parts.items():
-        temp.append(m.to_object('prev_' + name, sharp_angle=math.radians(50)))
+        # Moving parts are modelled round their own pivots (meta[name], the barrel's relative to the turret's).
+        piv = Vector()
+        for k in (['turret', 'barrel'] if name == 'barrel' else [name]):
+            g = hi.meta.get(k)
+            if isinstance(g, list) and len(g) == 3:
+                piv += Vector((g[0], -g[2], g[1]))
+        temp.append(m.copy().transform(Matrix.Translation(piv)).to_object('prev_' + name, sharp_angle=math.radians(50)))
     preview_materials(hi.meta.get('color', 0xcccccc))
     L = hi.meta['dims'][0]
     d = max(6.0, L * 1.45)
