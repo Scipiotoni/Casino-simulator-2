@@ -30,6 +30,7 @@
 }
 .tx-count { font-size: 13px; color: #ffe08a; white-space: nowrap; }
 .tx-status { font-family: var(--body-font); font-weight: 800; font-size: 13px; line-height: 1.3; color: #e8e6f0; }
+.tx-dist { color: #ffd23d; white-space: nowrap; }
 .tx-row { display: grid; grid-template-columns: 1.25fr 1fr; gap: 6px; }
 .tx-box { display: flex; flex-direction: column; padding: 3px 8px 4px; border-radius: 7px; background: #07080b; box-shadow: inset 0 0 0 1px rgba(255, 194, 26, 0.25); }
 .tx-box small { font-size: 10px; letter-spacing: 0.14em; color: #9a96a8; }

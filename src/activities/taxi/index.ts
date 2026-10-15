@@ -128,7 +128,8 @@ export class Taxi implements Activity {
   // HUD.
   private hud: HTMLDivElement;
   private hudCount: HTMLSpanElement;
-  private hudStatus: HTMLDivElement;
+  private hudStatus: HTMLSpanElement;
+  private hudDist: HTMLSpanElement;
   private hudMeter: HTMLElement;
   private hudMeterBox: HTMLDivElement;
   private hudTime: HTMLElement;
@@ -143,12 +144,13 @@ export class Taxi implements Activity {
       'div',
       'taxi-hud',
       '<div class="tx-head"><span class="tx-tag">SUNSHINE CABS</span><span class="tx-count"></span></div>' +
-        '<div class="tx-status"></div>' +
+        '<div class="tx-status"><span class="tx-st"></span> <span class="tx-dist"></span></div>' +
         '<div class="tx-row"><div class="tx-box tx-meter"><small>METER</small><b></b></div><div class="tx-box tx-time"><small>TIME</small><b></b></div></div>' +
         '<div class="tx-warn"></div>',
     );
     this.hudCount = this.hud.querySelector('.tx-count')!;
-    this.hudStatus = this.hud.querySelector('.tx-status')!;
+    this.hudStatus = this.hud.querySelector('.tx-st')!;
+    this.hudDist = this.hud.querySelector('.tx-dist')!;
     this.hudMeterBox = this.hud.querySelector('.tx-meter')!;
     this.hudMeter = this.hudMeterBox.querySelector('b')!;
     this.hudTimeBox = this.hud.querySelector('.tx-time')!;
@@ -196,6 +198,8 @@ export class Taxi implements Activity {
     }
     // The window and its ledge, a door at the side.
     k.box(2.6, 1.05, 0.06, 0x9ccfe8, { y: 1.65, z: 0.82 }, 'glass');
+    glow.box(2.5, 0.95, 0.04, 0xcdb27a, { y: 1.65, z: 0.74 }, 'glow');
+    for (let i = 0; i < 3; i++) k.box(0.5, 0.36, 0.03, [0xff5a3a, 0x3a8ad8, 0x2ecc71][i], { x: -0.8 + i * 0.8, y: 1.78, z: 0.76 });
     k.box(2.9, 0.08, 0.42, 0x2a2a2e, { y: 1.08, z: 0.98 }, 'shiny');
     k.box(0.06, 2.0, 0.9, 0x2a5a8a, { x: -1.83, y: 1.16, z: -0.6 });
     glow.box(2.5, 0.06, 0.9, 0xfff1c8, { y: 2.6, z: 0.95 }, 'glow');
@@ -302,7 +306,13 @@ export class Taxi implements Activity {
       z = STAND.cabZ + dz;
       if (!others.some((v) => Math.hypot(v.pos.x - STAND.cabX, v.pos.z - z) < 5.5)) break;
     }
-    return g.vehicles.spawn('taxi', STAND.cabX, z, STAND.cabHeading, { id: `sunshine-cab-${++this.cabs}` });
+    const v = g.vehicles.spawn('taxi', STAND.cabX, z, STAND.cabHeading, { id: `sunshine-cab-${++this.cabs}` });
+    const it = g.interactions.get(`car:${v.id}`);
+    if (it) {
+      it.label = () => (this.shift?.cab === v ? 'Drive your Sunshine cab' : `Drive the ${v.def.name}`);
+      it.sub = () => (this.shift?.cab === v ? 'You’re on shift: fares come to the cab' : '');
+    }
+    return v;
   }
 
   /** Take away the last shift's cab once nobody's in it (and, unless `now`, once you're well clear). */
@@ -545,9 +555,14 @@ export class Taxi implements Activity {
       const k = f.stop.kerb;
       const fx = Math.sin(cab.heading);
       const fz = Math.cos(cab.heading);
-      // Out of the kerbside door, or the passenger side (the right) if not at the kerb.
+      // Out of the kerbside door: at the drop-off the kerb's side, else whichever side is further off the road.
       let ox = -fz;
       let oz = fx;
+      const off = (s: number) => g.world.terrain.nearestRoad(cab.pos.x - fz * s * 3, cab.pos.z + fx * s * 3, 30)?.dist ?? 99;
+      if (off(-1) > off(1)) {
+        ox = fz;
+        oz = -fx;
+      }
       if (arrived) {
         const l = Math.hypot(k.px - k.x, k.pz - k.z) || 1;
         ox = (k.px - k.x) / l;
@@ -659,6 +674,7 @@ export class Taxi implements Activity {
     const inCab = g.vehicles.driving === cab;
     set(this.hudCount, `${s.fares} fare${s.fares === 1 ? '' : 's'} · ${money(s.earned)}`);
     let status = '';
+    let far = '';
     let meter = '';
     let timeLabel = 'TIME';
     let time = '';
@@ -673,7 +689,8 @@ export class Taxi implements Activity {
       status = !s.boarded ? 'Get in your cab at the kerb' : g.combat.wanted > 0 ? 'Lose the police to take fares' : s.nextT > 0.5 ? `Next fare in ${Math.ceil(s.nextT)} s` : 'Finding a fare…';
       meter = money(0);
     } else if (f.phase === 'waiting' || f.phase === 'boarding') {
-      status = f.phase === 'boarding' ? 'Your passenger is getting in…' : `Pick up the passenger · ${dist(f.kerb.x, f.kerb.z)}`;
+      status = f.phase === 'boarding' ? 'Your passenger is getting in…' : 'Pick up the passenger';
+      if (f.phase === 'waiting') far = dist(f.kerb.x, f.kerb.z);
       meter = money(BASE_FARE);
       timeLabel = 'WAITS';
       time = clock(f.wait);
@@ -683,7 +700,8 @@ export class Taxi implements Activity {
         warnKind = 'hint';
       }
     } else {
-      status = `${f.stop.place.icon} To ${f.stop.place.name} · ${dist(f.stop.kerb.x, f.stop.kerb.z)}`;
+      status = `${f.stop.place.icon} To ${f.stop.place.name}`;
+      far = dist(f.stop.kerb.x, f.stop.kerb.z);
       meter = money(meterFare(f.driven, f.crow));
       time = clock(f.left);
       late = f.left < 15;
@@ -700,6 +718,7 @@ export class Taxi implements Activity {
       }
     }
     set(this.hudStatus, status);
+    set(this.hudDist, far);
     set(this.hudMeter, meter);
     set(this.hudTimeLabel, timeLabel);
     set(this.hudTime, time || '–');
