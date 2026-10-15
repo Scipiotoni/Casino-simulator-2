@@ -40,6 +40,8 @@ const AWAY_LIMIT = 20;
 const DEPOT_NEAR = 40;
 /** You can walk a parcel to the door with the van parked this close (m). */
 const VAN_REACH = 60;
+/** Touch screens have no E while driving: there, holding still in the ring this long drops off (s). */
+const TOUCH_DROP = 1.5;
 /** Seconds to the next job after one ends. */
 const NEXT_JOB = 4;
 /** The time on the card turns red with this much left (s). */
@@ -80,6 +82,8 @@ interface Shift {
   prevHealth: number;
   /** Last frame: in the van, stopped in the ring. Pressing E there drops the parcel off. */
   inRing: boolean;
+  /** How long the van has been stopped in the ring. */
+  ringT: number;
 }
 
 export class Deliveries implements Activity {
@@ -316,7 +320,7 @@ export class Deliveries implements Activity {
     const van = this.spawnVan();
     this.shift = {
       van, delivered: 0, earned: 0, bonus: 0, failed: 0, run: null, nextT: 1.5, away: 0, boarded: false, last: '',
-      bestBefore: this.record.bestShift, prevSpeed: 0, prevHealth: van.health, inRing: false,
+      bestBefore: this.record.bestShift, prevSpeed: 0, prevHealth: van.health, inRing: false, ringT: 0,
     };
     this.cardT = 0;
     g.setUserWaypoint(van.pos.x, van.pos.z, 'Your van');
@@ -463,6 +467,8 @@ export class Deliveries implements Activity {
     }
     const k = r.job.to.kerb;
     s.inRing = inVan && Math.hypot(van.pos.x - k.x, van.pos.z - k.z) < RING_R + 0.5 && Math.abs(van.speed) < STOP_SPEED;
+    s.ringT = s.inRing ? s.ringT + dt : 0;
+    if (g.input.touchMode && s.ringT >= TOUCH_DROP) this.deliver(s);
   }
 
   private deliver(s: Shift): void {
@@ -472,6 +478,8 @@ export class Deliveries implements Activity {
     const job = r.job;
     const pay = payout(job, r.left, r.damage);
     s.run = null;
+    s.inRing = false;
+    s.ringT = 0;
     s.delivered++;
     s.earned += pay.total;
     s.bonus += pay.early;
@@ -498,6 +506,7 @@ export class Deliveries implements Activity {
     if (!s.run) return;
     s.run = null;
     s.inRing = false;
+    s.ringT = 0;
     s.failed++;
     s.nextT = NEXT_JOB + 2;
     g.clearUserWaypoint();
@@ -577,7 +586,7 @@ export class Deliveries implements Activity {
       this.hudCondBar.style.width = `${Math.round(c * 100)}%`;
       this.hudCond.classList.toggle('low', c < 0.5);
       if (inVan && Math.hypot(van.pos.x - k.x, van.pos.z - k.z) < RING_R + 6) {
-        warn = Math.abs(van.speed) >= STOP_SPEED ? 'Stop in the ring to drop off' : 'Press E to drop off';
+        warn = Math.abs(van.speed) >= STOP_SPEED ? 'Stop in the ring to drop off' : g.input.touchMode ? 'Hold still to drop off' : 'Press E to drop off';
         warnKind = 'hint';
       } else if (kind.rule === 'valuable' && g.combat.wanted > 0) {
         warn = 'Police! Valuables are lost';
