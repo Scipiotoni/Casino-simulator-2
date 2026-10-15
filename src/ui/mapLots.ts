@@ -4,6 +4,7 @@ import { districtName } from '../business/business';
 import { bizDef } from '../business/catalog';
 import { lotFrontPoint, type Lot } from '../world/layout';
 import { audio } from '../core/audio';
+import { isDealer } from '../world/dealers';
 import { el, esc, money } from './dom';
 import { DEFAULT_FILTER, DISTRICTS, PRICE_STEPS, lotArea, lotAt, parseFilter, visibleLots, type LotFilter, type LotSize, type LotView } from './lotFilter';
 
@@ -26,6 +27,7 @@ export class MapLots {
   private views: LotView[] = [];
   private open: Lot | null = null;
   private lastMoney = -1;
+  private hadHome = false;
 
   constructor(private game: Game, private close: () => void) {
     this.f = load();
@@ -73,11 +75,23 @@ export class MapLots {
     b.appendChild(sizes);
     b.appendChild(this.select(PRICE_STEPS.map((p) => [String(p), p ? `Up to ${money(p, true)}` : 'Any price']), String(f.maxPrice), (v) => (f.maxPrice = Number(v))));
     b.appendChild(this.select([['', 'All districts'], ...DISTRICTS.map((d): [string, string] => [d, districtName(d)])], f.districts[0] ?? '', (v) => (f.districts = v ? [v as LotFilter['districts'][number]] : [])));
-    const home = chip('🏠 Home', false, 'Teleport to your flat', () => {
-      const fl = this.game.flat;
-      this.game.fastTravel(fl.door.x + Math.sin(fl.yaw) * 2, fl.door.z + Math.cos(fl.yaw) * 2, fl.yaw + Math.PI, 'Your flat');
+    const h = this.game.home();
+    this.hadHome = !!h;
+    const home = chip(h ? '🏠 Home' : '🏠 Flat for sale', false, h ? `Teleport to ${h.label.toLowerCase().startsWith('your') ? h.label.toLowerCase() : h.label}` : 'You have no home yet: teleport to the flat for sale in Palm Court (or build a house on a lot)', () => {
+      const t = this.game.home();
+      if (t) this.game.fastTravel(t.x, t.z, t.yaw, t.label);
+      else {
+        const fl = this.game.flat;
+        this.game.fastTravel(fl.door.x + Math.sin(fl.yaw) * 2.5, fl.door.z + Math.cos(fl.yaw) * 2.5, fl.yaw + Math.PI, 'Palm Court');
+      }
     });
-    b.append(home, this.count);
+    const cars = chip('🚗 Car dealers', false, 'Teleport to the nearest car dealer', () => {
+      const g = this.game;
+      const p = g.player.pos;
+      const s = g.shops.filter((x) => isDealer(x.key)).sort((a, b) => Math.hypot(a.door.x - p.x, a.door.z - p.z) - Math.hypot(b.door.x - p.x, b.door.z - p.z))[0];
+      if (s) g.fastTravel(s.door.x + Math.sin(s.yaw) * 3, s.door.z + Math.cos(s.yaw) * 3, s.yaw + Math.PI, s.name);
+    });
+    b.append(home, cars, this.count);
     b.appendChild(el('span', 'mm-legend', '<i class="a"></i>can buy <i class="p"></i>too pricey <i class="m"></i>yours'));
   }
 
@@ -103,6 +117,7 @@ export class MapLots {
   /** Work out what to show (every frame the big map draws). */
   refresh(): void {
     const g = this.game;
+    if (!!g.home() !== this.hadHome) this.drawBar();
     const b = g.business;
     this.views = visibleLots(g.world.terrain.lots, this.f, g.money, (l) => !!b.ownerOf(l), (l) => b.taken.has(l.id), bizDef('casino').minArea);
     const n = this.views.filter((v) => v.state === 'afford').length;

@@ -3,17 +3,20 @@ import type { Game } from '../game/game';
 import type { Director } from './director';
 import { BRIDGE, deckY } from '../world/bridge';
 import { tweens } from '../core/tween';
+import { FLAT_PRICE } from '../game/save';
+import { money } from '../ui/dom';
 
 /**
  * The only cutscene: you drive onto Jackpot Island over the Interstate 15 bridge at sunset,
- * pass under the welcome arch, roll off the bridge into the city and park outside your new
- * flat. No dialogue, just the drive. A skip (Esc) lands you in the same place.
+ * pass under the welcome arch, roll off the bridge into the city and pull up outside Palm
+ * Court, where a flat is for sale. No dialogue, just the drive. A skip (Esc) lands you in the
+ * same place, with no home and no car yet.
  */
 export async function playIntro(g: Game, d: Director): Promise<void> {
   const z = BRIDGE.z - 3.5; // westbound lane
   const flat = g.flat;
   g.hours = 19.05;
-  // A rental for the drive over, scripted for the cutscene and handed back at the flat (you
+  // A rental for the drive over, scripted for the cutscene and handed back at Palm Court (you
   // start without a car of your own).
   const car = g.vehicles.spawn('hatch', 6700, z, -Math.PI / 2, { color: 0x4fc3f7, id: 'rental' });
   car.scripted = true;
@@ -76,7 +79,7 @@ export async function playIntro(g: Game, d: Director): Promise<void> {
   await d.wait(0.6);
   await d.title('CASINO SIMULATOR 2', 'JACKPOT ISLAND', 4.2);
   await d.fade(true, 0.8);
-  // End state (also what a skip leaves you with): the rental gone back, standing at your door.
+  // End state (also what a skip leaves you with): the rental gone back, standing outside Palm Court.
   tweens.finish('cine');
   car.scripted = false;
   car.speed = 0;
@@ -91,5 +94,5 @@ export async function playIntro(g: Game, d: Director): Promise<void> {
   g.camera.pitch = -0.15;
   g.hours = Math.max(g.hours, 19.4);
   void d.fade(false, 1.0);
-  window.setTimeout(() => g.hud.toast('Open the map (M): filter the lots you can afford, buy one and build your first casino. Teleport there from the map.', 'info', 9000), 1600);
+  window.setTimeout(() => g.hud.toast(`No home, no car yet. The flat behind you is for sale (${money(FLAT_PRICE)}) and Honest Eddie’s down the street sells used cars. Open the map (M) to buy a lot and build your first casino.`, 'info', 11000), 1600);
 }

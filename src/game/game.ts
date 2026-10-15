@@ -5,7 +5,8 @@ import { World } from './world';
 import { CharacterModel, BONES } from '../chars/model';
 import { loadBodies } from '../chars/bodies';
 import { loadCars, sizeCars } from '../vehicles/carModels';
-import { TRAFFIC_MODELS } from '../world/traffic';
+import { BOOT_MODELS, TRAFFIC_MODELS } from '../world/traffic';
+import { isDealer } from '../world/dealers';
 import { setFaceDetail } from '../chars/faces';
 import { Animator, ROLL_TIME, rollSwell, type Pose } from '../chars/anim';
 import { SKINS, appearanceFromSkin, lockPieces, skinById, type Appearance } from '../chars/skins';
@@ -33,7 +34,7 @@ import { buildShops, type ShopSite } from '../world/shops';
 import { GameUI } from '../ui/menus';
 import { Panel } from '../ui/panel';
 import { IslandMap, Minimap, type MapMarker } from '../ui/map';
-import { loadSave, newSave, writeSave, type SaveData, type SavedLook } from './save';
+import { FLAT_PRICE, loadSave, newSave, writeSave, type SaveData, type SavedLook } from './save';
 import { VEHICLES, vehicleDef } from '../vehicles/models';
 import { BIZ } from '../business/catalog';
 import { el, money as fmtMoney } from '../ui/dom';
@@ -57,7 +58,7 @@ export class Game {
   session!: GamblingSession;
   player!: Player;
   director!: Director;
-  /** Your flat in Palm Court (where everyone starts). */
+  /** The flat in Palm Court (for sale on day one; `ownsFlat` says whether it's yours). */
   flat!: Flat;
   waypoint!: Waypoint;
   vehicles!: VehicleSystem;
@@ -89,6 +90,8 @@ export class Game {
   ownedSkins: string[] = ['rookie', 'rookieF'];
   /** Looks saved in the wardrobe. */
   looks: SavedLook[] = [];
+  /** Do you own the flat in Palm Court? Everyone starts without a home. */
+  ownsFlat = false;
   /** The wardrobe's editor is open: the camera frames the player, the HUD steps aside. */
   editingLook = false;
   /** Which way the player faces in the creator (dragged round to see the back). */
@@ -131,7 +134,7 @@ export class Game {
     await loadBodies((n) => (BONES as readonly string[]).indexOf(n));
     await step(0.03, 'Waxing the cars');
     sizeCars(VEHICLES);
-    await loadCars([...new Set([...TRAFFIC_MODELS, 'police'])]);
+    await loadCars(BOOT_MODELS);
     await this.world.build((f, m) => step(f * 0.85, m));
     this.uiRoot = document.createElement('div');
     this.uiRoot.className = 'ui-root';
@@ -170,6 +173,8 @@ export class Game {
     window.addEventListener('beforeunload', () => this.save());
     document.addEventListener('visibilitychange', () => document.hidden && this.save());
     this.loading.done();
+    // The rest of the street traffic downloads in the background.
+    void loadCars([...new Set(TRAFFIC_MODELS)]);
     requestAnimationFrame(this.loop);
 
     const q = new URLSearchParams(location.search);
@@ -219,6 +224,8 @@ export class Game {
     this.ownedSkins = [...s.ownedSkins];
     this.looks = [];
     this.stats = {};
+    this.ownsFlat = !!s.flat;
+    this.flat.setOwned(this.ownsFlat);
     this.started = true;
     this.hud.setVisible(true);
     this.minimap.setVisible(true);
@@ -274,6 +281,7 @@ export class Game {
       stats: this.stats,
       activities: Object.fromEntries(this.activities.filter((a) => a.save).map((a) => [a.id, a.save!()])),
       looks: this.looks,
+      flat: this.ownsFlat,
       settings: this.settings,
       savedAt: Date.now(),
     };
@@ -286,6 +294,8 @@ export class Game {
     this.ownedSkins = s.ownedSkins;
     this.setAppearance(lockPieces(s.appearance, s.ownedSkins));
     this.looks = s.looks ?? [];
+    this.ownsFlat = s.flat !== false;
+    this.flat.setOwned(this.ownsFlat);
     this.money = s.money;
     this.day = s.day;
     this.hours = s.hours;
@@ -370,8 +380,9 @@ export class Game {
       if (mine) continue;
       out.push({ x: v.door.x, z: v.door.z, icon: '🎰', color: '#b23cff', label: v.opts.name, big: full });
     }
-    for (const s of this.shops) out.push({ x: s.door.x, z: s.door.z, icon: s.icon, color: '#2a6ad8', label: s.name, big: false });
-    out.push({ x: this.flat.door.x, z: this.flat.door.z, icon: '🏠', color: '#1f9a4c', label: 'Your flat', big: true });
+    for (const s of this.shops) out.push({ x: s.door.x, z: s.door.z, icon: s.icon, color: '#2a6ad8', label: s.name, big: full && isDealer(s.key) });
+    if (this.ownsFlat) out.push({ x: this.flat.door.x, z: this.flat.door.z, icon: '🏠', color: '#1f9a4c', label: 'Your flat', big: true });
+    else if (full) out.push({ x: this.flat.door.x, z: this.flat.door.z, icon: '🏠', color: '#c89a12', label: `Flat for sale · ${fmtMoney(FLAT_PRICE)}`, big: true });
     for (const b of this.business.owned) {
       const c = { x: (b.lot.x0 + b.lot.x1) / 2, z: (b.lot.z0 + b.lot.z1) / 2 };
       const def = BIZ.find((d) => d.type === b.save.type);
@@ -419,7 +430,36 @@ export class Game {
     this.hud.banner('CHARGES DROPPED', `Fine paid: ${fmtMoney(fine)}`, 2600);
   }
 
-  /** After a knockout: hospital (or the police station when you were wanted). */
+  /** Buy the flat in Palm Court (you're at its door). */
+  buyFlat(): void {
+    if (this.ownsFlat) return;
+    if (this.money < FLAT_PRICE) {
+      this.hud.toast(`You need ${fmtMoney(FLAT_PRICE)} for the flat`, 'bad');
+      return;
+    }
+    this.addMoney(-FLAT_PRICE, 'for the flat in Palm Court');
+    this.ownsFlat = true;
+    this.flat.setOwned(true);
+    audio.play('purchase');
+    this.hud.banner('HOME SWEET HOME', 'PALM COURT FLAT', 2600, 'gold');
+    this.save();
+  }
+
+  /** Your home, if you have one: the flat, or else the first house you've built. */
+  home(): { x: number; z: number; yaw: number; label: string } | null {
+    if (this.ownsFlat) {
+      const f = this.flat;
+      return { x: f.door.x + Math.sin(f.yaw) * 2, z: f.door.z + Math.cos(f.yaw) * 2, yaw: f.yaw + Math.PI, label: 'Your flat' };
+    }
+    const b = this.business.owned.find((x) => x.house);
+    if (b?.house) {
+      const h = b.house;
+      return { x: h.door.x + Math.sin(h.yaw) * 2.5, z: h.door.z + Math.cos(h.yaw) * 2.5, yaw: h.yaw + Math.PI, label: b.save.name };
+    }
+    return null;
+  }
+
+  /** After a knockout: home if you have one, else the hospital (the police station when you were wanted). */
   respawn(busted: boolean): void {
     const key = busted ? 'police' : 'hospital';
     const s = this.shops.find((x) => x.key === key);
@@ -429,8 +469,14 @@ export class Game {
     const p = this.player;
     p.mode = 'walk';
     p.poseOverride = null;
-    if (s) p.teleport(s.door.x + Math.sin(s.yaw) * 3, s.door.y, s.door.z + Math.cos(s.yaw) * 3, s.yaw);
-    this.camera.yaw = (s?.yaw ?? 0) + Math.PI;
+    const h = busted ? null : this.home();
+    if (h) {
+      p.teleport(h.x, this.world.groundY(h.x, h.z, 1e9), h.z, h.yaw);
+      this.camera.yaw = h.yaw + Math.PI;
+    } else {
+      if (s) p.teleport(s.door.x + Math.sin(s.yaw) * 3, s.door.y, s.door.z + Math.cos(s.yaw) * 3, s.yaw);
+      this.camera.yaw = (s?.yaw ?? 0) + Math.PI;
+    }
     this.hud.toast(busted ? `Busted: ${fmtMoney(loss)} in fines` : `Hospital bill: ${fmtMoney(loss)}`, 'bad', 4000);
     this.save();
   }
@@ -455,13 +501,14 @@ export class Game {
     });
   }
 
-  buyCar(id: string): void {
+  /** Buy a car at a dealer: it's delivered to the kerb out front. */
+  buyCar(id: string, dealerKey = 'carDealer'): void {
     const def = vehicleDef(id);
     if (this.money < def.price) {
       this.hud.toast(`You need ${fmtMoney(def.price)}`, 'bad');
       return;
     }
-    const s = this.shops.find((x) => x.key === 'carDealer');
+    const s = this.shops.find((x) => x.key === dealerKey);
     if (!s) return;
     this.addMoney(-def.price, `for the ${def.name}`);
     // Delivered to the kerb in front of the dealer.

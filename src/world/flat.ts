@@ -3,11 +3,16 @@ import { Kit } from '../render/kit';
 import { labelTexture } from '../render/signs';
 import { lotFrontPoint, type Lot } from './layout';
 import type { Game } from '../game/game';
+import type { Box } from './collision';
+import { FLAT_PRICE } from '../game/save';
+import { money } from '../ui/dom';
 
 /**
- * Your flat: a ground-floor apartment in Palm Court, the first block off the Interstate 15
- * bridge. Everyone starts here. Walk in through your own front door: a bed to sleep and save,
- * a wardrobe, a laptop with the property listings, a sofa and a TV. Your car parks outside.
+ * The flat: a ground-floor apartment in Palm Court, the first block off the Interstate 15
+ * bridge, where the drive over ends. Nobody starts with a home: it's for sale (a sign in the
+ * window, the door locked) until you buy it at the door. Then walk in through your own front
+ * door: a bed to sleep and save, a wardrobe, a laptop with the property listings, a sofa
+ * and a TV.
  */
 
 /** The unit inside the building, in the building's frame (x across the front, -z into the lot). */
@@ -23,6 +28,13 @@ export class Flat {
   readonly floorY: number;
   readonly lot: Lot;
   private interior = new THREE.Group();
+  /** The front door, open (yours) or shut (for sale), and the sign in the window. */
+  private doorOpen = new THREE.Group();
+  private doorShut = new THREE.Group();
+  private forSale = new THREE.Group();
+  private lock: Box | null = null;
+  private lockBox: Box | null = null;
+  owned = true;
   private bounds = { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
 
   constructor(private game: Game) {
@@ -48,6 +60,7 @@ export class Flat {
     this.parking.z = p.z;
     this.parking.heading = fp.yaw - Math.PI / 2;
     this.interactions();
+    this.setOwned(game.ownsFlat);
   }
 
   /** A point in the building's frame, in world space. */
@@ -107,9 +120,19 @@ export class Flat {
       k.box(b - a - 0.2, 1.6, 0.08, 0x9ccfe8, { x: (a + b) / 2, y: y + 1.7, z: 0.02 }, 'glass');
       k.box(b - a, 0.12, 0.5, trim, { x: (a + b) / 2, y: y + 0.92, z: 0.1 }, 'shiny');
     }
-    // Front door (open, swung inwards), frame and number.
+    // Front door: open (swung inwards) when it's yours, shut with a FOR SALE sign until then.
     k.box(doorW + 0.3, 0.2, 0.5, trim, { x: doorX, y: y + 2.55, z: 0 }, 'shiny');
-    k.box(0.08, 2.4, doorW, 0x7a3a22, { x: doorX - doorW / 2 + 0.04, y: fy + 1.2, z: -doorW / 2 - 0.2 }, 'shiny');
+    const open = new Kit();
+    open.box(0.08, 2.4, doorW, 0x7a3a22, { x: doorX - doorW / 2 + 0.04, y: fy + 1.2, z: -doorW / 2 - 0.2 }, 'shiny');
+    this.doorOpen.add(open.bake());
+    const shut = new Kit();
+    shut.box(doorW, 2.4, 0.08, 0x7a3a22, { x: doorX, y: fy + 1.2, z: -0.05 }, 'shiny');
+    shut.box(0.08, 0.08, 0.12, 0xd8b04a, { x: doorX + doorW / 2 - 0.2, y: fy + 1.05, z: 0.02 }, 'shiny');
+    this.doorShut.add(shut.bake());
+    const sale = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.0), new THREE.MeshBasicMaterial({ map: labelTexture(`FOR SALE · ${money(FLAT_PRICE)}`, { width: 768, height: 296, font: 'Lilita One', color: '#ffffff', bg: '#c8202f', size: 96 }), toneMapped: false }));
+    sale.position.set((ux0 + doorX - doorW / 2) / 2, y + 1.75, 0.09);
+    this.forSale.add(sale);
+    this.group.add(this.doorOpen, this.doorShut, this.forSale);
     k.box(W / 2 - ux1, FH, 0.4, stucco, { x: (ux1 + W / 2) / 2, y: y + FH / 2, z: 0 });
     glow.box(3.4, 1.1, 0.06, 0xfff1c8, { x: 11, y: y + 2.9, z: 0.24 }, 'glow');
     k.box(4, 2.6, 0.1, 0x3a2416, { x: 11, y: y + 1.3, z: 0.24 }, 'shiny');
@@ -186,6 +209,13 @@ export class Flat {
     this.interior.add(inner.bake());
     // Collision: the unit's walls (front wall has the door gap), furniture, the rest of the building.
     const bw = (a: number, b: number, z: number) => this.box((a + b) / 2, z, b - a, 0.4, y - 1, y + FH);
+    {
+      const p = this.toWorld(doorX, 0, 0);
+      const rot = Math.abs(Math.sin(this.yaw)) > 0.5;
+      const ww = rot ? 0.4 : doorW;
+      const dd = rot ? doorW : 0.4;
+      this.lockBox = { minX: p.x - ww / 2, maxX: p.x + ww / 2, minZ: p.z - dd / 2, maxZ: p.z + dd / 2, minY: y - 1, maxY: y + FH, tag: 'flat:lock', cam: true };
+    }
     bw(ux0, doorX - doorW / 2, 0);
     bw(doorX + doorW / 2, ux1, 0);
     this.box(ux0, (UNIT.z0 + UNIT.z1) / 2, 0.3, id, y - 1, y + FH);
@@ -209,15 +239,29 @@ export class Flat {
     this.bounds = { minX: Math.min(c[0].x, c[1].x), maxX: Math.max(c[0].x, c[1].x), minZ: Math.min(c[0].z, c[1].z), maxZ: Math.max(c[0].z, c[1].z) };
   }
 
+  /** Yours (door open, furniture usable) or for sale (door locked, a sign in the window). */
+  setOwned(owned: boolean): void {
+    this.owned = owned;
+    this.doorOpen.visible = owned;
+    this.doorShut.visible = this.forSale.visible = !owned;
+    const c = this.game.world.collision;
+    if (owned && this.lock) {
+      c.removeBox(this.lock);
+      this.lock = null;
+    } else if (!owned && !this.lock && this.lockBox) this.lock = c.addBox(this.lockBox);
+  }
+
   private interactions(): void {
     const g = this.game;
     const at = (x: number, z: number) => this.toWorld(x, z);
+    const door = at((UNIT.x0 + UNIT.x1) / 2, 1.2);
+    g.interactions.add({ id: 'flat:buy', x: door.x, y: this.floorY, z: door.z, radius: 2.6, priority: 2, enabled: () => !this.owned, label: `Buy this flat · ${money(FLAT_PRICE)}`, sub: 'A home: sleep, save and change here', action: () => g.buyFlat() });
     const bed = at(UNIT.x0 + 2.2, UNIT.z1 + 3.2);
-    g.interactions.add({ id: 'flat:bed', x: bed.x, y: this.floorY, z: bed.z, radius: 1.8, label: 'Sleep until morning', sub: 'Saves your game', action: () => g.sleep() });
+    g.interactions.add({ id: 'flat:bed', enabled: () => this.owned, x: bed.x, y: this.floorY, z: bed.z, radius: 1.8, label: 'Sleep until morning', sub: 'Saves your game', action: () => g.sleep() });
     const wr = at(UNIT.x0 + 1.4, UNIT.z1 + 4.6);
-    g.interactions.add({ id: 'flat:wardrobe', x: wr.x, y: this.floorY, z: wr.z, radius: 1.4, label: 'Wardrobe', sub: 'Change your outfit', action: () => g.ui.wardrobe(false) });
+    g.interactions.add({ id: 'flat:wardrobe', enabled: () => this.owned, x: wr.x, y: this.floorY, z: wr.z, radius: 1.4, label: 'Wardrobe', sub: 'Change your outfit', action: () => g.ui.wardrobe(false) });
     const lp = at(UNIT.x0 + 5.2, UNIT.z1 + 1.4);
-    g.interactions.add({ id: 'flat:laptop', x: lp.x, y: this.floorY, z: lp.z, radius: 1.3, label: 'Laptop', sub: 'Lots for sale on the island', action: () => g.ui.realtyPanel() });
+    g.interactions.add({ id: 'flat:laptop', enabled: () => this.owned, x: lp.x, y: this.floorY, z: lp.z, radius: 1.3, label: 'Laptop', sub: 'Lots for sale on the island', action: () => g.ui.realtyPanel() });
   }
 
   update(): void {
