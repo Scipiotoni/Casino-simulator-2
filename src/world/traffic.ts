@@ -21,8 +21,10 @@ interface Node {
   links: Node[];
 }
 
-/** The cars you see on the streets (the game downloads these models at boot). */
-export const TRAFFIC_MODELS = ['hatch', 'sedan', 'sedan', 'taxi', 'suv', 'van', 'convertible', 'pickup', 'muscle', 'limo'];
+/** The cars you see on the streets (the commonest more than once). */
+export const TRAFFIC_MODELS = ['hatch', 'sedan', 'sedan', 'taxi', 'taxi', 'civic', 'golf', 'prius', 'model3', 'rav4', 'rav4', 'minivan', 'crownvic', 'wagon240', 'beetle', 'mini', 'suv', 'van', 'convertible', 'pickup', 'f150', 'hilux', 'muscle', 'limo', 'gclass', 'p911'];
+/** The ones downloaded at boot (the rest arrive in the background). */
+export const BOOT_MODELS = ['sedan', 'taxi', 'police', 'hatch', 'civic', 'rav4'];
 const COLORS = [0xe8e8ea, 0x15151a, 0xc8202f, 0x1e6bff, 0x9aa0ab, 0x2bd96b, 0xffd23d, 0xff7a1a, 0x7b2ff7, 0x6a3f22];
 
 class TrafficCar {

@@ -37,6 +37,9 @@ interface Meta {
   eye: [number, number, number];
   dims: [number, number, number];
   color: number;
+  /** Moving parts' pivots: the turret's (ring centre) in car space, the barrel's (trunnion) in the turret's. */
+  turret?: [number, number, number];
+  barrel?: [number, number, number];
 }
 
 interface CarAsset {
@@ -197,24 +200,26 @@ const LAMPS = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: fals
 const paints = new Map<number, THREE.Material>();
 
 /** A glossy clear-coat paint in one colour (shared by every car painted it). */
-function paint(color: number): THREE.Material {
-  let m = paints.get(color);
+function paint(color: number, matte = false): THREE.Material {
+  const key = matte ? -1 - color : color;
+  let m = paints.get(key);
   if (!m) {
-    m = withRim(phong(color, 90, 0x9a9a9a), 0.5);
-    paints.set(color, m);
+    // Matte (the tank's flat army paint) or a glossy clear coat.
+    m = matte ? withRim(phong(color, 8, 0x1a1a1a), 0.3) : withRim(phong(color, 90, 0x9a9a9a), 0.5);
+    paints.set(key, m);
   }
   return m;
 }
 
-function materials(color: number): THREE.Material[] {
-  return [VCOL, SHINY_VCOL, paint(color), GLASS, LAMPS];
+function materials(color: number, matte = false): THREE.Material[] {
+  return [VCOL, SHINY_VCOL, paint(color, matte), GLASS, LAMPS];
 }
 
 /** A modelled car as the game's vehicle model: the body (close and far), wheels that spin and steer. */
 export function buildModelled(d: VehicleDef, color: number): BuiltVehicle | null {
   const a = assets.get(d.id);
   if (!a) return null;
-  const mats = materials(color);
+  const mats = materials(color, d.cls === 'tank');
   const body = new THREE.Group();
   const lod = new THREE.LOD();
   const near = new THREE.Group();
@@ -253,11 +258,17 @@ export function buildModelled(d: VehicleDef, color: number): BuiltVehicle | null
   let barrel: THREE.Object3D | undefined;
   const tg = a.parts.get('turret');
   if (tg) {
+    // Each part is modelled round its own pivot: the turret turns on its ring, the gun pitches on its trunnion.
     turret = new THREE.Group();
-    turret.add(new THREE.Mesh(tg, mats));
+    if (a.meta.turret) turret.position.set(...a.meta.turret);
+    const tm = new THREE.Mesh(tg, mats);
+    tm.castShadow = true;
+    turret.add(tm);
     const bg = a.parts.get('barrel');
     if (bg) {
       barrel = new THREE.Mesh(bg, mats);
+      barrel.castShadow = true;
+      if (a.meta.barrel) barrel.position.set(...a.meta.barrel);
       turret.add(barrel);
     }
     body.add(turret);
