@@ -154,6 +154,8 @@ export interface BuiltVehicle {
   /** Wheel positions (x along, z across) for physics and suspension. */
   wheelPos: [number, number][];
   lights: THREE.Mesh[];
+  /** Wheels from this index on steer (the front ones; 2 when unset). */
+  steerFrom?: number;
   turret?: THREE.Group;
   barrel?: THREE.Object3D;
   /** Where the driver's head is (for first person and cutscenes). */

@@ -265,5 +265,6 @@ export function buildModelled(d: VehicleDef, color: number): BuiltVehicle | null
   // Seats are where the hips go; the game seats a character 0.32 m below that.
   const seatsLocal = a.meta.seats.map(([x, y, z]) => new THREE.Vector3(x, y - 0.32, z));
   const driverEye = new THREE.Vector3(...a.meta.eye);
-  return { body, wheels, wheelPos, lights: [], turret, barrel, driverEye, seatsLocal };
+  const steerFrom = order.findIndex((w) => w[3] === 'f');
+  return { body, wheels, wheelPos, lights: [], turret, barrel, driverEye, seatsLocal, steerFrom: steerFrom < 0 ? wheels.length : steerFrom };
 }

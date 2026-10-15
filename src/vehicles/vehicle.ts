@@ -71,7 +71,7 @@ export class Vehicle {
     this.model.body.position.y = this.bodyOffsetY;
     this.model.wheels.forEach((w, i) => {
       w.children[0].rotation.z = this.wheelSpin;
-      if (i >= 2 && this.def.cls !== 'tank') w.rotation.y = -this.steer;
+      if (i >= (this.model.steerFrom ?? 2) && this.def.cls !== 'tank') w.rotation.y = -this.steer;
     });
   }
 
@@ -283,7 +283,7 @@ export class Vehicle {
     // Rear pair first in the list, then the front pair (which steers).
     this.model.wheels.forEach((w, i) => {
       w.children[0].rotation.z = this.wheelSpin;
-      if (i >= 2 && this.def.cls !== "tank") w.rotation.y = -this.steer;
+      if (i >= (this.model.steerFrom ?? 2) && this.def.cls !== 'tank') w.rotation.y = -this.steer;
     });
   }
 
