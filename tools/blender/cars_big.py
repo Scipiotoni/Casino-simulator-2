@@ -544,3 +544,146 @@ def vwbus_decor(o, res, pr, p):
 @car
 def vwbus(res):
     return van_build(res, vwbus_params())
+
+
+# ------------------------------------------------------------------ the bay-window camper
+
+def van_params():
+    L, W = 4.5, 1.78
+    x0, x1 = -L / 2, L / 2
+    S1, S0 = x1 - 0.45, x0 + 0.36
+    NOSE, SCREEN, ROOF, TAIL = (0.26, 0.3, 2), (0.24, 0.28, 2), (0.28, 0.3, 2), (0.26, 0.28, 2)
+    zs, zwb, zwt, ze = 0.95, 1.05, 1.6, 1.74
+    rows = [
+        (0.28, 0.0, -0.2, 0.2, NOSE, TAIL),
+        (0.282, 0.78, -0.17, 0.17, NOSE, TAIL),
+        (0.31, 0.85, -0.08, 0.08, NOSE, TAIL),
+        (0.36, 0.872, -0.03, 0.03, NOSE, TAIL),
+        (0.46, 0.878, -0.005, 0.01, NOSE, TAIL),
+        (0.62, 0.882, 0.0, 0.0, NOSE, TAIL, True),
+        (0.8, 0.884, -0.02, 0.0, NOSE, TAIL),
+        (0.92, 0.884, -0.05, 0.005, NOSE, TAIL, True),
+        (0.94, 0.886, -0.058, 0.008, NOSE, TAIL),
+        (zs, 0.895, -0.056, 0.004, NOSE, TAIL),
+        (0.962, 0.886, -0.068, 0.01, NOSE, TAIL),
+        (1.0, 0.882, -0.085, 0.012, SCREEN, TAIL, True),
+        (zwb, 0.878, -0.105, 0.014, SCREEN, TAIL),
+        (1.2, 0.874, -0.16, 0.016, SCREEN, TAIL, True),
+        (1.35, 0.869, -0.21, 0.022, SCREEN, TAIL),
+        (1.5, 0.864, -0.255, 0.03, SCREEN, TAIL, True),
+        (zwt, 0.86, -0.28, 0.036, SCREEN, TAIL),
+        (1.68, 0.858, -0.288, 0.045, ROOF, TAIL, True),
+        (ze, 0.855, -0.29, 0.06, ROOF, TAIL),
+    ]
+    xf, xr = 1.4, -1.0
+    wins = [(1.75, 1.02), (0.94, 0.12), (0.04, -1.02)]
+    p = dict(L=L, W=W, S0=S0, S1=S1, xf=xf, xr=xr, R=0.34, tyre_w=0.185, track=1.42, arch_gap=0.065,
+             rim='retro', rim_ratio=0.53, tyre='road', color=0x7b2ff7,
+             rows=bus_rows(x1, x0, rows, (0.17, 0.12, 0.2, 0.03, 4)),
+             ffr=[0.0, 0.2, 0.4, 0.6, 0.8, 1.0], rfr=[0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
+             stations=[1.75, 1.55, 1.02, 0.94, 0.12, 0.04, -1.02, -1.86 + 0.02],
+             stations_lo=[1.75, 1.02, 0.94, 0.12, 0.04, -1.02],
+             floor=0.5, floor_x=(2.0, -1.55), hw_in=0.8, dash=(1.98, 1.0), driver_y=0.4, hip=(1.45, 0.9),
+             wheel_c=(1.78, 0.4, 1.15), wheel_tilt=1.12, wheel_r=0.21, eye_up=0.64,
+             benches=[(-0.95, 1.6, 0.88)], dash_region='black',
+             zs=zs, zwb=zwb, zwt=zwt, ze=ze, wins=wins)
+
+    def region(i):
+        z, zone, k = i['z'], i['zone'], i['k']
+        if z < 0.29:
+            return 'black'
+        if zwb < z < zwt:
+            if zone == 'front' and k <= 7:
+                return 'glass'
+            if zone == 'side' and any(a > i['x'] > b for (a, b) in wins):
+                return 'glass'
+            if zone == 'rear' and k <= 3 and 1.12 < z < 1.55:
+                return 'glass'
+        return 'paint' if z < zs else 'white'
+
+    p['region'] = region
+    p['decor'] = van_decor
+    return p
+
+
+def van_decor(o, res, pr, p):
+    L = p['L']
+    x0, x1 = -L / 2, L / 2
+    xf, xr, R = p['xf'], p['xr'], p['R']
+    zs, zwb, zwt, ze = p['zs'], p['zwb'], p['zwt'], p['ze']
+    # Round headlamps low in the nose, indicators up beside the air intake, the intake itself.
+    for s in (1, -1):
+        hf = aim_at(pr, 'front', s * 0.6, 0.78)
+        lamp(o, pr, hf, circle_pts((0, 0), 0.085, 20 if res else 10), 'head', res, 'chrome', 0.02, 0.01, both=False, bw=0.018)
+        af = aim_at(pr, 'front', s * 0.6, 1.0)
+        lamp(o, pr, af, rounded(rrect_pts((0, 0), 0.13, 0.065, 0.02, 1), 1), 'amber', res, 'chrome', 0.008, 0.008, both=False, bw=0.008)
+    flat(o, pr, 'front', rounded(rrect_pts((0.0, 1.0), 0.78, 0.075, 0.03, 2), 1), 'grille', 0.004, bezel=(0.012, 'chrome', 0.003), res=res, rings=1)
+    if res:
+        for t in (0.98, 1.0, 1.02):
+            line(o, pr, 'front', [(-0.37, t), (0.37, t)], 0.008, 'gloss', 0.006)
+        # The windscreen's rubber and two wipers.
+        for t in (zwb + 0.01,):
+            line(o, pr, 'front', [(-0.72, t), (0.72, t)], 0.018, 'black', 0.004)
+        for s in (1, -1):
+            o.body.extend(tube([Vector((x1 - 0.12, s * 0.1, zwb + 0.03)), Vector((x1 - 0.17, s * 0.55, zwb + 0.07))], 0.007, 'black', 4))
+    plate(o, pr, 'front', (0.0, 0.5), 0.36, 0.11)
+    # Step bumpers, white, with black rubber tops.
+    for (x, sg) in ((x1 + 0.03, 1), (x0 - 0.03, -1)):
+        o.body.extend(P.blade_bumper(x, 0.38, 0.8, 0.11, 0.07, 0.16, 'white', sg, res))
+        o.body.extend(P.blade_bumper(x + sg * 0.012, 0.38, 0.78, 0.022, 0.06, 0.16, 'black', sg, res))
+    # Tail lamps: tall red blocks with amber tops; plate and its lamp on the engine lid; tailpipes.
+    for s in (1, -1):
+        tf = aim_at(pr, 'rear', s * 0.72, 0.84)
+        lamp(o, pr, tf, rounded(rrect_pts((0, 0), 0.12, 0.22, 0.03, 2), 1), 'tail', res, 'chrome', 0.01, 0.008, both=False, bw=0.01)
+        if res:
+            lamp(o, pr, tf, rrect_pts((0, 0.07), 0.1, 0.05, 0.015, 1), 'amber', res, None, 0.004, 0.018, both=False)
+    plate(o, pr, 'rear', (0.0, 0.62), 0.32, 0.12)
+    if res:
+        o.body.extend(rbox((x0 + 0.0, 0, 0.71), (0.04, 0.09, 0.025), 0.015, 'chrome', 1))
+        for s in (0.3, 0.4):
+            o.body.extend(cyl((x0 + 0.3, -s, 0.27), (x0 - 0.08, -s, 0.27), 0.022, 'chrome', 8))
+        gaps(o, pr, [rounded(rrect_pts((0.0, 0.62), 1.2, 0.38, 0.05, 2), 1)], frame='rear', both=False)
+        gaps(o, pr, [rounded(rrect_pts((0.0, 1.33), 1.34, 0.6, 0.06, 2), 1)], frame='rear', both=False)
+        line(o, pr, 'rear', rounded(rrect_pts((0.0, 1.335), 1.2, 0.43, 0.05, 2), 1), 0.016, 'black', 0.004, closed=True)
+        # Cab doors; the sliding door on the right with its rail running back under the window.
+        gaps(o, pr, [[(1.78, ze - 0.05), (1.78, 0.8), (0.99, 0.8), (0.99, ze - 0.05)]])
+        side_r = [[(0.97, ze - 0.05), (0.97, 0.33), (0.07, 0.33), (0.07, ze - 0.05)]]
+        for pts in side_r:
+            o.body.extend(strip(pr, 'side', pts, 0.0065, 'gap', 0.0015).mirrored())
+        o.body.extend(strip(pr, 'side', [(0.07, zwb - 0.035), (-1.04, zwb - 0.035)], 0.022, 'black', 0.003).mirrored())
+        o.body.extend(strip(pr, 'side', [(0.07, zwb - 0.035), (-1.04, zwb - 0.035)], 0.008, 'chrome', 0.006).mirrored())
+        o.body.extend(patch(pr, 'side', ccw(rrect_pts((0.14, 0.9), 0.12, 0.03, 0.013, 2)), 'chrome', 0.007, 0.004, 2).mirrored())
+        handle(o, pr, 1.08, 0.92, 'chrome')
+        for (a, b) in p['wins']:
+            line(o, pr, 'side', rounded(rrect_pts(((a + b) / 2, (zwb + zwt) / 2), a - b, zwt - zwb, 0.06, 2), 1), 0.016, 'black', 0.004, both=True, closed=True)
+        line(o, pr, 'side', [(1.55, zwb), (1.55, zwt)], 0.014, 'chrome', 0.005, both=True)
+        # The 'ears': raised air scoops behind the last side window.
+        ear = rounded([(-1.2, 1.24), (-1.2, 1.46), (-1.5, 1.44), (-1.56, 1.34), (-1.5, 1.24)], 2)
+        flat(o, pr, 'side', ear, 'grille', 0.02, both=True, bezel=(0.035, 'white', 0.03), rings=1)
+        for t in (1.29, 1.34, 1.39):
+            line(o, pr, 'side', [(-1.22, t), (-1.52, t)], 0.01, 'white', 0.026, both=True)
+        line(o, pr, 'side', [(1.8, ze - 0.03), (-1.86, ze - 0.03)], 0.012, 'gap', 0.002, both=True)
+        # Fuel flap on the right.
+        o.body.extend(strip(pr, 'side', circle_pts((-1.5, 0.85), 0.06, 12), 0.006, 'gap', 0.0015, closed=True).mirrored())
+        # Curtains drawn in the camper windows.
+        for s in (1, -1):
+            for (a, b) in p['wins'][1:]:
+                for xx in (a - 0.08, b + 0.08):
+                    o.body.extend(rbox((xx, s * 0.82, (zwb + zwt) / 2), (0.07, 0.015, (zwt - zwb) / 2 - 0.02), 0.01, 'canvas', 1))
+        # A camper's unit along the left: a cupboard with a table in front of it.
+        o.body.extend(rbox((0.45, 0.66, 0.75), (0.42, 0.16, 0.25), 0.02, 'seat', 1))
+        o.body.extend(rbox((-0.25, 0.45, 0.98), (0.3, 0.35, 0.015), 0.01, 'white', 1))
+        o.body.extend(cyl((-0.25, 0.45, 0.97), (-0.25, 0.45, 0.5), 0.02, 'chrome', 8))
+    # The pop-top roof, folded down, and its hinges.
+    top = p['rows'][-1]['z']
+    o.body.extend(rbox((-0.15, 0, top + 0.05), (1.75, 0.76, 0.065), 0.05, 'white', 2 if res else 1))
+    if res:
+        for s in (1, -1):
+            o.body.extend(rbox((1.55, s * 0.62, top + 0.12), (0.12, 0.025, 0.02), 0.008, 'chrome', 1))
+    for m in (round_mirror((1.8, 0.84, 1.12), (1.83, 1.0, 1.24), res=res),):
+        o.body.extend(m.both())
+
+
+@car
+def van(res):
+    return van_build(res, van_params())
