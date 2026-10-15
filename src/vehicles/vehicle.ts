@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { buildVehicle, vehicleDef, type BuiltVehicle, type VehicleDef } from './models';
+import { carAsset, ensureCar, hasModel } from './carModels';
 import type { World } from '../game/world';
 import { clamp, dampAngle } from '../core/math';
 import { SEA_LEVEL } from '../world/terrain';
@@ -20,7 +21,7 @@ export interface DriveInput {
 export class Vehicle {
   readonly root = new THREE.Group();
   readonly def: VehicleDef;
-  readonly model: BuiltVehicle;
+  model: BuiltVehicle;
   /** Position on the ground (centre of the car). */
   readonly pos = new THREE.Vector3();
   /** Heading: forward is (sin h, cos h), like characters. */
@@ -54,6 +55,24 @@ export class Vehicle {
     this.root.add(this.model.body);
     this.radius = Math.max(this.def.W, this.def.L) / 2;
     this.id = id;
+    // Its Blender model is downloaded the first time one is needed: swap it in when it lands.
+    if (hasModel(this.def.id) && !carAsset(this.def.id)) void ensureCar(this.def.id).then((ok) => ok && this.rebuild());
+  }
+
+  /** Build the model again (its Blender model has arrived), keeping the turret's aim. */
+  private rebuild(): void {
+    const old = this.model;
+    this.model = buildVehicle(this.def, this.color);
+    if (old.turret && this.model.turret) this.model.turret.rotation.y = old.turret.rotation.y;
+    old.body.removeFromParent();
+    // The stand-in's geometry was this car's own.
+    old.body.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+    this.root.add(this.model.body);
+    this.model.body.position.y = this.bodyOffsetY;
+    this.model.wheels.forEach((w, i) => {
+      w.children[0].rotation.z = this.wheelSpin;
+      if (i >= (this.model.steerFrom ?? 2) && this.def.cls !== 'tank') w.rotation.y = -this.steer;
+    });
   }
 
   /** Place the car on the ground facing `heading`. */
@@ -264,7 +283,7 @@ export class Vehicle {
     // Rear pair first in the list, then the front pair (which steers).
     this.model.wheels.forEach((w, i) => {
       w.children[0].rotation.z = this.wheelSpin;
-      if (i >= 2 && this.def.cls !== "tank") w.rotation.y = -this.steer;
+      if (i >= (this.model.steerFrom ?? 2) && this.def.cls !== 'tank') w.rotation.y = -this.steer;
     });
   }
 
