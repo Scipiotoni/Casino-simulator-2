@@ -343,10 +343,15 @@ def sports_decor(o, res, pr, prg, hull, p):
         for y in (-0.15, -0.05, 0.05, 0.15):
             line(o, pr, 'rear', [(y, 0.26), (y, 0.34)], 0.012, 'gloss', 0.006)
 
+    if not p.get('wing', True):
+        # The Carrera: just the extending spoiler lip across the end of the engine lid.
+        zt = hull.surface_z(x0 + 0.14, 0.0)
+        o.body.extend(prism([(x0 + 0.3, zt - 0.01), (x0 + 0.3, zt + 0.012), (x0 + 0.13, zt + 0.028), (x0 + 0.12, zt + 0.0), (x0 + 0.15, zt - 0.03)], -0.6, 0.6, 'paint'))
     # Rear wing on two swan-neck uprights from the engine lid, end plates on its tips.
     wz = 1.1
-    o.body.extend(aerofoil(-2.02, wz, 0.3, 0.075, -0.7, 0.7, 0.14, 'gloss'))
-    for s in (1, -1):
+    if p.get('wing', True):
+        o.body.extend(aerofoil(-2.02, wz, 0.3, 0.075, -0.7, 0.7, 0.14, 'gloss'))
+    for s in ((1, -1) if p.get('wing', True) else ()):
         o.body.extend(rbox((-2.03, s * 0.705, wz - 0.01), (0.17, 0.006, 0.06), 0.005, 'gloss', 1))
         up = hull.surface_z(-1.86, 0.3) - 0.02
         neck = [(-1.8, up), (-1.93, up), (-1.97, wz - 0.02), (-1.95, wz + 0.04), (-2.0, wz + 0.05), (-2.02, wz + 0.02), (-2.03, wz + 0.01),
@@ -379,6 +384,22 @@ def sports_decor(o, res, pr, prg, hull, p):
 @car
 def sports(res):
     return fast_car(res, sports_params())
+
+
+@car
+def p911(res):
+    """The Carrera itself: the same rear-engined coupe without the big wing, ten-spoke wheels."""
+    p = sports_params()
+    p['color'] = 0xc0c4ca
+    p['wing'] = False
+    R, Rr = p['R'], p['R_rear']
+
+    def wheels(res):
+        seg = 22 if res else 8
+        return P.wheel(R, 0.245, 'multi', 'road', 0.74, seg, res, 5), P.wheel(Rr, 0.305, 'multi', 'road', 0.76, seg, res, 5)
+
+    p['wheels'] = wheels
+    return fast_car(res, p)
 
 
 # ------------------------------------------------------------------ Thunder Muscle
