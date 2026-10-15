@@ -684,3 +684,178 @@ def mini_decor(o, res, pr, prg, hull, p):
 @car
 def mini(res):
     return closed_car(res, mini_params())
+
+
+# ------------------------------------------------------------------ the Käfer Classic
+
+def fender(xc, zc, r0, h, y0, y1, a0, a1, res, stretch=0.0, region='paint'):
+    """
+    A separate bulbous wing round a wheel on the car's left: a half tube bent round the
+    wheel centre (xc, zc) from angle a0 to a1 (degrees, 0 = forward, 90 = up), inner radius
+    r0, bulging h, across y0..y1; its ends taper into the body. `stretch` draws the front
+    (forward) half out. Lined underneath.
+    """
+    nu = 26 if res else 10
+    nv = 8 if res else 4
+    shell, liner = [], []
+    for i in range(nu + 1):
+        t = i / nu
+        th = math.radians(a0 + (a1 - a0) * t)
+        e = min(1.0, min(t, 1 - t) / 0.16)
+        e = e * e * (3 - 2 * e)
+        e = 0.25 + 0.75 * e
+        d = Vector((math.cos(th) * (1 + stretch * max(0.0, math.cos(th))), 0, math.sin(th)))
+        row = []
+        for j in range(nv + 1):
+            ph = math.pi * j / nv
+            y = y0 + (y1 - y0) * (1 - math.cos(ph)) / 2
+            rad = r0 + h * e * math.sin(ph) ** 0.6
+            row.append(Vector((xc, y, zc)) + d * rad)
+        shell.append(row)
+        liner.append([Vector((xc, y0, zc)) + d * r0, Vector((xc, y1, zc)) + d * r0])
+    m = Mesh()
+    m.grid(shell, region)
+    ln = Mesh()
+    ln.grid(liner, 'liner')
+    ymid = (y0 + y1) / 2
+    for i, f in enumerate(m.f):
+        cen = sum((m.v[j] for j in f), Vector()) / len(f)
+        rel = Vector((cen.x - xc, 0, cen.z - zc))
+        core = Vector((xc, ymid, zc)) + rel.normalized() * r0
+        if _fnormal(m, f).dot(cen - core) < 0:
+            m.f[i] = tuple(reversed(f))
+    for i, f in enumerate(ln.f):
+        cen = sum((ln.v[j] for j in f), Vector()) / len(f)
+        if _fnormal(ln, f).dot(Vector((xc, cen.y, zc)) - cen) < 0:
+            ln.f[i] = tuple(reversed(f))
+    m.extend(ln)
+    # Close the ends.
+    for row in (shell[0], shell[-1]):
+        c = sum(row, Vector()) / len(row)
+        ci = m.vert(c)
+        ids = [m.vert(q) for q in row]
+        for k in range(len(ids) - 1):
+            m.face((ci, ids[k], ids[k + 1]), region)
+    return m
+
+
+def fender_point(xc, zc, r0, h, y0, y1, ang, stretch=0.0, out=0.0):
+    th = math.radians(ang)
+    d = Vector((math.cos(th) * (1 + stretch * max(0.0, math.cos(th))), 0, math.sin(th)))
+    return Vector((xc, (y0 + y1) / 2, zc)) + d * (r0 + h + out)
+
+
+def beetle_params():
+    L, W = 4.0, 1.54
+    x0, x1 = -L / 2, L / 2
+    xf, xr = 1.2, -1.2
+    R = 0.325
+    p = dict(
+        L=L, W=W, xf=xf, xr=xr, R=R, tyre_w=0.15, track=1.32, arch_gap=0.06, arch_in=0.5, rim='dogdish', rim_ratio=0.62, spokes=5, color=0x7fbfe0,
+        bottom=C((x0, 0.44), (x0 + 0.2, 0.32), (xr, 0.27), (xf, 0.27), (x1 - 0.2, 0.32), (x1, 0.44)),
+        shoulder=C((x0, 0.47), (x0 + 0.12, 0.57), (x0 + 0.35, 0.7), (-1.4, 0.84), (-1.0, 0.915), (-0.4, 0.93), (0.6, 0.92), (1.0, 0.86), (x1 - 0.4, 0.74), (x1 - 0.15, 0.61), (x1, 0.5)),
+        top=C((x0, 0.49), (x0 + 0.12, 0.6), (x0 + 0.35, 0.76), (-1.4, 0.9), (-1.05, 0.985), (-0.4, 0.96), (0.62, 0.965), (1.0, 0.9), (x1 - 0.4, 0.79), (x1 - 0.15, 0.65), (x1, 0.52)),
+        width=C((x0, 0.54), (x0 + 0.45, 0.62), (0.0, 0.665), (x1 - 0.45, 0.62), (x1, 0.54)),
+        tuck=const(0.07), tumble=const(0.09), cfrac=const(0.5), rb=const(0.08), rs=const(0.13),
+        front=(0.5, 2.0), rear=(0.5, 2.0),
+        open=[(-0.95, 0.6, 0.27)],
+        bl_base=-1.08, ws_base=0.62, inset=0.03, between=2,
+        roof_z=C((-1.08, 0.99), (-1.0, 1.12), (-0.85, 1.3), (-0.6, 1.43), (-0.25, 1.49), (0.05, 1.48), (0.25, 1.42), (0.4, 1.3), (0.52, 1.13), (0.62, 0.97)),
+        rail_z=C((-1.08, 0.98), (-1.0, 1.09), (-0.85, 1.25), (-0.6, 1.36), (-0.25, 1.41), (0.05, 1.4), (0.25, 1.35), (0.4, 1.25), (0.52, 1.1), (0.62, 0.955)),
+        rail_w=C((-1.08, 0.5), (-0.5, 0.53), (0.3, 0.53), (0.62, 0.55)),
+        corner=const(0.15),
+        lines=[(-1.0, -1.0), (-0.92, -0.9), (-0.85, -0.72), (-0.32, -0.3), (-0.22, -0.2), (0.32, 0.3), (0.5, 0.42)],
+        driver_y=0.32, hip_f=(-0.15, 0.5), benches=[(-0.82, 1.0, 0.52)], seats=4, seat_w=0.44,
+        dash=(0.62, 0.44, 0.58, 0.64, 0.88), dash_region='paint', wheel_c=(0.22, 0.86), wheel_r=0.19, wheel_region='white', console=False,
+        mirror=None,
+    )
+
+    def glass_region(i):
+        seg, xb, xr_ = i['seg'], i['xb'], i['xr']
+        if seg == 'side':
+            if i['zone'] == 'front' or xb > 0.5 or -0.32 < xb < -0.22 or xb < -0.85:
+                return 'paint'
+            return 'glass'
+        if seg == 'corner':
+            return 'paint'
+        if xr_ > 0.3 or (-1.02 < xr_ < -0.88 and i['k'] >= 5):
+            return 'glass'
+        return 'paint'
+
+    p['glass_region'] = glass_region
+    p['decor'] = beetle_decor
+    return p
+
+
+def beetle_decor(o, res, pr, prg, hull, p):
+    L = p['L']
+    x0, x1 = -L / 2, L / 2
+    xf, xr, R = p['xf'], p['xr'], p['R']
+    # The four wings, the headlamps standing in the front ones, tail lamps on the rear ones.
+    y0, y1 = 0.46, 0.78
+    ff = dict(xc=xf, zc=R, r0=R + 0.05, h=0.12, y0=y0, y1=y1)
+    rf = dict(xc=xr, zc=R, r0=R + 0.05, h=0.13, y0=y0, y1=y1)
+    o.body.extend(fender(a0=-14, a1=196, res=res, stretch=0.35, **ff).both())
+    o.body.extend(fender(a0=-16, a1=200, res=res, stretch=0.0, **rf).both())
+    hc = fender_point(ang=52, stretch=0.35, out=-0.01, **ff) + Vector((0.06, 0.0, 0.07))
+    hl = Mesh()
+    hl.extend(lathe([(0.0, -0.2), (0.06, -0.17), (0.09, -0.08), (0.098, 0.0)], 'paint', 16 if res else 6, axis=(1, 0, 0), c=hc))
+    hl.extend(torus(hc, (1, 0, 0), 0.094, 0.009, 'chrome', 16 if res else 6, 4 if res else 3))
+    hl.extend(cyl(hc + Vector((-0.01, 0, 0)), hc + Vector((0.006, 0, 0)), 0.088, 'head', 16 if res else 6))
+    tc = fender_point(ang=150, out=-0.03, **rf) + Vector((0.0, 0.0, 0.02))
+    hl.extend(lathe([(0.0, -0.1), (0.045, -0.08), (0.055, -0.02), (0.056, 0.0)], 'paint', 12 if res else 6, axis=(-1, 0, 0), c=tc))
+    hl.extend(cyl(tc + Vector((0.01, 0, 0)), tc + Vector((-0.006, 0, 0)), 0.05, 'tail', 12 if res else 6))
+    if res:
+        hl.extend(torus(tc, (-1, 0, 0), 0.053, 0.005, 'chrome', 12, 3))
+        # Indicators on top of the front wings.
+        ic = fender_point(ang=70, stretch=0.35, **ff)
+        hl.extend(rbox(ic + Vector((0, 0, 0.0)), (0.04, 0.018, 0.018), 0.015, 'amber', 1))
+    o.body.extend(hl.both())
+    # Running boards between the wings.
+    xa, xb_ = xf - (R + 0.05) * 0.98, xr + (R + 0.05) * 0.98
+    rbd = Mesh()
+    rbd.extend(rbox(((xa + xb_) / 2, (y0 + y1) / 2 + 0.01, 0.3), ((xa - xb_) / 2 + 0.04, (y1 - y0) / 2, 0.018), 0.012, 'black', 1))
+    if res:
+        rbd.extend(rbox(((xa + xb_) / 2, y1 + 0.012, 0.3), ((xa - xb_) / 2 + 0.04, 0.006, 0.012), 0.005, 'chrome', 1))
+    o.body.extend(rbd.both())
+    # Chrome blade bumpers on stalks, with overriders.
+    for (xe, sg) in ((x1 + 0.03, 1), (x0 - 0.03, -1)):
+        bm = sweep(plan_bar(xe, 0.76, 0.1, 0.42, sg, 14 if res else 6), rr_profile(0.05, 0.11, 0.03, 2 if res else 1), 'chrome')
+        o.body.extend(bm)
+        for s in (1, -1):
+            o.body.extend(rbox((xe - sg * 0.1, s * 0.4, 0.42), (0.1, 0.025, 0.025), 0.01, 'black', 1))
+            if res:
+                o.body.extend(tube([(xe + sg * 0.03, s * 0.3, 0.33), (xe + sg * 0.05, s * 0.3, 0.45), (xe + sg * 0.03, s * 0.3, 0.6)], 0.014, 'chrome', 6))
+    # The bonnet: a chrome strip down the middle and a handle; the lid's edge.
+    if res:
+        line(o, pr, 'top', [(0.75, 0.0), (1.85, 0.0)], 0.03, 'chrome', 0.005)
+        o.body.extend(rbox((1.88, 0, hull.surface_z(1.88, 0.0) - 0.06), (0.03, 0.05, 0.02), 0.012, 'chrome', 1))
+        line(o, pr, 'top', rounded([(0.68, 0.42), (1.6, 0.36), (1.95, 0.0), (1.6, -0.36), (0.68, -0.42)], 2) + [(0.68, 0.42)], 0.007, 'gap', 0.002)
+        # The engine lid with its louvres, the plate and its lamp, twin tailpipes.
+        gaps(o, pr, [[(-0.45, 0.88), (-0.48, 0.55), (-0.42, 0.42), (0.42, 0.42), (0.48, 0.55), (0.45, 0.88)]], frame='rear', both=False)
+        for s in (1, -1):
+            for k in range(5):
+                z = 0.86 - k * 0.028
+                line(o, pr, 'rear', [(s * 0.08, z), (s * 0.3, z)], 0.012, 'gap', 0.003)
+        o.body.extend(rbox((x0 + 0.1, 0, 0.66), (0.04, 0.07, 0.025), 0.015, 'chrome', 1))
+        for s in (1, -1):
+            o.body.extend(tube([(x0 + 0.35, s * 0.32, 0.3), (x0 - 0.02, s * 0.32, 0.33)], 0.022, 'chrome', 8, caps=False))
+            o.body.extend(cyl((x0, s * 0.32, 0.328), (x0 - 0.018, s * 0.32, 0.33), 0.019, 'gap', 8))
+        # Doors, handles, chrome round the windows.
+        gaps(o, pr, [
+            [(0.55, 0.92), (0.58, 0.6), (0.52, 0.32)],
+            [(-0.4, 0.93), (-0.44, 0.6), (-0.36, 0.32)],
+        ])
+        handle(o, pr, -0.28, 0.82, 'chrome', 0.1, 0.03)
+        line(o, prg, 'side', along(p['shoulder'], 0.5, -0.85, 10, -0.002), 0.012, 'chrome', 0.004, both=True)
+        o.body.extend(P.mirror((0.5, 0.64, 0.92), out=0.1, h=0.07, l=0.08, region='chrome', res=res))
+        cx = p['ws_base'] - 0.03
+        for (a, b) in ((0.4, -0.05), (-0.05, -0.45)):
+            o.body.extend(tube([Vector((cx - 0.02, a, p['roof_z'](cx - 0.02) + 0.01)), Vector((cx - 0.1, b, p['roof_z'](cx - 0.1) + 0.012))], 0.006, 'chrome', 4))
+    plate(o, pr, 'rear', (0.0, 0.58), 0.3, 0.13)
+    plate(o, Projector(o.body), 'front', (0.0, 0.42), 0.3, 0.12, 0.012)
+
+
+@car
+def beetle(res):
+    return closed_car(res, beetle_params())
