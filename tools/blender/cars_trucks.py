@@ -586,8 +586,11 @@ def suv(res):
 
 # ------------------------------------------------------------------ Army Jeep
 
-def sweep_xz(path, section, region):
-    """A closed section [(y, d)] swept along a side-view path [(x, z)], d along the path's upward normal."""
+def sweep_xz(path, section, region, centre=None):
+    """
+    A closed section [(y, d)] swept along a side-view path [(x, z)], d along the path's upward
+    normal (or, given a side-view `centre`, its normal away from that: arch flares).
+    """
     from carkit import Mesh, _fnormal
     m = Mesh()
     P2 = [Vector(p) for p in path]
@@ -597,7 +600,10 @@ def sweep_xz(path, section, region):
     for i, p in enumerate(P2):
         t = (P2[min(n - 1, i + 1)] - P2[max(0, i - 1)]).normalized()
         nrm = Vector((-t.y, t.x))
-        if nrm.y < 0 and abs(nrm.y) > abs(nrm.x) * 0.2:
+        if centre is not None:
+            if nrm.dot(p - Vector(centre)) < 0:
+                nrm = -nrm
+        elif nrm.y < 0 and abs(nrm.y) > abs(nrm.x) * 0.2:
             nrm = -nrm
         ring = [m.vert((p.x + nrm.x * d, y, p.y + nrm.y * d)) for (y, d) in section]
         rings.append(ring)
