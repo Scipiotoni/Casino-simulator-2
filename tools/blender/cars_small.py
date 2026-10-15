@@ -859,3 +859,99 @@ def beetle_decor(o, res, pr, prg, hull, p):
 @car
 def beetle(res):
     return closed_car(res, beetle_params())
+
+
+# ------------------------------------------------------------------ the Zoom Roadster
+
+def miata_params():
+    L, W = 3.97, 1.675
+    x0, x1 = -L / 2, L / 2
+    xf, xr = 1.13, -1.135
+    R = 0.29
+    p = dict(
+        L=L, W=W, xf=xf, xr=xr, R=R, tyre_w=0.185, track=1.41, arch_gap=0.045, rim='multi', spokes=4, color=0xc8202f,
+        bottom=C((x0, 0.38), (x0 + 0.12, 0.3), (x0 + 0.4, 0.22), (xr, 0.16), (xf, 0.16), (x1 - 0.4, 0.2), (x1 - 0.08, 0.26), (x1, 0.33)),
+        shoulder=C((x0, 0.7), (x0 + 0.06, 0.76), (x0 + 0.3, 0.8), (-1.2, 0.8), (-0.5, 0.78), (0.4, 0.765), (0.9, 0.735), (1.4, 0.68), (x1 - 0.2, 0.6), (x1 - 0.05, 0.52), (x1, 0.48)),
+        top=C((x0, 0.72), (x0 + 0.06, 0.78), (x0 + 0.3, 0.82), (-1.2, 0.82), (-0.5, 0.79), (0.45, 0.785), (0.9, 0.755), (1.4, 0.695), (x1 - 0.2, 0.615), (x1 - 0.05, 0.53), (x1, 0.49)),
+        width=C((x0, 0.8), (x0 + 0.4, 0.83), (0.0, 0.835), (x1 - 0.4, 0.82), (x1, 0.78)),
+        tuck=const(0.06), tumble=const(0.05), cfrac=const(0.6), rb=const(0.07), rs=const(0.08),
+        front=(0.55, 2.2), rear=(0.38, 2.8),
+        flares=[(xf, 0.5, 0.012, 0.55, 0.22), (xr, 0.5, 0.014, 0.58, 0.22)],
+        open=[(-0.88, 0.45, 0.24)], lip=0.045,
+        glass=False, height=1.18,
+        bl_base=-0.88, ws_base=0.45, inset=0.03,
+        driver_y=0.3, hip_f=(-0.35, 0.42), benches=[], seats=2,
+        seat_w=0.46, seat_back=0.62, headrests=True, seat_region='black',
+        dash=(0.62, 0.38, 0.68, 0.5, 0.74), wheel_c=(0.06, 0.73), wheel_r=0.18, wheel_tilt=0.5,
+        mirror=(0.36, 0.76, 0.79), mirror_out=0.15,
+    )
+    p['decor'] = miata_decor
+    return p
+
+
+def miata_decor(o, res, pr, prg, hull, p):
+    L = p['L']
+    x0, x1 = -L / 2, L / 2
+    xf, xr, R = p['xf'], p['xr'], p['R']
+    # Pop-up headlamps, shut: their lids outlined in the bonnet.
+    if res:
+        for s in (1, -1):
+            line(o, pr, 'top', rounded(rrect_pts((1.56, s * 0.5), 0.36, 0.25, 0.04, 2), 1), 0.007, 'gap', 0.002, closed=True)
+            line(o, pr, 'top', [(1.4, s * 0.38), (1.4, s * 0.62)], 0.005, 'gap', 0.002)
+    # The little oval mouth, the plate above it, wraparound indicators at the corners.
+    flat(o, pr, 'front', rounded(rrect_pts((0.0, 0.29), 0.5, 0.1, 0.05, 3), 1), 'grille', 0.004, bezel=(0.01, 'gloss', 0.003), res=res)
+    plate(o, pr, 'front', (0.0, 0.42), 0.3, 0.1)
+    cf = aim((x1 - 0.2, 0.62, 0.38), 0.65, 0.0)
+    lamp(o, pr, cf, rounded(rrect_pts((0, 0), 0.24, 0.05, 0.02, 2), 1), 'amber', res, 'gloss', 0.004, 0.005, bw=0.006)
+    if res:
+        lamp(o, pr, 'side', rrect_pts((1.62, 0.44), 0.1, 0.025, 0.01, 2), 'amber', res, 'gloss', 0.002, 0.004, bw=0.004, rings=1)
+        lamp(o, pr, 'side', rrect_pts((-1.72, 0.55), 0.08, 0.025, 0.01, 2), 'tail', res, 'gloss', 0.002, 0.004, bw=0.004, rings=1)
+    # Oblong tail lamps either side of the plate; one tailpipe.
+    for s in (1, -1):
+        tl = rounded(rrect_pts((s * 0.5, 0.6), 0.44, 0.1, 0.03, 2), 1)
+        lamp(o, pr, 'rear', tl, 'tail', res, 'gloss', 0.005, 0.006, bw=0.008, both=False)
+        if res:
+            lamp(o, pr, 'rear', rrect_pts((s * 0.62, 0.6), 0.14, 0.07, 0.015, 2), 'amber', res, None, 0.002, 0.012, rings=1, both=False)
+            lamp(o, pr, 'rear', rrect_pts((s * 0.38, 0.6), 0.09, 0.07, 0.015, 2), 'white', res, None, 0.002, 0.012, rings=1, both=False)
+    plate(o, pr, 'rear', (0.0, 0.5), 0.3, 0.13)
+    line(o, pr, 'rear', [(-0.68, 0.3), (0.68, 0.3)], 0.07, 'black', 0.003)
+    if res:
+        o.body.extend(cyl((x0 + 0.3, -0.45, 0.25), (x0 + 0.06, -0.45, 0.25), 0.032, 'chrome', 12, caps=False))
+        o.body.extend(cyl((x0 + 0.08, -0.45, 0.25), (x0 + 0.061, -0.45, 0.25), 0.027, 'gap', 12))
+        # Panel gaps: doors, bonnet, boot lid, the fuel flap.
+        gaps(o, pr, [
+            [(0.42, 0.76), (0.45, 0.55), (0.4, 0.27)],
+            [(-0.62, 0.78), (-0.64, 0.5), (-0.6, 0.27)],
+        ])
+        gaps(o, pr, [[(0.5, 0.7), (1.4, 0.68), (1.8, 0.56), (1.92, 0.3)]], frame='top')
+        gaps(o, pr, [[(0.5, -0.7), (0.5, 0.7)]], frame='top', both=False)
+        gaps(o, pr, [[(-1.2, 0.68), (-1.9, 0.66)]], frame='top')
+        gaps(o, pr, [[(-1.2, -0.68), (-1.2, 0.68)]], frame='top', both=False)
+        line(o, pr, 'top', circle_pts((-1.05, -0.7), 0.05, 12), 0.006, 'gap', 0.002, closed=True)
+        handle(o, pr, -0.48, 0.7, 'black', 0.1, 0.025)
+        # Dashboard: two round gauges with chrome rings.
+        d = p['dash']
+        for dy in (-0.08, 0.08):
+            c = (d[1] - 0.004, p['driver_y'] + dy, d[4] - 0.08)
+            o.body.extend(cyl(c, (c[0] - 0.01, c[1], c[2]), 0.045, 'chrome', 14))
+            o.body.extend(cyl((c[0] - 0.01, c[1], c[2]), (c[0] - 0.012, c[1], c[2]), 0.038, 'black', 14))
+    # The soft top folded behind the seats under a black cover.
+    o.body.extend(rbox((-0.98, 0.0, 0.83), (0.15, 0.66, 0.06), 0.05, 'black', 2 if res else 1))
+    if not res:
+        hip = p['hip_f']
+        o.body.extend(rbox((hip[0] - 0.22, 0, hip[1] + 0.14), (0.05, 0.55, 0.28), 0.03, 'black', 1))
+    # The short windscreen in a black frame.
+    p['screen'] = lambda o, res: wrap_screen(o, res, hull, 0.47, 0.7, 0.1, 1.17, 0.4, 0.64, 0.06, 0.03, 0.02, 'black')
+    if res:
+        tops = p['screen'](o, res)
+        tc = tops[len(tops) // 2]
+        o.body.extend(rbox(tc + Vector((-0.05, 0, -0.06)), (0.012, 0.1, 0.028), 0.01, 'black', 1))
+
+
+@car
+def miata(res):
+    p = miata_params()
+    o = closed_car(res, p)
+    if not res:
+        p['screen'](o, res)
+    return o
