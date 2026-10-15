@@ -318,6 +318,20 @@ def roof_rows(base, r, rf, rr, crown, n):
     return out
 
 
+def wrap_bumper(x, z, half_w, h, depth, region, sign=1, res=1, back=0.14):
+    """A bumper bar across the car at x (sign +1 at the front), its ends angled back round the corners."""
+    m = Mesh()
+    r = min(h, depth) * 0.45
+    seg = 2 if res else 1
+    core = half_w - 0.14
+    m.extend(rbox((x, 0, z), (depth / 2, core + 0.02, h / 2), r, region, seg))
+    ang = math.atan2(back, 0.16)
+    for s in (1, -1):
+        M = Matrix.Translation((x - sign * back / 2, s * (core + 0.075), z)) @ Matrix.Rotation(sign * s * ang, 4, 'Z')
+        m.extend(rbox((0, 0, 0), (depth / 2, 0.1, h / 2), r, region, seg, M))
+    return m
+
+
 def round_mirror(base, tip, r=0.065, res=1):
     """A small round mirror on a thin stalk (the 1960s kind), stalk from `base` to `tip` on the left."""
     m = Mesh()
@@ -490,7 +504,7 @@ def vwbus_decor(o, res, pr, p):
     plate(o, pr, 'front', (0.0, 0.54), 0.34, 0.11)
     # Bumpers: chrome blades with overriders.
     for (x, sg) in ((x1 + 0.03, 1), (x0 - 0.03, -1)):
-        o.body.extend(P.blade_bumper(x, 0.42, 0.8, 0.085, 0.06, 0.1, 'chrome', sg, 0))
+        o.body.extend(wrap_bumper(x, 0.42, 0.84, 0.085, 0.06, 'chrome', sg, 0, 0.12))
         for s in (1, -1):
             o.body.extend(rbox((x - sg * 0.04, s * 0.42, 0.42), (0.06, 0.012, 0.03), 0.01, 'black', 1))
             if res:
@@ -629,8 +643,8 @@ def van_decor(o, res, pr, p):
     plate(o, pr, 'front', (0.0, 0.5), 0.36, 0.11)
     # Step bumpers, white, with black rubber tops.
     for (x, sg) in ((x1 + 0.03, 1), (x0 - 0.03, -1)):
-        o.body.extend(P.blade_bumper(x, 0.38, 0.8, 0.11, 0.07, 0.16, 'white', sg, res))
-        o.body.extend(P.blade_bumper(x + sg * 0.012, 0.38, 0.78, 0.022, 0.06, 0.16, 'black', sg, res))
+        o.body.extend(wrap_bumper(x, 0.38, 0.84, 0.11, 0.07, 'white', sg, res))
+        o.body.extend(wrap_bumper(x + sg * 0.012, 0.38, 0.82, 0.022, 0.06, 'black', sg, 0))
     # Tail lamps: tall red blocks with amber tops; plate and its lamp on the engine lid; tailpipes.
     for s in (1, -1):
         tf = aim_at(pr, 'rear', s * 0.72, 0.84)
