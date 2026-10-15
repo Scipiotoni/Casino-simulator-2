@@ -454,3 +454,199 @@ def prius_decor(o, res, pr, prg, hull, p):
 @car
 def prius(res):
     return closed_car(res, prius_params())
+
+
+# ------------------------------------------------------------------ Svea 240 Wagon (Volvo 240 estate)
+
+def wagon240_params():
+    L, W = 4.79, 1.71
+    x0, x1 = -L / 2, L / 2
+    xf, xr = 1.445, -1.195
+    R = 0.315
+    ws, bl = 0.8, x0 + 0.06
+    p = dict(
+        L=L, W=W, xf=xf, xr=xr, R=R, tyre_w=0.195, track=1.45, arch_gap=0.05, rim='slot', spokes=5, color=0x5a1f22,
+        rim_ratio=0.62,
+        bottom=C((x0, 0.42), (x0 + 0.05, 0.33), (x0 + 0.2, 0.25), (xr - 0.4, 0.2), (xr, 0.19), (xf, 0.19), (xf + 0.4, 0.21), (x1 - 0.05, 0.3), (x1, 0.36)),
+        shoulder=C((x0, 0.96), (x0 + 0.04, 0.98), (x0 + 0.15, 0.985), (-1.0, 0.975), (0.8, 0.93), (1.5, 0.885), (x1 - 0.08, 0.86), (x1 - 0.02, 0.835), (x1, 0.8)),
+        top=C((x0, 0.985), (x0 + 0.04, 1.0), (x0 + 0.15, 1.0), (-1.5, 1.0), (0.8, 0.94), (1.5, 0.9), (x1 - 0.08, 0.875), (x1 - 0.02, 0.855), (x1, 0.82)),
+        width=C((x0, 0.845), (x0 + 0.3, 0.855), (x1 - 0.3, 0.855), (x1, 0.845)),
+        tuck=const(0.03), tumble=const(0.045), cfrac=const(0.72),
+        rb=const(0.04), rs=const(0.03),
+        front=(0.12, 4.0), rear=(0.1, 4.0),
+        open=[(-1.35, ws - 0.02, 0.27)],
+        bl_base=bl, ws_base=ws, inset=0.025,
+        roof_z=C((bl, 0.99), (-2.31, 1.15), (-2.28, 1.32), (-2.25, 1.4), (-2.18, 1.425), (-1.0, 1.44), (0.1, 1.44), (0.25, 1.4), (0.45, 1.25), (0.65, 1.08), (ws, 0.955)),
+        rail_z=C((bl, 0.98), (-2.31, 1.13), (-2.28, 1.295), (-2.25, 1.37), (-2.18, 1.395), (-1.0, 1.41), (0.1, 1.41), (0.25, 1.37), (0.45, 1.225), (0.65, 1.06), (ws, 0.935)),
+        rail_w=C((bl, 0.77), (-1.0, 0.765), (0.2, 0.765), (ws, 0.8)),
+        corner=const(0.04), bulge=0.004,
+        lines=[(-2.29, -2.29), (-2.25, -2.25), (-2.15, -2.12), (-1.25, -1.25), (-1.15, -1.15), (-0.33, -0.33), (-0.25, -0.25), (0.68, 0.55)],
+        mirror=(0.7, 0.83, 0.94), mirror_region='black', mirror_out=0.15,
+        keys=[-2.3],
+    )
+    cabin(p, ws, seats=5)
+    b = p['benches'][0]
+    p['more_seats'] = [(b[0], 0.0, b[2])]
+    p['glass_region'] = windows(p, 0.22, -2.2, [(0.68, 9, 'black'), (-0.33, -0.25, 'black'), (-1.25, -1.15, 'black'), (-9, -2.15, 'paint')])
+    p['decor'] = wagon240_decor
+    return p
+
+
+def wagon240_decor(o, res, pr, prg, hull, p):
+    from carbody import Projector
+    L = p['L']
+    x0, x1 = -L / 2, L / 2
+    seg = 2 if res else 1
+    # Big black rubber bumpers, front and back, wrapping round the corners.
+    bumpers = []
+    for (x, sg) in ((x1 + 0.04, 1), (x0 - 0.05, -1)):
+        bumpers.append(rbox((x, 0, 0.43), (0.09, 0.84, 0.085), 0.04, 'black', seg))
+        bumpers.append(rbox((x - sg * 0.2, 0, 0.43), (0.16, 0.875, 0.08), 0.04, 'black', seg))
+    bm = bumpers[0].copy()
+    for m in bumpers[1:]:
+        bm.extend(m)
+    o.body.extend(bm)
+    pb = Projector(bm)
+    if res:
+        for (x, sg) in ((x1 + 0.13, 1), (x0 - 0.14, -1)):
+            o.body.extend(rbox((x, 0, 0.455), (0.01, 0.82, 0.01), 0.004, 'chrome', 1))
+    plate(o, pb, 'front', (0.0, 0.41), w=0.4, h=0.11)
+    # The upright chrome grille with its bars, square headlights, amber corner lamps.
+    gr = [(-0.3, 0.53), (0.3, 0.53), (0.3, 0.79), (-0.3, 0.79)]
+    flat(o, pr, 'front', gr, 'grille', 0.006, bezel=(0.025, 'chrome', 0.008), res=res)
+    if res:
+        for k in range(1, 8):
+            y = -0.3 + 0.6 * k / 8
+            line(o, pr, 'front', [(y, 0.54), (y, 0.78)], 0.008, 'chrome', 0.008)
+        line(o, pr, 'front', [(-0.3, 0.53), (0.3, 0.79)], 0.014, 'chrome', 0.01)
+    head = [(0.34, 0.56), (0.66, 0.56), (0.66, 0.77), (0.34, 0.77)]
+    for s in (1, -1):
+        hd = [(s * a, b) for (a, b) in head]
+        lamp(o, pr, 'front', hd, 'head', res, 'chrome', 0.006, 0.006, both=False, bw=0.016)
+        lamp(o, pr, 'front', [(s * 0.68, 0.58), (s * 0.79, 0.58), (s * 0.79, 0.76), (s * 0.68, 0.76)], 'amber', res, 'chrome', 0.004, 0.006, both=False, bw=0.012)
+
+    # Tall tail lamps up the corners beside the tailgate.
+    for s in (1, -1):
+        ys = [(s * 0.6, 0.52), (s * 0.79, 0.52), (s * 0.79, 0.95), (s * 0.6, 0.95)]
+        lamp(o, pr, 'rear', ys, 'tail', res, 'gloss', 0.004, 0.006, both=False, bw=0.012)
+        if res:
+            flat(o, pr, 'rear', [(s * 0.61, 0.66), (s * 0.78, 0.66), (s * 0.78, 0.74), (s * 0.61, 0.74)], 'amber', 0.012)
+            flat(o, pr, 'rear', [(s * 0.61, 0.6), (s * 0.78, 0.6), (s * 0.78, 0.655), (s * 0.61, 0.655)], 'white', 0.012)
+    plate(o, pr, 'rear', (0.0, 0.66), w=0.4, h=0.11)
+    if res:
+        tailgate(o, pr, 0.53, 1.0, 0.58, 0.58, r=0.02)
+        line(o, pr, 'rear', [(-0.52, 0.76), (0.52, 0.76)], 0.02, 'black', 0.004)
+        doors(o, pr, p, [(0.72, 0.97), (0.72, 0.33)], -0.29, -1.15)
+        gaps(o, pr, [[(0.8, 0.8), (x1 - 0.02, 0.8)]], frame='top')
+        gaps(o, pr, [[(-0.4, 0.82), (0.4, 0.82)]], frame='front', both=False)
+        for (x, z) in ((0.08, 0.86), (-0.95, 0.875)):
+            handle(o, pr, x, z, 'chrome', w=0.12, h=0.03)
+        # A black rubbing strip along the sides.
+        line(o, pr, 'side', [(x1 - 0.08, 0.58), (x0 + 0.06, 0.58)], 0.04, 'black', 0.006, both=True)
+        # Black trim along the bottom of the windows.
+        line(o, prg, 'side', along(p['shoulder'], 0.68, -2.15, 16, -0.003), 0.014, 'black', 0.003, both=True)
+        line(o, pr, 'side', rounded(rrect_pts((-1.85, 0.84), 0.15, 0.11, 0.02, 2), 1), 0.006, 'gap', 0.0015, closed=True)
+    rails(o, res, p, -2.05, -0.2, 0.07)
+    cowl(o, res, pr, p, w=0.74)
+
+
+@car
+def wagon240(res):
+    return closed_car(res, wagon240_params())
+
+
+# ------------------------------------------------------------------ Kaido Trail4 (RAV4)
+
+def rav4_params():
+    L, W = 4.6, 1.86
+    x0, x1 = -L / 2, L / 2
+    xf, xr = 1.37, -1.32
+    R = 0.36
+    ws, bl = 0.75, x0 + 0.15
+    p = dict(
+        L=L, W=W, xf=xf, xr=xr, R=R, tyre_w=0.235, track=1.6, arch_gap=0.05, rim='multi', spokes=5, color=0x6a7a5a,
+        tyre='road', arch_flat=0.7,
+        bottom=C((x0, 0.5), (x0 + 0.1, 0.38), (x0 + 0.4, 0.28), (xr - 0.3, 0.24), (xr, 0.23), (xf, 0.23), (xf + 0.4, 0.27), (x1 - 0.1, 0.33), (x1, 0.42)),
+        shoulder=C((x0, 1.08), (x0 + 0.05, 1.11), (x0 + 0.25, 1.13), (-1.5, 1.12), (-0.4, 1.08), (0.7, 1.05), (1.3, 1.0), (1.9, 0.955), (x1 - 0.06, 0.925), (x1, 0.89)),
+        top=C((x0, 1.1), (x0 + 0.05, 1.14), (x0 + 0.25, 1.15), (-1.8, 1.15), (0.75, 1.075), (1.3, 1.035), (1.9, 0.985), (x1 - 0.06, 0.95), (x1, 0.91)),
+        width=C((x0, 0.9), (-1.5, 0.93), (1.4, 0.93), (x1, 0.9)),
+        tuck=const(0.05), tumble=const(0.06), cfrac=const(0.62),
+        rb=const(0.06), rs=const(0.05),
+        front=(0.3, 3.2), rear=(0.24, 3.4),
+        flares=[(xf, 0.6, 0.02, 0.55, 0.3), (xr, 0.6, 0.02, 0.55, 0.3)],
+        open=[(-1.45, ws - 0.02, 0.36)],
+        bl_base=bl, ws_base=ws, inset=0.03,
+        roof_z=C((bl, 1.13), (-2.05, 1.3), (-1.95, 1.45), (-1.85, 1.56), (-1.7, 1.64), (-1.2, 1.665), (-0.4, 1.67), (0.0, 1.65), (0.2, 1.56), (0.4, 1.39), (0.6, 1.22), (ws, 1.1)),
+        rail_z=C((bl, 1.12), (-2.05, 1.28), (-1.95, 1.42), (-1.85, 1.525), (-1.7, 1.6), (-1.2, 1.62), (-0.4, 1.625), (0.0, 1.605), (0.2, 1.52), (0.4, 1.355), (0.6, 1.195), (ws, 1.08)),
+        rail_w=C((bl, 0.76), (-1.2, 0.75), (0.0, 0.75), (ws, 0.82)),
+        corner=C((-1.0, 0.06), (0.1, 0.055), (0.6, 0.045)),
+        lines=[(-2.05, -2.05), (-1.95, -1.95), (-1.86, -1.72), (-1.35, -1.33), (-1.25, -1.23), (-0.4, -0.37), (-0.3, -0.27), (0.6, 0.48)],
+        mirror=(0.62, 0.9, 1.1),
+        keys=[-2.0],
+    )
+    cabin(p, ws, seats=5, z=0.12)
+    b = p['benches'][0]
+    p['more_seats'] = [(b[0], 0.0, b[2])]
+    p['glass_region'] = windows(p, 0.02, -1.8, [(0.6, 9, 'black'), (-0.4, -0.3, 'gloss'), (-1.35, -1.25, 'gloss'), (-9, -1.86, 'paint')])
+    p['decor'] = rav4_decor
+    return p
+
+
+def rav4_decor(o, res, pr, prg, hull, p):
+    L = p['L']
+    x0, x1 = -L / 2, L / 2
+    # Angular headlights sweeping up and back from the grille.
+    hf = aim((x1 - 0.16, 0.6, 0.86), 0.75, 0.12)
+    head = [(-0.24, -0.02), (0.02, -0.06), (0.24, -0.035), (0.3, 0.035), (0.1, 0.05), (-0.25, 0.03)]
+    lamp(o, pr, hf, rounded(head, 1), 'head', res, 'gloss', 0.008, 0.006, bw=0.012)
+    if res:
+        line(o, pr, hf, [(-0.22, 0.02), (0.08, 0.035), (0.27, 0.025)], 0.009, 'white', 0.016, both=True)
+        for s in (-0.12, 0.0, 0.12):
+            lamp(o, pr, hf, circle_pts((s, -0.012), 0.022, 8), 'chrome', res, None, 0.004, 0.016, rings=2)
+    # A slot grille between the lamps and the big octagonal lower grille below it.
+    flat(o, pr, 'front', [(-0.42, 0.8), (0.42, 0.8), (0.46, 0.875), (-0.46, 0.875)], 'grille', 0.004, bezel=(0.008, 'gloss', 0.003), res=res)
+    octa = [(-0.42, 0.74), (0.42, 0.74), (0.56, 0.64), (0.56, 0.5), (0.46, 0.42), (-0.46, 0.42), (-0.56, 0.5), (-0.56, 0.64)]
+    flat(o, pr, 'front', octa, 'grille', 0.004, bezel=(0.02, 'gloss', 0.003), res=res)
+    if res:
+        for z in (0.69, 0.64, 0.59, 0.54, 0.49):
+            line(o, pr, 'front', [(-0.5, z), (0.5, z)], 0.01, 'gloss', 0.006)
+    plate(o, pr, 'front', (0.0, 0.58))
+    # Silver skid plate and black corner intakes.
+    flat(o, pr, 'front', [(-0.4, 0.33), (0.4, 0.33), (0.44, 0.4), (-0.44, 0.4)], 'rim', 0.007, res=res)
+    fv = aim((x1 - 0.18, 0.68, 0.58), 0.6, 0.0)
+    flat(o, pr, fv, [(-0.07, 0.1), (0.07, 0.06), (0.06, -0.1), (-0.06, -0.08)], 'grille', 0.004, both=True, bezel=(0.012, 'gloss', 0.003), res=res)
+
+    # Angular tail lamps on the corners, the tailgate, a roof spoiler over the back window.
+    tf = aim((x0 + 0.14, 0.66, 1.03), math.pi - 0.85, 0.05)
+    tail = [(0.28, -0.05), (0.28, 0.045), (-0.05, 0.05), (-0.26, 0.02), (-0.24, -0.02), (0.05, -0.04)]
+    lamp(o, pr, tf, rounded(tail, 1), 'tail', res, 'gloss', 0.006, 0.006, bw=0.008)
+    if res:
+        line(o, pr, tf, [(0.22, 0.02), (-0.2, 0.0)], 0.01, 'red', 0.013, both=True)
+        lamp(o, pr, tf, rounded(rrect_pts((0.18, -0.02), 0.08, 0.02, 0.006, 1), 1), 'white', res, None, 0.002, 0.014)
+    plate(o, pr, 'rear', (0.0, 0.84))
+    flat(o, pr, 'rear', [(-0.5, 0.36), (0.5, 0.36), (0.46, 0.43), (-0.46, 0.43)], 'rim', 0.008, res=res)
+    sx = -1.86
+    o.body.extend(rbox((sx, 0, p['roof_z'](sx) - 0.005), (0.08, 0.64, 0.022), 0.016, 'black', 2 if res else 1))
+    if res:
+        tailgate(o, pr, 0.62, 1.12, 0.6, 0.64)
+        doors(o, pr, p, [(0.62, 1.14), (0.64, 0.9), (0.62, 0.62), (0.6, 0.45)], -0.35, -1.28, sill=0.45)
+        gaps(o, pr, [[(0.75, 0.78), (1.4, 0.76), (2.0, 0.7), (2.2, 0.55)]], frame='top')
+        line(o, pr, 'side', rounded(rrect_pts((-1.82, 1.0), 0.15, 0.11, 0.03, 2), 1), 0.006, 'gap', 0.0015, closed=True)
+        for (x, z) in ((-0.02, 1.02), (-1.05, 1.05)):
+            handle(o, pr, x, z, 'paint')
+    # Chunky black cladding: square-ish bands round the arches, along the sills and the bumpers.
+    R = p['R']
+    r = R + 0.08
+    for xc in (p['xf'], p['xr']):
+        arch = [(xc + r + 0.03, 0.36), (xc + r, R + 0.12), (xc + 0.62 * r, R + r), (xc - 0.62 * r, R + r), (xc - r, R + 0.12), (xc - r - 0.03, 0.36)]
+        line(o, pr, 'side', arch, 0.14, 'black', 0.006, both=True)
+    line(o, pr, 'side', [(p['xf'] - r - 0.03, 0.34), (p['xr'] + r + 0.03, 0.34)], 0.2, 'black', 0.006, both=True)
+    flat(o, pr, 'rear', [(-0.72, 0.33), (0.72, 0.33), (0.72, 0.5), (-0.72, 0.5)], 'black', 0.004, res=res, rings=1)
+    flat(o, pr, 'front', [(-0.72, 0.3), (0.72, 0.3), (0.72, 0.41), (-0.72, 0.41)], 'black', 0.003, res=res, rings=1)
+    rails(o, res, p, -1.75, -0.15, 0.08)
+    cowl(o, res, pr, p, w=0.76)
+
+
+@car
+def rav4(res):
+    return closed_car(res, rav4_params())
