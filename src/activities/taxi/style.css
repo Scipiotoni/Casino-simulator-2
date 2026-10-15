@@ -75,7 +75,7 @@
   .taxi-hud { right: 12px; top: 156px; width: 200px; padding: 6px 10px 8px; gap: 4px; }
   .tx-status { font-size: 12px; }
   .tx-box b { font-size: 21px; }
-  .taxi-card { left: 12px; top: 160px; transform: none; width: min(250px, calc(100vw - 24px)); }
+  .taxi-card { left: 12px; top: 300px; transform: none; width: min(250px, calc(100vw - 24px)); }
   @keyframes taxiCardIn { from { opacity: 0; transform: translateX(-12px); } }
   .tc-big { font-size: 30px; }
 }

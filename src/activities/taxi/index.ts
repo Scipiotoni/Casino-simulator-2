@@ -253,9 +253,9 @@ export class Taxi implements Activity {
       label: () => (this.shift ? 'End your shift' : 'Start a Sunshine Cabs shift'),
       sub: () => {
         const s = this.shift;
-        if (s) return `${s.fares} fare${s.fares === 1 ? '' : 's'} · ${money(s.earned)} this shift`;
+        if (s) return `${s.fares} fare${s.fares === 1 ? '' : 's'} · ${money(s.earned)}`;
         const r = this.record;
-        return r.fares ? `Fares across the island · best shift ${money(r.bestShift)}` : 'Fares across the island, on the meter';
+        return r.fares ? `Best shift ${money(r.bestShift)}` : 'Fares on the meter';
       },
       action: () => (this.shift ? this.endShift('') : this.startShift()),
     });
@@ -310,7 +310,7 @@ export class Taxi implements Activity {
     const it = g.interactions.get(`car:${v.id}`);
     if (it) {
       it.label = () => (this.shift?.cab === v ? 'Drive your Sunshine cab' : `Drive the ${v.def.name}`);
-      it.sub = () => (this.shift?.cab === v ? 'You’re on shift: fares come to the cab' : '');
+      it.sub = () => (this.shift?.cab === v ? 'On shift' : '');
     }
     return v;
   }
@@ -496,7 +496,7 @@ export class Taxi implements Activity {
     g.setUserWaypoint(f.stop.kerb.x, f.stop.kerb.z, f.stop.place.name);
     audio.play('ping');
     const d = f.crow > 1000 ? `${(f.crow / 1000).toFixed(1)} km` : `${Math.round(f.crow / 10) * 10} m`;
-    g.hud.toast(`${f.stop.place.icon} To ${f.stop.place.name} · ${d} · ${clock(f.limit)} on the clock`, 'info', 4200);
+    g.hud.toast(`${f.stop.place.icon} To ${f.stop.place.name} · ${d}`, 'info', 4200);
   }
 
   private dropOff(s: Shift, f: Fare): void {
