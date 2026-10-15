@@ -810,3 +810,138 @@ def super_car(res):
 
 super_car.__name__ = 'super'
 car(super_car)
+
+
+def hexagon(c, r, rot=0.0):
+    return [(c[0] + r * math.cos(rot + math.pi / 3 * k), c[1] + r * math.sin(rot + math.pi / 3 * k)) for k in range(6)]
+
+
+def diffuser(o, pr, x0, res, w=0.66, z0=0.17, z1=0.35, fins=(-0.5, -0.32, 0.32, 0.5)):
+    flat(o, pr, 'rear', [(-w, z1), (w, z1), (w - 0.06, z0), (-w + 0.06, z0)], 'black', 0.004, res=res, rings=2)
+    if res:
+        for y in fins:
+            o.body.extend(rbox((x0 + 0.18, y, z0 + 0.04), (0.2, 0.005, 0.045), 0.003, 'gloss', 1))
+
+
+# ------------------------------------------------------------------ Toro Furioso (the V12 wedge)
+
+def lambo_decor(o, res, pr, prg, hull, p, k):
+    L = p['L']
+    x0, x1 = -L / 2, L / 2
+    # Y-shaped headlamps: a narrow angular lamp at each corner, a Y of light inside.
+    hf = aim((x1 - 0.32, 0.68, 0.5), 0.55, 0.55)
+    lamp(o, pr, hf, [(-0.22, 0.02), (0.06, -0.04), (0.22, -0.05), (0.2, -0.01), (0.04, 0.03), (-0.2, 0.045)], 'head', res, 'gloss', 0.004, 0.006, bw=0.012)
+    if res:
+        for seg in ([(-0.18, 0.03), (0.0, 0.0)], [(0.0, 0.0), (0.18, -0.02)], [(0.0, 0.0), (0.12, -0.04)]):
+            line(o, pr, hf, seg, 0.008, 'white', 0.012, both=True)
+    # Huge angular intakes at the corners of the nose and a lower lip.
+    fi = aim((x1 - 0.18, 0.55, 0.27), 0.32, 0.0)
+    flat(o, pr, fi, [(-0.24, -0.12), (0.26, -0.12), (0.26, 0.04), (0.1, 0.1), (-0.2, 0.05)], 'grille', 0.004, both=True, bezel=(0.014, 'gloss', 0.003), res=res, rings=2)
+    if res:
+        line(o, pr, fi, [(-0.2, -0.02), (0.24, -0.02)], 0.02, 'paint', 0.008, both=True)
+        gaps(o, pr, [[(0.92, 0.58), (1.8, 0.48), (2.2, 0.32), (2.3, 0.0)]], frame='top')
+    o.body.extend(rbox((x1 - 0.16, 0, 0.115), (0.12, 0.55, 0.012), 0.006, 'gloss', 1))
+    # Shoulder intakes behind the side windows (black when open).
+    flat(o, pr, 'top', [(-0.72, 0.78), (-1.2, 0.84), (-1.25, 0.66), (-0.8, 0.64)], 'grille', 0.004, both=True, res=res, rings=2)
+    # Engine cover: hexagonal panes in two rows.
+    if res:
+        for i in range(3):
+            for j in (-1, 0, 1):
+                c = (-1.15 - i * 0.26 - (0.13 if j == 0 else 0.0), j * 0.2)
+                flat(o, pr, 'top', hexagon(c, 0.11), 'gloss', 0.005, bezel=(0.01, 'black', 0.003), res=res, rings=1)
+    # The tail: Y lamps at the corners, a mesh panel, a slim spoiler, one big hexagonal exhaust.
+    for s in (1, -1):
+        for seg in ([(0.58, 0.82), (0.72, 0.76)], [(0.72, 0.76), (0.86, 0.82)], [(0.72, 0.76), (0.72, 0.62)]):
+            line(o, pr, 'rear', [(s * a, b) for (a, b) in seg], 0.045, 'tail', 0.006)
+        flat(o, pr, 'rear', [(s * 0.54, 0.59), (s * 0.87, 0.59), (s * 0.87, 0.85), (s * 0.54, 0.85)], 'black', 0.003, res=res, rings=2)
+    flat(o, pr, 'rear', [(-0.46, 0.4), (0.46, 0.4), (0.46, 0.62), (-0.46, 0.62)], 'grille', 0.004, bezel=(0.012, 'gloss', 0.003), res=res, rings=2)
+    diffuser(o, pr, x0, res)
+    if res:
+        o.body.extend(cyl((x0 + 0.2, 0, 0.3), (x0 - 0.02, 0, 0.3), 0.085, 'chrome', 6, caps=False))
+        o.body.extend(cyl((x0 - 0.015, 0, 0.3), (x0 - 0.008, 0, 0.3), 0.075, 'gap', 6))
+    zt = hull.surface_z(x0 + 0.15, 0.0)
+    o.body.extend(aerofoil(x0 + 0.16, zt + 0.05, 0.22, 0.04, -0.72, 0.72, 0.06, 'gloss'))
+    for s in (1, -1):
+        o.body.extend(rbox((x0 + 0.17, s * 0.3, zt + 0.02), (0.05, 0.01, 0.03), 0.005, 'gloss', 1))
+
+
+def lambo_car(res):
+    k = dict(
+        L=4.8, W=2.03, xf=1.44, xr=-1.26, R=0.34, Rr=0.36, track=1.72, track_r=1.68, color=0x9ad01e,
+        ws=0.86, bl=-0.95, nose=0.4, cowl=0.74, belt=0.79, hip=0.95, deck=0.98, wingf=0.8, dip=0.09,
+        roof=[(-0.95, 1.0), (-0.7, 1.08), (-0.45, 1.13), (-0.2, 1.14), (0.02, 1.12), (0.3, 1.02), (0.58, 0.89), (0.86, 0.76)],
+        hdr=0.02, rwin=-0.78, qx=-0.55, qxr=-0.42, sail='black',
+        wf=1.0, wd=0.96, wr=1.015, rw=(0.5, 0.55, 0.72), bw=(0.62, 0.74, 0.78),
+        hip_x=-0.2, hip_up=0.18, eye_up=0.64, tumble=C((-2.4, 0.16), (-1.2, 0.17), (0.0, 0.19), (1.44, 0.1), (2.4, 0.12)), rs=const(0.022),
+        rim='twin', spokes=5, ratio=0.75, tw=0.255, twr=0.335, gap=0.05,
+        cutters=lambda res, hull: side_intake(-0.4, -0.88, 0.28, 0.8, 0.8, 0.62),
+        decor=lambo_decor, plate_f=0.24, plate_r=0.33, door=(0.8, -0.45),
+        front=(0.42, 3.2), rear=(0.25, 3.6),
+    )
+    return fast_car(res, mid_params(k))
+
+
+lambo_car.__name__ = 'lambo'
+car(lambo_car)
+
+
+# ------------------------------------------------------------------ Cavallo Rosso F8 (the mid-engined V8)
+
+def ferrari_decor(o, res, pr, prg, hull, p, k):
+    L = p['L']
+    x0, x1 = -L / 2, L / 2
+    # Slim headlamps swept back and up the wings.
+    hf = aim((x1 - 0.32, 0.66, 0.56), 0.6, 0.45)
+    lamp(o, pr, hf, rounded([(-0.24, 0.03), (0.0, -0.01), (0.2, -0.04), (0.24, -0.02), (0.02, 0.025), (-0.22, 0.05)], 1), 'head', res, 'gloss', 0.006, 0.006, bw=0.012)
+    if res:
+        line(o, pr, hf, [(-0.2, 0.035), (0.2, -0.025)], 0.008, 'white', 0.012, both=True)
+    # A wide mouth in the nose with intakes at its ends, the S-duct across the bonnet.
+    flat(o, pr, 'front', rounded([(-0.62, 0.17), (0.62, 0.17), (0.7, 0.3), (0.5, 0.33), (-0.5, 0.33), (-0.7, 0.3)], 2), 'grille', 0.004,
+         bezel=(0.014, 'gloss', 0.003), res=res, rings=2)
+    if res:
+        for z in (0.22, 0.27):
+            line(o, pr, 'front', [(-0.6, z), (0.6, z)], 0.008, 'gloss', 0.008)
+    flat(o, pr, 'top', rounded([(2.0, -0.3), (2.0, 0.3), (1.88, 0.26), (1.88, -0.26)], 1), 'grille', 0.004, res=res, rings=2)
+    o.body.extend(rbox((x1 - 0.16, 0, 0.13), (0.12, 0.6, 0.01), 0.005, 'gloss', 1))
+    if res:
+        gaps(o, pr, [[(0.95, 0.56), (1.85, 0.46), (2.2, 0.3), (2.28, 0.0)]], frame='top')
+    # Engine cover: louvres across it, behind the back window.
+    flat(o, pr, 'top', rounded([(-1.1, -0.42), (-1.1, 0.42), (-1.75, 0.38), (-1.75, -0.38)], 1), 'grille', 0.004, bezel=(0.012, 'gloss', 0.003), res=res, rings=1)
+    if res:
+        louvres(o, pr, 'top', -1.1, -1.75, -0.38, 0.38, 6, 'paint', 0.05, 0.01, along_x=False)
+    # Twin round lamps each side, a small spoiler lip, the diffuser and four round tailpipes.
+    for s in (1, -1):
+        for y in (0.56, 0.76):
+            lamp(o, pr, 'rear', circle_pts((s * y, 0.78), 0.065, 14), 'tail', res, 'gloss', 0.01, 0.006, both=False, bw=0.012)
+            if res:
+                lamp(o, pr, 'rear', circle_pts((s * y, 0.78), 0.03, 10), 'red', res, None, 0.004, 0.02, both=False, rings=1)
+    flat(o, pr, 'rear', rounded([(-0.36, 0.6), (0.36, 0.6), (0.36, 0.72), (-0.36, 0.72)], 1), 'grille', 0.004, res=res, rings=2)
+    diffuser(o, pr, x0, res, 0.62, 0.17, 0.36)
+    if res:
+        for s in (1, -1):
+            for y in (0.12, 0.24):
+                o.body.extend(cyl((x0 + 0.2, s * y, 0.4), (x0 - 0.02, s * y, 0.4), 0.045, 'chrome', 12, caps=False))
+                o.body.extend(cyl((x0 - 0.015, s * y, 0.4), (x0 - 0.008, s * y, 0.4), 0.04, 'gap', 10))
+    zt = hull.surface_z(x0 + 0.08, 0.0)
+    o.body.extend(prism([(x0 + 0.28, zt - 0.01), (x0 + 0.28, zt + 0.01), (x0 + 0.1, zt + 0.03), (x0 + 0.09, zt + 0.0), (x0 + 0.12, zt - 0.03)], -0.66, 0.66, 'paint'))
+
+
+def ferrari_car(res):
+    k = dict(
+        L=4.61, W=1.98, xf=1.38, xr=-1.27, R=0.335, Rr=0.35, track=1.66, track_r=1.64, color=0xd01818,
+        ws=0.72, bl=-1.05, nose=0.46, cowl=0.76, belt=0.82, hip=0.98, deck=0.95, wingf=0.8, dip=0.1,
+        roof=[(-1.05, 1.0), (-0.8, 1.1), (-0.5, 1.18), (-0.25, 1.2), (0.0, 1.18), (0.25, 1.08), (0.5, 0.92), (0.72, 0.78)],
+        hdr=0.0, rwin=-0.7, qx=-0.62, qxr=-0.5, sail='paint',
+        wf=0.98, wd=0.94, wr=0.99, rw=(0.48, 0.56, 0.7), bw=(0.62, 0.72, 0.76),
+        hip_x=-0.3, hip_up=0.2, eye_up=0.66, tumble=C((-2.3, 0.14), (-1.2, 0.15), (0.0, 0.13), (1.4, 0.1), (2.3, 0.1)),
+        rs=C((-2.3, 0.06), (-1.2, 0.1), (0.0, 0.07), (1.4, 0.08), (2.3, 0.06)),
+        rim='twin', spokes=5, ratio=0.74, tw=0.245, twr=0.305,
+        cutters=lambda res, hull: side_intake(-0.66, -0.88, 0.42, 0.76, 0.84, 0.82),
+        decor=ferrari_decor, plate_f=0.39, plate_r=0.47, door=(0.68, -0.62),
+        front=(0.6, 2.2), rear=(0.3, 2.8),
+    )
+    return fast_car(res, mid_params(k))
+
+
+ferrari_car.__name__ = 'ferrari'
+car(ferrari_car)
