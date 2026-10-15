@@ -43,6 +43,7 @@ from carcommon import CARS  # noqa: E402
 import cars_saloon  # noqa: E402,F401
 import cars_small  # noqa: E402,F401
 import cars_fast  # noqa: E402,F401
+import cars_classic  # noqa: E402,F401
 
 ARGS = [a for a in sys.argv[1:] if not a.endswith('.py')]
 OUT = next((a for a in ARGS if not a.startswith('--')), 'src/vehicles/assets')
