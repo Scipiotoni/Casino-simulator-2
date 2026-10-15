@@ -44,6 +44,25 @@ def surface_tube(o, pr, frame, pts, r, region, off, seg=8):
         o.body.extend(tube(path, r, region, seg))
 
 
+def clip_seg(a, b, x0, x1, y0, y1):
+    """A 2D segment clipped to a rectangle (Liang-Barsky), or None."""
+    t0, t1 = 0.0, 1.0
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    for (pp, q) in ((-dx, a[0] - x0), (dx, x1 - a[0]), (-dy, a[1] - y0), (dy, y1 - a[1])):
+        if pp == 0:
+            if q < 0:
+                return None
+            continue
+        t = q / pp
+        if pp < 0:
+            t0 = max(t0, t)
+        else:
+            t1 = min(t1, t)
+    if t0 >= t1:
+        return None
+    return (a[0] + dx * t0, a[1] + dy * t0), (a[0] + dx * t1, a[1] + dy * t1)
+
+
 def wipers(o, p, cx, pairs):
     for (a, b) in pairs:
         o.body.extend(tube([Vector((cx - 0.03, a, p['roof_z'](cx - 0.03) + 0.01)), Vector((cx - 0.075, b, p['roof_z'](cx - 0.075) + 0.012))], 0.007, 'black', 4))
@@ -311,7 +330,7 @@ def belair_params():
     p = dict(
         L=L, W=W, xf=xf, xr=xr, R=R, tyre_w=0.2, track=1.56, arch_gap=0.05, rim='fullcap', tyre='wall', rim_ratio=0.58, color=0x4fd0c8,
         bottom=C((x0, 0.42), (x0 + 0.12, 0.34), (x0 + 0.45, 0.27), (xr - 0.4, 0.22), (xr, 0.21), (xf, 0.21), (xf + 0.4, 0.24), (x1 - 0.12, 0.29), (x1, 0.34)),
-        shoulder=C((x0, 0.93), (x0 + 0.04, 1.0), (x0 + 0.12, 1.02), (-1.6, 0.97), (-1.0, 0.92), (-0.3, 0.9), (0.6, 0.895), (1.6, 0.9), (x1 - 0.15, 0.9), (x1 - 0.04, 0.87), (x1, 0.8)),
+        shoulder=C((x0, 0.94), (x0 + 0.04, 1.02), (x0 + 0.12, 1.04), (-1.6, 0.98), (-1.0, 0.92), (-0.3, 0.9), (0.6, 0.895), (1.6, 0.9), (x1 - 0.15, 0.9), (x1 - 0.04, 0.87), (x1, 0.8)),
         top=C((x0, 0.86), (x0 + 0.04, 0.9), (x0 + 0.12, 0.915), (-1.6, 0.93), (-1.0, 0.93), (1.0, 0.9), (1.8, 0.88), (x1 - 0.15, 0.865), (x1 - 0.04, 0.84), (x1, 0.78)),
         width=C((x0, 0.92), (-1.5, 0.96), (0.0, 0.975), (1.5, 0.97), (x1, 0.95)),
         tuck=const(0.08), tumble=const(0.06), cfrac=const(0.7),
@@ -380,7 +399,7 @@ def belair_decor(o, res, pr, prg, hull, p):
     # Fins: chrome along their tops, the round tail lamps low in their chrome ends.
     if res:
         line(o, pr, 'side', along(p['shoulder'], -0.9, x0 + 0.02, 14, -0.012), 0.014, 'chrome', 0.004, both=True)
-    fin = rounded(rrect_pts((0.82, 0.9), 0.15, 0.22, 0.04, 2), 1)
+    fin = rrect_pts((0.8, 0.88), 0.12, 0.18, 0.03, 2)
     flat(o, pr, 'rear', fin, 'chrome', 0.006, both=True, res=res)
     lamp(o, pr, 'rear', circle_pts((0.82, 0.86), 0.055, 14), 'tail', res, 'chrome', 0.012, 0.012, bw=0.012)
     if res:
@@ -396,12 +415,12 @@ def belair_decor(o, res, pr, prg, hull, p):
 
     # Side: the spear running back from the wing, forking on the door into the cove, the
     # cove filled with a white insert.
-    cove = [(0.1, 0.795), (-0.4, 0.73), (-0.9, 0.64), (-1.0, 0.64)] + arch_pts(xr, R, R + 0.11, 40, 140, 6) + [(-1.85, 0.65), (x0 + 0.12, 0.66), (x0 + 0.1, 0.83), (-1.0, 0.82), (-0.4, 0.81)]
-    flat(o, pr, 'side', cove, 'white', 0.003, both=True, res=res)
+    low = [(0.1, 0.795), (-0.4, 0.74), (-0.9, 0.69), (-1.05, 0.745), (-1.32, 0.795), (-1.6, 0.765), (-1.8, 0.71), (x0 + 0.14, 0.71)]
+    up = [(x0 + 0.12, 0.9), (-1.6, 0.87), (-1.0, 0.835), (-0.4, 0.815)]
+    flat(o, pr, 'side', low + up, 'white', 0.003, both=True, res=res, rings=1)
     if res:
-        line(o, pr, 'side', [(x1 - 0.15, 0.79), (0.1, 0.8), (-0.4, 0.812), (-1.0, 0.825), (x0 + 0.1, 0.835)], 0.016, 'chrome', 0.006, both=True)
-        line(o, pr, 'side', [(0.1, 0.795), (-0.4, 0.73), (-0.9, 0.64), (-1.0, 0.64)], 0.014, 'chrome', 0.006, both=True)
-        line(o, pr, 'side', [(-1.85, 0.65), (x0 + 0.12, 0.66)], 0.014, 'chrome', 0.006, both=True)
+        line(o, pr, 'side', [(x1 - 0.15, 0.79), (0.1, 0.8)] + up[::-1][:-1] + [(x0 + 0.12, 0.9)], 0.016, 'chrome', 0.006, both=True)
+        line(o, pr, 'side', low, 0.014, 'chrome', 0.006, both=True)
         # Chrome along the beltline and the window frames, chrome rocker strip.
         line(o, prg, 'side', along(p['shoulder'], 0.95, -1.0, 14, -0.004), 0.018, 'chrome', 0.004, both=True)
         line(o, pr, 'side', [(xf - R - 0.12, 0.36), (xr + R + 0.12, 0.36)], 0.03, 'chrome', 0.004, both=True)
@@ -442,7 +461,7 @@ def bentley_params():
         tuck=const(0.09), tumble=C((x0, 0.09), (0.0, 0.07), (x1, 0.07)), cfrac=const(0.68),
         rb=const(0.07), rs=const(0.06),
         front=(0.42, 2.8), rear=(0.38, 3.0),
-        flares=[(xf, 0.55, 0.012, 0.62, 0.25), (xr, 0.8, 0.035, 0.74, 0.3)],
+        flares=[(xf, 0.55, 0.012, 0.62, 0.25), (xr, 0.85, 0.05, 0.74, 0.32)],
         open=[(-1.4, 0.72, 0.26)],
         bl_base=-1.78, ws_base=0.75, inset=0.03,
         roof_z=C((-1.78, 1.02), (-1.5, 1.13), (-1.2, 1.26), (-0.85, 1.36), (-0.45, 1.405), (-0.05, 1.39), (0.25, 1.3), (0.5, 1.13), (0.75, 0.95)),
@@ -492,13 +511,13 @@ def bentley_decor(o, res, pr, prg, hull, p):
     gr = rounded([(-0.4, 0.37), (0.4, 0.37), (0.38, 0.74), (0.3, 0.765), (-0.3, 0.765), (-0.38, 0.74)], 1)
     flat(o, pr, 'front', gr, 'grille', 0.006, bezel=(0.035, 'chrome', 0.014), res=res)
     if res:
-        for k in range(-9, 10):
-            s = k * 0.075
-            line(o, pr, 'front', [(s - 0.2, 0.38), (s + 0.2, 0.75)], 0.008, 'chrome', 0.01)
-            line(o, pr, 'front', [(s + 0.2, 0.38), (s - 0.2, 0.75)], 0.008, 'chrome', 0.01)
-        # Clean up the lattice beyond the frame: dark paint over the ends would show, so
-        # cover the edges with the frame again (a thicker chrome band).
-        line(o, pr, 'front', gr + [gr[0]], 0.05, 'chrome', 0.018)
+        # The diamond lattice, clipped to the opening.
+        for k in range(-12, 13):
+            s = k * 0.07
+            for d in (1, -1):
+                seg = clip_seg((s - d * 0.2, 0.38), (s + d * 0.2, 0.75), -0.355, 0.355, 0.395, 0.735)
+                if seg:
+                    line(o, pr, 'front', list(seg), 0.008, 'chrome', 0.01)
     # Side intakes low in the bumper with mesh, a black lip.
     for s in (1,):
         intake = rounded([(0.5, 0.3), (0.82, 0.32), (0.84, 0.46), (0.52, 0.44)], 1)
@@ -580,7 +599,9 @@ def etype_params():
     def glass_region(i):
         seg, xb, xr_ = i['seg'], i['xb'], i['xr']
         if seg == 'side':
-            if i['zone'] == 'rear' or xb < -1.1:
+            if i['zone'] == 'rear':
+                return 'glass'
+            if xb < -1.1:
                 return 'paint'
             if i['zone'] == 'front' or xb > 0.1 or -0.55 < xb < -0.52:
                 return 'chrome'
@@ -600,7 +621,7 @@ def etype_decor(o, res, pr, prg, hull, p):
     xf, xr, R = p['xf'], p['xr'], p['R']
     # The power bulge down the middle of the bonnet.
     bulge = rounded([(0.35, 0.2), (1.2, 0.19), (1.85, 0.12), (2.05, 0.06), (2.05, -0.06), (1.85, -0.12), (1.2, -0.19), (0.35, -0.2)], 2)
-    o.body.extend(patch(pr, 'top', ccw(bulge), 'paint', 0.002, 0.03 if res else 0.02, 5 if res else 2))
+    o.body.extend(patch(pr, 'top', ccw(bulge), 'paint', 0.002, 0.03 if res else 0.02, 5 if res else 1))
     if res:
         # Louvres either side of it.
         for k in range(7):
@@ -629,7 +650,7 @@ def etype_decor(o, res, pr, prg, hull, p):
         lamp(o, pr, 'rear', oval((0.5, 0.6), 0.04, 0.025, 10), 'amber', res, 'chrome', 0.005, 0.006, bw=0.008)
     plate(o, pr, 'rear', (0.0, 0.48), w=0.3, h=0.13)
     for s in (0.06, -0.06):
-        o.body.extend(cyl((x0 + 0.3, s, 0.24), (x0 - 0.05, s, 0.24), 0.025, 'chrome', 10 if res else 5))
+        o.body.extend(cyl((x0 + 0.15, s, 0.25), (x0 - 0.03, s, 0.25), 0.025, 'chrome', 10 if res else 5))
 
     if res:
         # The front-hinged bonnet's shut line in front of the door, the door, the hatch.
@@ -653,3 +674,124 @@ def etype_decor(o, res, pr, prg, hull, p):
 @car
 def etype(res):
     return closed_car(res, etype_params())
+
+
+# ------------------------------------------------------------------ DeLuna DMC
+
+STEEL = 'rim'  # brushed stainless panels: the light, metallic region (not the car's paint)
+
+
+def delorean_params():
+    L, W = 4.21, 1.99
+    x0, x1 = -L / 2, L / 2
+    xf, xr = 1.265, -1.148
+    R, Rr = 0.32, 0.34
+    p = dict(
+        L=L, W=W, xf=xf, xr=xr, R=R, R_rear=Rr, tyre_w=0.195, tyre_w_rear=0.235, track=1.6, arch_gap=0.04, rim='turbine', spokes=12, color=0xb8bcc4,
+        bottom=C((x0, 0.4), (x0 + 0.1, 0.3), (xr - 0.35, 0.2), (xr, 0.18), (xf, 0.18), (xf + 0.4, 0.2), (x1 - 0.1, 0.25), (x1, 0.3)),
+        shoulder=C((x0, 0.86), (x0 + 0.04, 0.9), (-1.4, 0.905), (-0.5, 0.87), (0.3, 0.82), (1.2, 0.74), (x1 - 0.05, 0.63), (x1, 0.59)),
+        top=C((x0, 0.87), (x0 + 0.04, 0.91), (-1.4, 0.915), (0.4, 0.835), (1.2, 0.755), (x1 - 0.05, 0.645), (x1, 0.6)),
+        width=C((x0, 0.93), (0.0, 0.94), (x1, 0.91)),
+        tuck=const(0.1), tumble=const(0.035), cfrac=const(0.5),
+        rb=const(0.04), rs=const(0.03),
+        front=(0.28, 4.5), rear=(0.18, 5.0),
+        open=[(-0.85, 0.5, 0.24)],
+        bl_base=-1.75, ws_base=0.55, inset=0.03,
+        roof_z=C((-1.75, 0.915), (-1.3, 0.99), (-0.85, 1.08), (-0.6, 1.125), (-0.3, 1.14), (0.0, 1.12), (0.25, 1.0), (0.55, 0.835)),
+        rail_z=C((-1.75, 0.905), (-1.3, 0.97), (-0.85, 1.045), (-0.6, 1.085), (-0.3, 1.097), (0.0, 1.077), (0.25, 0.96), (0.55, 0.825)),
+        rail_w=C((-1.75, 0.68), (-0.8, 0.68), (0.0, 0.68), (0.55, 0.78)),
+        corner=C((-1.0, 0.03), (0.3, 0.03)),
+        lines=[(-1.0, -0.75), (-0.9, -0.66), (0.05, 0.0)],
+        driver_y=0.38, hip_f=(-0.35, 0.38), benches=[], seats=2,
+        dash=(0.55, 0.12, 0.72, 0.5, 0.8), wheel_c=(0.08, 0.68),
+        mirror=(0.38, 0.9, 0.86), mirror_region='black', mirror_out=0.15,
+        seat_region='interior',
+    )
+    gx0, gx1 = p['bl_base'], p['ws_base']
+
+    def glass_region(i):
+        seg, xb, xr_ = i['seg'], i['xb'], i['xr']
+        if seg == 'side':
+            if i['zone'] == 'front' or xb > 0.45:
+                return 'black'
+            if xb < -1.0:
+                return STEEL
+            return 'glass'
+        if seg == 'top' and xr_ > 0.0:
+            return 'glass'
+        return STEEL
+
+    def hull_region(i, hull):
+        seg = i['seg']
+        if seg in ('bot', 'in'):
+            return None
+        if seg == 'top' and gx0 + 0.01 < i['x'] < gx1 - 0.01:
+            return None
+        return STEEL
+
+    p['glass_region'] = glass_region
+    p['hull_region'] = hull_region
+    p['decor'] = delorean_decor
+    return p
+
+
+def delorean_decor(o, res, pr, prg, hull, p):
+    L = p['L']
+    x0, x1 = -L / 2, L / 2
+    xf, xr, R, Rr = p['xf'], p['xr'], p['R'], p['R_rear']
+    # Black rubber bumpers wrapping round to the arches; a rubbing strip along the sides.
+    flat(o, pr, 'front', rrect_pts((0.0, 0.345), 1.84, 0.2, 0.03, 2), 'black', 0.012, res=res)
+    flat(o, pr, 'rear', rrect_pts((0.0, 0.39), 1.86, 0.28, 0.03, 2), 'black', 0.012, res=res)
+    for (a, b) in ((x1 + 0.02, xf + R + 0.08), (xr - Rr - 0.08, x0 - 0.02)):
+        flat(o, pr, 'side', [(a, 0.26), (b, 0.26), (b, 0.44), (a, 0.44)], 'black', 0.012, both=True, res=res)
+    if res:
+        line(o, pr, 'side', [(xf - R - 0.08, 0.47), (xr + Rr + 0.08, 0.47)], 0.03, 'black', 0.006, both=True)
+    # The black grille band across the nose with the four rectangular headlamps in it.
+    flat(o, pr, 'front', rrect_pts((0.0, 0.52), 1.76, 0.11, 0.01, 1), 'grille', 0.006, res=res)
+    for (c, w) in (((0.5, 0.52), 0.17), ((0.72, 0.52), 0.17)):
+        lamp(o, pr, 'front', rrect_pts(c, w, 0.08, 0.01, 1), 'head', res, 'chrome', 0.006, 0.01, bw=0.008)
+    if res:
+        for z in (0.495, 0.52, 0.545):
+            line(o, pr, 'front', [(-0.38, z), (0.38, z)], 0.008, 'gloss', 0.012)
+        lamp(o, pr, 'front', rrect_pts((0.62, 0.35), 0.18, 0.05, 0.01, 1), 'amber', res, None, 0.003, 0.016, rings=1)
+        lamp(o, pr, 'side', rrect_pts((x1 - 0.12, 0.35), 0.12, 0.05, 0.01, 1), 'amber', res, None, 0.003, 0.016, rings=1)
+    plate(o, pr, 'front', (0.0, 0.34), lift=0.02)
+
+    # The wide black louvred tail panel with the lamps behind its slats.
+    flat(o, pr, 'rear', rrect_pts((0.0, 0.71), 1.8, 0.22, 0.015, 1), 'gloss', 0.006, res=res)
+    lamp(o, pr, 'rear', rrect_pts((0.68, 0.71), 0.38, 0.17, 0.01, 1), 'tail', res, None, 0.002, 0.009, rings=1)
+    if res:
+        lamp(o, pr, 'rear', rrect_pts((0.44, 0.71), 0.1, 0.17, 0.01, 1), 'amber', res, None, 0.002, 0.009, rings=1)
+        lamp(o, pr, 'rear', rrect_pts((0.31, 0.71), 0.12, 0.17, 0.01, 1), 'white', res, None, 0.002, 0.009, rings=1)
+        for k in range(6):
+            z = 0.63 + k * 0.032
+            line(o, pr, 'rear', [(-0.89, z), (0.89, z)], 0.012, 'gloss', 0.014)
+    plate(o, pr, 'rear', (0.0, 0.42), lift=0.02)
+
+    # Gull-wing door shut lines round the doors and along the roof; louvres over the engine.
+    if res:
+        gaps(o, pr, [
+            [(0.52, 0.83), (0.6, 0.6), (0.62, 0.3)],
+            [(0.62, 0.3), (-0.78, 0.3)],
+            [(-0.78, 0.3), (-0.8, 0.88)],
+        ])
+        gaps(o, prg, [[(0.02, 0.17), (-0.7, 0.17)], [(0.02, 0.17), (0.02, 0.66)], [(-0.7, 0.17), (-0.7, 0.66)]], frame='top')
+        for k in range(15):
+            x = -0.74 - k * 0.064
+            line(o, prg, 'top', [(x, -0.52), (x, 0.52)], 0.03, 'gloss', 0.012)
+        # The intake slots on the rear quarters, a door handle, panel lines on bonnet and wings.
+        for k in range(4):
+            z = 0.63 + k * 0.03
+            line(o, pr, 'side', [(-0.86, z), (-1.08, z)], 0.014, 'gap', 0.003, both=True)
+        handle(o, pr, -0.5, 0.82, 'black', w=0.12, h=0.025)
+        gaps(o, pr, [[(0.58, 0.7), (1.9, 0.68), (2.05, 0.5)]], frame='top')
+        gaps(o, pr, [[(2.05, -0.5), (2.05, 0.5)]], frame='top', both=False)
+    cx = p['ws_base'] - 0.03
+    line(o, pr, 'top', [(cx, -0.74), (cx, 0.74)], 0.06, 'black', 0.003)
+    if res:
+        wipers(o, p, cx, ((0.5, -0.05), (-0.02, -0.6)))
+
+
+@car
+def delorean(res):
+    return closed_car(res, delorean_params())
