@@ -410,3 +410,175 @@ def pickup(res):
     for w in (o.wheel.values() if res else [o.body]):
         w.recolor('white', only='rim')
     return o
+
+
+# ------------------------------------------------------------------ Highroller SUV
+
+def suv_params():
+    L, W = 5.05, 2.0
+    x0, x1 = -L / 2, L / 2
+    xf, xr = 1.55, -1.44
+    R = 0.405
+    gx1 = 0.95
+    p = dict(
+        L=L, W=W, xf=xf, xr=xr, R=R, tyre_w=0.285, track=1.7, arch_gap=0.055, arch_flat=0.2,
+        rim='multi', spokes=6, rim_ratio=0.69, tyre='low', color=0x15151a,
+        bottom=C((x0, 0.46), (x0 + 0.2, 0.4), (xr - 0.5, 0.36), (xr, 0.34), (xf, 0.34), (x1 - 0.35, 0.36), (x1 - 0.1, 0.4), (x1, 0.45)),
+        shoulder=C((x0, 1.1), (x0 + 0.08, 1.15), (x0 + 0.25, 1.17), (-1.0, 1.165), (gx1, 1.13), (1.7, 1.09), (x1 - 0.12, 1.04), (x1, 0.98)),
+        top=C((x0, 1.12), (x0 + 0.08, 1.165), (x0 + 0.25, 1.185), (-1.0, 1.18), (gx1, 1.17), (1.7, 1.13), (x1 - 0.12, 1.075), (x1, 1.0)),
+        width=C((x0, 0.985), (-1.0, 1.0), (1.0, 1.0), (x1, 0.97)),
+        tuck=const(0.05), tumble=const(0.045), cfrac=C((x0, 0.66), (0.0, 0.62), (x1, 0.66)),
+        rb=const(0.06), rs=const(0.045),
+        front=(0.32, 2.8), rear=(0.2, 3.0),
+        flares=[(xf, 0.6, 0.012, 0.62, 0.25), (xr, 0.6, 0.014, 0.64, 0.25)],
+        open=[(-2.18, 0.86, 0.5)],
+        keys=[gx1, x0 + 0.3, x1 - 0.45],
+        bl_base=x0, ws_base=gx1, inset=0.03, glass=False,
+        driver_y=0.4, hip_f=(-0.12, 0.9), benches=[(-1.05, 1.42, 0.92), (-1.9, 1.3, 0.86)], seats=6,
+        seat_w=0.54, dash=(0.92, 0.5, 0.86, 0.76, 1.17), wheel_c=(0.3, 1.11), wheel_tilt=0.45,
+        mirror=(0.84, 0.93, 1.15), mirror_out=0.2,
+        height=1.86,
+    )
+
+    def hull_region(i, hull):
+        seg, x, c = i['seg'], i['x'], i['c']
+        if seg == 'top' and x0 + 0.05 < x < gx1 - 0.01 and abs(c.y) < hull.edge_y(x) - 0.04:
+            return 'interior'
+        return None
+
+    p['hull_region'] = hull_region
+    p['decor'] = suv_decor
+    return p
+
+
+SUV_RAIL = C((-2.5, 1.7), (-2.0, 1.73), (-0.5, 1.745), (0.28, 1.74), (0.4, 1.715), (0.67, 1.44), (0.95, 1.15))
+SUV_ROOF = C((-2.5, 1.79), (-2.2, 1.835), (-1.6, 1.85), (-0.5, 1.86), (0.22, 1.85), (0.36, 1.815), (0.66, 1.49), (0.95, 1.165))
+
+
+def suv_glass(i):
+    seg, xb, xr, k = i['seg'], i['xb'], i['xr'], i['k']
+    if seg == 'side':
+        if i['zone'] == 'rear':
+            return 'glass' if (k >= 1 and i['th'] > 0.45) else 'gloss'
+        if k == 0:
+            return 'chrome'
+        if xb < -2.12 or -1.62 < xb < -1.5 or -0.47 < xb < -0.35:
+            return 'gloss'
+        if xb > 0.82:
+            return 'gloss'
+        return 'glass'
+    if seg == 'corner':
+        return 'gloss' if i['zone'] == 'rear' or xr < 0.36 else 'gloss'
+    if xr > 0.33 and i['zone'] != 'rear':
+        return 'glass'
+    return 'paint'
+
+
+def suv_decor(o, res, pr, prg_unused, hull, p):
+    L = p['L']
+    x0, x1 = -L / 2, L / 2
+    xf, xr, R = p['xf'], p['xr'], p['R']
+    gx1 = p['ws_base']
+    cab = Cab(hull, x0, gx1, C((x0, 0.84), (-1.0, 0.86), (0.4, 0.865), (gx1, 0.9)), SUV_RAIL, SUV_ROOF, corner=const(0.07),
+              inset=const(0.03), lines=[(-2.12, -2.0), (-1.62, -1.56), (-1.5, -1.47), (-1.0, -1.0), (-0.47, -0.47), (-0.35, -0.35),
+                                        (0.1, 0.1), (0.4, 0.3), (0.62, 0.5), (0.82, 0.76)],
+              rear=(0.2, 3.0), region=suv_glass, side_s=(0.0, 0.05), taper=False, rake=0.12, between=1, base_drop=0.03)
+    cm = cab.build(res, shell=bool(res))
+    o.body.extend(cm)
+    prg = Projector(cm)
+
+    # ---- front: a big chrome-framed grille, slim lamps either side, intakes below.
+    gz = 0.79
+    flat(o, pr, 'front', rounded(rrect_pts((0.0, gz), 1.02, 0.36, 0.05, 2), 1), 'grille', 0.008, bezel=(0.035, 'chrome', 0.009), res=res, rings=1)
+    if res:
+        for k in range(6):
+            z = gz - 0.14 + k * 0.056
+            line(o, pr, 'front', [(-0.48, z), (0.48, z)], 0.012, 'chrome', 0.014)
+        for y in (-0.24, 0.0, 0.24):
+            line(o, pr, 'front', [(y, gz - 0.165), (y, gz + 0.165)], 0.01, 'gloss', 0.012)
+    hf = aim((x1 - 0.12, 0.74, 0.86), 0.42, 0.0)
+    head = rounded([(-0.22, -0.045), (0.2, -0.04), (0.25, 0.0), (0.24, 0.04), (-0.2, 0.05), (-0.25, 0.02)], 2)
+    lamp(o, pr, hf, head, 'head', res, 'gloss', 0.008, 0.006, bw=0.012)
+    if res:
+        line(o, pr, hf, [(-0.21, -0.03), (0.2, -0.026), (0.235, 0.0)], 0.01, 'white', 0.016, both=True)
+        for t in (-0.12, -0.03, 0.06):
+            lamp(o, pr, hf, circle_pts((t, 0.012), 0.022, 10), 'chrome', res, 'gloss', 0.004, 0.016, bw=0.005, rings=2)
+    # Lower bumper: a wide black intake, fog lamps in the corners, a silver skid plate.
+    flat(o, pr, 'front', rounded([(-0.62, 0.53), (0.62, 0.53), (0.7, 0.4), (-0.7, 0.4)], 2), 'grille', 0.004, bezel=(0.012, 'gloss', 0.003), res=res, rings=1)
+    if res:
+        line(o, pr, 'front', [(-0.6, 0.465), (0.6, 0.465)], 0.012, 'gloss', 0.007)
+        flat(o, pr, 'front', rounded([(-0.45, 0.39), (0.45, 0.39), (0.4, 0.35), (-0.4, 0.35)], 1), 'rim', 0.006, res=res, rings=1)
+    fv = aim((x1 - 0.2, 0.8, 0.47), 0.6, 0.0)
+    if res:
+        flat(o, pr, fv, rrect_pts((0.0, 0.0), 0.16, 0.07, 0.02, 2), 'gloss', 0.004, both=True, res=res)
+        lamp(o, pr, fv, rrect_pts((0.0, 0.0), 0.12, 0.035, 0.015, 2), 'head', res, None, 0.004, 0.008)
+    plate(o, pr, 'front', (0.0, 0.575), 0.3, 0.11)
+    if res:
+        # Clamshell bonnet shut lines, its front edge.
+        gaps(o, pr, [[(gx1 + 0.06, 0.9), (1.8, 0.89), (2.3, 0.84), (2.45, 0.75)]], frame='top')
+        line(o, pr, 'front', [(-0.75, 0.985), (0.75, 0.985)], 0.006, 'gap', 0.002)
+    cx = gx1 - 0.035
+    line(o, pr, 'top', [(cx, -0.84), (cx, 0.84)], 0.08, 'black', 0.003)
+    if res:
+        for (a, b) in ((0.55, -0.05), (-0.05, -0.65)):
+            o.body.extend(tube([Vector((cx - 0.03, a, SUV_ROOF(cx - 0.03) + 0.012)), Vector((cx - 0.09, b, SUV_ROOF(cx - 0.09) + 0.016))], 0.007, 'black', 4))
+
+    # ---- sides: doors, handles, a vent behind the front wheels, running boards.
+    if res:
+        rear_arch = arch_pts(xr, R, R + 0.11, 62, 6, 6)
+        gaps(o, pr, [
+            [(0.93, 1.13), (0.95, 0.8), (0.93, 0.42)],
+            [(-0.4, 1.17), (-0.4, 0.42)],
+            [(-1.55, 1.17), (-1.55, 0.86)] + rear_arch[:-1],
+            [(0.93, 0.42), (xr + R + 0.11, 0.42)],
+        ])
+        for (x, z) in ((0.15, 1.04), (-1.25, 1.05)):
+            handle(o, pr, x, z, 'chrome', 0.15, 0.03)
+        vent = aim((1.05, 0.9, 0.84), math.pi / 2, 0.0)
+        flat(o, pr, 'side', rrect_pts((1.06, 0.86), 0.26, 0.09, 0.02, 2), 'gloss', 0.004, both=True, bezel=(0.008, 'chrome', 0.004), res=res)
+        for t in (0.835, 0.86, 0.885):
+            line(o, pr, 'side', [(0.95, t), (1.17, t)], 0.008, 'chrome', 0.008, both=True)
+        # Chrome along the bottom of the doors.
+        line(o, pr, 'side', [(0.85, 0.5), (xr + R + 0.13, 0.5)], 0.025, 'chrome', 0.004, both=True)
+        # Fuel flap.
+        line(o, pr, 'side', rounded(rrect_pts((-2.0, 0.98), 0.17, 0.12, 0.03, 2), 1), 0.006, 'gap', 0.0015, closed=True)
+    # Running boards.
+    for s in (1, -1):
+        rbd = sweep([(xf - R - 0.1, s * 1.0), (xr + R + 0.1, s * 1.0)], 0.36, rsection(0.18, 0.05, 0.02, 1), 'black', centre=(0.0, 0.0))
+        o.body.extend(rbd)
+        if res:
+            o.body.extend(box(((xf + xr) / 2, s * 1.07, 0.388), ((xf - xr) / 2 - R - 0.12, 0.01, 0.004), 'chrome'))
+    # Roof rails on four feet.
+    for s in (1, -1):
+        y = s * 0.68
+        pts = []
+        for x in (-2.0, -1.4, -0.6, 0.1):
+            h = prg.hit((x, y, 4.0), (0, 0, -1))
+            pts.append((x, h[0].z if h else SUV_ROOF(x)))
+        zr = max(z for _, z in pts) + 0.04
+        o.body.extend(rbox((-0.95, y, zr), (1.1, 0.025, 0.015), 0.012, 'rim', 2) if res else box((-0.95, y, zr), (1.1, 0.025, 0.015), 'rim'))
+        for (x, z) in ((pts[0], pts[-1]) if res else ()):
+            o.body.extend(rbox((x, y, (z + zr) / 2), (0.06, 0.024, (zr - z) / 2 + 0.005), 0.01, 'black', 1))
+
+    # ---- rear: slim wrap-round lamps, a black band, the plate in the tailgate.
+    tf = aim((x0 + 0.1, 0.78, 1.08), math.pi - 0.62, 0.0)
+    tail = rounded([(0.26, -0.035), (0.27, 0.035), (-0.05, 0.045), (-0.26, 0.03), (-0.27, -0.02), (0.0, -0.04)], 2)
+    lamp(o, pr, tf, tail, 'tail', res, 'gloss', 0.006, 0.006, bw=0.008)
+    if res:
+        line(o, pr, tf, [(0.2, 0.0), (-0.22, 0.004)], 0.01, 'red', 0.014, both=True)
+        line(o, pr, 'rear', [(-0.6, 1.08), (0.6, 1.08)], 0.06, 'gloss', 0.004)
+        gaps(o, pr, [[(-0.72, 1.17), (-0.72, 0.62), (0.72, 0.62), (0.72, 1.17)]], frame='rear', both=False)
+        flat(o, pr, 'rear', rrect_pts((0.0, 0.55), 0.9, 0.025, 0.01, 1), 'tail', 0.004, res=res, rings=1)
+        flat(o, pr, 'rear', rounded([(-0.45, 0.47), (0.45, 0.47), (0.4, 0.42), (-0.4, 0.42)], 1), 'rim', 0.006, res=res, rings=1)
+        for s in (1, -1):
+            o.body.extend(cyl((x0 + 0.1, s * 0.55, 0.43), (x0 - 0.015, s * 0.55, 0.43), 0.04, 'chrome', 10))
+        # Rear wiper.
+        wz = SUV_ROOF(x0 + 0.1) - 0.25
+        o.body.extend(tube([Vector((x0 + 0.06, 0.0, wz - 0.12)), Vector((x0 + 0.1, 0.4, wz + 0.04))], 0.006, 'black', 4))
+    plate(o, pr, 'rear', (0.0, 0.84), 0.3, 0.15)
+    line(o, pr, 'rear', [(-0.8, 0.5), (0.8, 0.5)], 0.13, 'black', 0.003)
+
+
+@car
+def suv(res):
+    return closed_car(res, suv_params())
