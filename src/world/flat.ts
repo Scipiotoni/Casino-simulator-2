@@ -254,8 +254,8 @@ export class Flat {
   private interactions(): void {
     const g = this.game;
     const at = (x: number, z: number) => this.toWorld(x, z);
-    const door = at((UNIT.x0 + UNIT.x1) / 2, 1.2);
-    g.interactions.add({ id: 'flat:buy', x: door.x, y: this.floorY, z: door.z, radius: 2.6, priority: 2, enabled: () => !this.owned, label: `Buy this flat · ${money(FLAT_PRICE)}`, sub: 'A home: sleep, save and change here', action: () => g.buyFlat() });
+    const door = at((UNIT.x0 + UNIT.x1) / 2, 1.6);
+    g.interactions.add({ id: 'flat:buy', x: door.x, y: this.floorY, z: door.z, radius: 3.6, priority: 2, enabled: () => !this.owned, label: `Buy this flat · ${money(FLAT_PRICE)}`, sub: 'A home: sleep, save and change here', action: () => g.buyFlat() });
     const bed = at(UNIT.x0 + 2.2, UNIT.z1 + 3.2);
     g.interactions.add({ id: 'flat:bed', enabled: () => this.owned, x: bed.x, y: this.floorY, z: bed.z, radius: 1.8, label: 'Sleep until morning', sub: 'Saves your game', action: () => g.sleep() });
     const wr = at(UNIT.x0 + 1.4, UNIT.z1 + 4.6);
