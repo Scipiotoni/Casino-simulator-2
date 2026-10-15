@@ -252,13 +252,13 @@ def phantom_decor(o, res, pr, prg, hull, p):
     flat(o, pr, 'front', low, 'grille', 0.004, bezel=(0.02, 'chrome', 0.006), res=res)
     if res:
         for z in (0.39, 0.43):
-            line(o, pr, 'front', [(-0.62, z), (0.62, z)], 0.01, 'chrome', 0.008)
-    flat(o, pr, 'front', rounded([(0.72, 0.38), (0.86, 0.38), (0.86, 0.5), (0.72, 0.5)], 1), 'grille', 0.004, both=True, bezel=(0.012, 'chrome', 0.004), res=res)
+            line(o, pr, 'front', [(-0.6, z), (0.6, z)], 0.01, 'chrome', 0.008)
+    flat(o, pr, 'front', rrect_pts((0.79, 0.44), 0.14, 0.11, 0.02, 2), 'grille', 0.004, both=True, bezel=(0.012, 'chrome', 0.004), res=res)
     plate(o, pr, 'front', (0.0, 0.53), lift=0.012)
     line(o, pr, 'front', [(-0.8, 0.31), (0.8, 0.31)], 0.03, 'black', 0.003)
 
     # Tall rectangular tail lamps on the corners, chrome across the boot, the plate between.
-    tl = rounded([(0.62, 0.8), (0.88, 0.8), (0.9, 0.84), (0.9, 1.04), (0.62, 1.04)], 1)
+    tl = rrect_pts((0.76, 0.92), 0.27, 0.23, 0.025, 2)
     lamp(o, pr, 'rear', tl, 'tail', res, 'chrome', 0.006, 0.006, bw=0.012)
     if res:
         lamp(o, pr, 'rear', rounded(rrect_pts((0.76, 0.86), 0.2, 0.05, 0.01, 1), 1), 'white', res, None, 0.002, 0.012, rings=1)
