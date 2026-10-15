@@ -582,3 +582,211 @@ def suv_decor(o, res, pr, prg_unused, hull, p):
 @car
 def suv(res):
     return closed_car(res, suv_params())
+
+
+# ------------------------------------------------------------------ Army Jeep
+
+def sweep_xz(path, section, region):
+    """A closed section [(y, d)] swept along a side-view path [(x, z)], d along the path's upward normal."""
+    from carkit import Mesh, _fnormal
+    m = Mesh()
+    P2 = [Vector(p) for p in path]
+    n = len(P2)
+    rings = []
+    cents = []
+    for i, p in enumerate(P2):
+        t = (P2[min(n - 1, i + 1)] - P2[max(0, i - 1)]).normalized()
+        nrm = Vector((-t.y, t.x))
+        if nrm.y < 0 and abs(nrm.y) > abs(nrm.x) * 0.2:
+            nrm = -nrm
+        ring = [m.vert((p.x + nrm.x * d, y, p.y + nrm.y * d)) for (y, d) in section]
+        rings.append(ring)
+        cents.append(sum((m.v[q] for q in ring), Vector()) / len(ring))
+    k = len(section)
+    owner = []
+    for i in range(n - 1):
+        for j in range(k):
+            j2 = (j + 1) % k
+            m.face((rings[i][j], rings[i][j2], rings[i + 1][j2], rings[i + 1][j]), region)
+            owner.append((cents[i] + cents[i + 1]) / 2)
+    for (ring, c0, nb) in ((rings[0], cents[0], cents[1]), (rings[-1], cents[-1], cents[-2])):
+        c = m.vert(c0)
+        for j in range(k):
+            m.face((c, ring[j], ring[(j + 1) % k]), region)
+            owner.append(c0 + (nb - c0))
+    for fi, f in enumerate(m.f):
+        cc = sum((m.v[q] for q in f), Vector()) / len(f)
+        if _fnormal(m, f).dot(cc - owner[fi]) < 0:
+            m.f[fi] = tuple(reversed(f))
+    return m
+
+
+JP_TUB = (-1.52, 0.44, 0.56)  # the open tub: x from, x to, floor
+
+
+def jeep_params():
+    L, W = 3.24, 1.56
+    x0, x1 = -L / 2, L / 2
+    xf, xr = 1.03, -1.0
+    R = 0.36
+    p = dict(
+        L=L, W=W, xf=xf, xr=xr, R=R, tyre_w=0.165, track=1.25, arch_gap=0.06, arch_flat=0.9,
+        rim='military', rim_ratio=0.57, tyre='knobby', color=0x5d6b3a,
+        bottom=C((x0, 0.47), (x1, 0.48)),
+        shoulder=C((x0, 0.96), (x0 + 0.05, 0.98), (-0.66, 0.985), (-0.56, 0.95), (-0.48, 0.82), (-0.38, 0.75), (0.2, 0.75),
+                   (0.3, 0.83), (0.38, 0.97), (0.44, 1.0), (0.62, 1.0), (1.0, 0.985), (x1 - 0.04, 0.975), (x1, 0.95)),
+        top=C((x0, 0.97), (x0 + 0.05, 0.99), (-0.66, 0.995), (0.44, 1.012), (0.62, 1.015), (1.0, 1.0), (x1 - 0.04, 0.99), (x1, 0.96)),
+        width=C((x0, 0.765), (0.5, 0.775), (0.6, 0.44), (x1, 0.44)),
+        tuck=const(0.01), tumble=const(0.012), cfrac=const(0.5),
+        rb=const(0.025), rs=const(0.035),
+        front=(0.04, 4.0), rear=(0.05, 4.0),
+        flares=[],
+        open=[JP_TUB],
+        lip=0.03,
+        keys=[0.5, 0.52, 0.55, 0.58, 0.62, x0 + 0.1],
+        bl_base=0.5, ws_base=0.52, inset=0.03, glass=False,
+        driver_y=0.3, hip_f=(-0.2, 0.84), benches=[(-1.1, 1.05, 0.86)], seats=4,
+        seat_w=0.44, seat_back=0.5, headrests=False, console=False, seat_region='canvas',
+        dash=(0.44, 0.4, 0.68, 0.8, 0.97), dash_region='paint', wheel_c=(0.2, 1.04), wheel_tilt=0.6, wheel_r=0.2,
+        height=1.65,
+    )
+
+    def hull_region(i, hull):
+        if i['seg'] == 'in':
+            return 'paint'
+        return None
+
+    p['hull_region'] = hull_region
+    p['decor'] = jeep_decor
+    return p
+
+
+def jeep_decor(o, res, pr, prg_unused, hull, p):
+    L = p['L']
+    x0, x1 = -L / 2, L / 2
+    xf, xr, R = p['xf'], p['xr'], p['R']
+    seg = 10 if res else 6
+    # Flat front fenders over the wheels, curving down at the front.
+    fpath = [(0.54, 0.925), (0.9, 0.932), (1.3, 0.932), (1.48, 0.922), (1.57, 0.89), (1.63, 0.82), (1.655, 0.72), (1.66, 0.6)]
+    if not res:
+        fpath = fpath[::2] + [fpath[-1]]
+    fsec = [(0.43, 0.0), (0.745, 0.0), (0.775, -0.02), (0.775, -0.065), (0.755, -0.065), (0.755, -0.025), (0.43, -0.025)]
+    fl = sweep_xz(fpath, fsec, 'paint')
+    o.body.extend(fl.both())
+    # The grille: nine tall slots, round headlamps either side.
+    for k in range(9):
+        y = -0.22 + k * 0.055
+        flat(o, pr, 'front', rrect_pts((y, 0.73), 0.03, 0.3, 0.014, 2), 'gloss', 0.003, res=res, rings=1)
+    for s in (1, -1):
+        hc = (s * 0.32, 0.83)
+        flat(o, pr, 'front', circle_pts(hc, 0.105, 16 if res else 8), 'gloss', 0.003, res=res, rings=1)
+        lamp(o, pr, 'front', circle_pts(hc, 0.085, 16 if res else 8), 'head', res, 'metal', 0.02, 0.006, both=False, bw=0.012)
+        if res:
+            # Little parking lamps under the headlamps.
+            lamp(o, pr, 'front', circle_pts((s * 0.32, 0.64), 0.03, 10), 'amber', res, 'metal', 0.006, 0.006, both=False, bw=0.008)
+    # Steel channel bumper on the frame horns, tow hooks.
+    o.body.extend(rbox((x1 + 0.12, 0, 0.5), (0.04, 0.8, 0.075), 0.01, 'paint', 1))
+    for s in (1, -1):
+        o.body.extend(box((x1 + 0.03, s * 0.36, 0.45), (0.08, 0.04, 0.05), 'black'))
+        if res:
+            o.body.extend(tube([Vector((x1 + 0.15, s * 0.3, 0.43)), Vector((x1 + 0.23, s * 0.3, 0.45)), Vector((x1 + 0.25, s * 0.3, 0.52)), Vector((x1 + 0.2, s * 0.3, 0.55))], 0.012, 'black', 5))
+    # Frame rails, axles and differentials under the body.
+    for s in (1, -1):
+        o.body.extend(box((0.0, s * 0.38, 0.43), (x1 + 0.05, 0.035, 0.05), 'black'))
+    for x in (xf, xr):
+        o.body.extend(cyl((x, -0.55, R), (x, 0.55, R), 0.04, 'black', seg))
+        o.body.extend(rbox((x, -0.12 if x > 0 else 0.0, R), (0.11, 0.1, 0.11), 0.05, 'black', 1) if res else box((x, -0.12 if x > 0 else 0.0, R), (0.11, 0.1, 0.11), 'black'))
+    if res:
+        # Leaf springs.
+        for x in (xf, xr):
+            for s in (1, -1):
+                o.body.extend(box((x, s * 0.42, R + 0.055), (0.42, 0.03, 0.02), 'black'))
+
+    # Bonnet: shut line, clamps, a big white star; blackout lamps on the fenders.
+    if res:
+        line(o, pr, 'top', [(0.62, -0.4), (0.62, 0.4)], 0.008, 'gap', 0.002)
+        for s in (1, -1):
+            o.body.extend(rbox((1.42, s * 0.445, 0.92), (0.025, 0.012, 0.05), 0.006, 'metal', 1))
+            o.body.extend(cyl((1.48, s * 0.68, 0.93), (1.48, s * 0.68, 0.975), 0.03, 'metal', 8))
+            o.body.extend(cyl((1.51, s * 0.68, 0.955), (1.515, s * 0.68, 0.955), 0.017, 'amber', 8))
+            # Rubber stops the folded windscreen rests on.
+            o.body.extend(cyl((1.2, s * 0.32, 1.0), (1.2, s * 0.32, 1.03), 0.022, 'black', 8))
+    flat(o, pr, 'top', star_pts((1.08, 0.0), 0.25, rot=0.0), 'white', 0.003, res=res, rings=1)
+    if res:
+        line(o, pr, 'top', rounded(circle_pts((1.08, 0.0), 0.29, 24), 1), 0.022, 'white', 0.003, closed=True)
+        # Stars on the tub sides.
+        flat(o, pr, 'side', star_pts((-0.95, 0.9), 0.065), 'white', 0.003, both=True, res=res, rings=1)
+
+    # The windscreen: a flat frame on the cowl with two panes, leaning back a little.
+    M = Matrix.Translation((0.52, 0.0, 1.01)) @ Matrix.Rotation(-0.16, 4, 'Y')
+    hw, hh = 0.7, 0.6
+    fr = [rbox((0, 0, 0.02), (0.025, hw, 0.025), 0.01, 'paint', 1, M), rbox((0, 0, hh), (0.025, hw, 0.025), 0.01, 'paint', 1, M),
+          rbox((0, 0, hh / 2 + 0.01), (0.022, 0.02, hh / 2 - 0.02), 0.006, 'paint', 1, M)]
+    for s in (1, -1):
+        fr.append(rbox((0, s * hw, hh / 2 + 0.01), (0.025, 0.025, hh / 2 + 0.01), 0.01, 'paint', 1, M))
+        fr.append(box((0, s * hw / 2, hh / 2 + 0.01), (0.006, hw / 2 - 0.035, hh / 2 - 0.035), 'glass', M))
+    for m in fr:
+        o.body.extend(m)
+    if res:
+        # Hinges, the arms holding it up, a wiper, the mirror on its arm.
+        for s in (1, -1):
+            o.body.extend(cyl((0.52, s * 0.6, 1.03), (0.52, s * 0.5, 1.03), 0.018, 'metal', 6))
+            o.body.extend(tube([M @ Vector((-0.03, s * (hw + 0.03), 0.3)), Vector((0.38, s * 0.76, 0.99))], 0.01, 'metal', 4))
+        o.body.extend(tube([M @ Vector((0.03, 0.35, hh - 0.03)), M @ Vector((0.03, 0.1, 0.25))], 0.006, 'black', 4))
+        mb = M @ Vector((0.0, hw + 0.02, hh * 0.7))
+        o.body.extend(tube([mb, mb + Vector((0.0, 0.14, 0.04))], 0.008, 'metal', 4))
+        o.body.extend(cyl(mb + Vector((0.0, 0.17, 0.05)), mb + Vector((-0.02, 0.17, 0.05)), 0.055, 'metal', 12))
+        o.body.extend(cyl(mb + Vector((-0.021, 0.17, 0.05)), mb + Vector((-0.024, 0.17, 0.05)), 0.048, 'mirror', 12))
+
+    # Inside: seat boxes, rear wheel housings, the dials, the gear lever.
+    hx, hz = p['hip_f']
+    dy = p['driver_y']
+    fl_z = JP_TUB[2]
+    for s in (1, -1):
+        if res:
+            o.body.extend(rbox((hx + 0.04, s * dy, (fl_z + hz - 0.2) / 2), (0.2, 0.2, (hz - 0.2 - fl_z) / 2 + 0.01), 0.02, 'paint', 1))
+        o.body.extend(rbox((xr, s * 0.62, 0.66), (0.44, 0.14, 0.16), 0.04, 'paint', 1) if res else box((xr, s * 0.62, 0.66), (0.44, 0.14, 0.16), 'paint'))
+    if res:
+        o.body.extend(rbox((-1.1, 0, 0.62), (0.22, 0.48, 0.12), 0.02, 'paint', 1))
+        for (y, r) in ((dy, 0.045), (dy - 0.13, 0.035), (0.05, 0.035), (-0.08, 0.035)):
+            o.body.extend(cyl((0.44, y, 0.9), (0.43, y, 0.9), r, 'gloss', 10))
+            o.body.extend(cyl((0.429, y, 0.9), (0.428, y, 0.9), r * 0.8, 'white', 10))
+        o.body.extend(tube([Vector((0.05, 0.0, fl_z)), Vector((-0.05, 0.02, 0.85))], 0.01, 'black', 4))
+        o.body.extend(rbox((-0.05, 0.02, 0.87), (0.025, 0.025, 0.025), 0.02, 'black', 1))
+
+    # Rear: spare wheel on the right, jerry can on the left, small tail lamps, bumperettes.
+    spare = P.wheel(R, 0.165, 'military', 'knobby', 0.57, 20 if res else 8, res)
+    spare.recolor('canvas', only='rim')
+    spare.transform(Matrix.Rotation(-math.pi / 2, 4, 'Z'))
+    spare.transform(Matrix.Translation((x0 - 0.12, -0.34, 0.84)))
+    o.body.extend(spare)
+    o.body.extend(rbox((x0 - 0.02, -0.34, 0.84), (0.03, 0.12, 0.05), 0.01, 'black', 1))
+    can = rbox((x0 - 0.1, 0.4, 0.8), (0.08, 0.17, 0.235), 0.025, 'paint', 2 if res else 1)
+    o.body.extend(can)
+    if res:
+        for yy in (0.33, 0.4, 0.47):
+            o.body.extend(box((x0 - 0.1, yy, 1.045), (0.012, 0.012, 0.012), 'paint'))
+        o.body.extend(box((x0 - 0.1, 0.4, 1.06), (0.014, 0.08, 0.008), 'paint'))
+        o.body.extend(box((x0 - 0.1, 0.4, 0.8), (0.09, 0.18, 0.012), 'black'))
+        pc = Projector(can)
+        line(o, pc, 'rear', [(0.27, 0.62), (0.53, 0.98)], 0.012, 'gap', 0.002)
+        line(o, pc, 'rear', [(0.53, 0.62), (0.27, 0.98)], 0.012, 'gap', 0.002)
+    for s in (1, -1):
+        lamp(o, pr, 'rear', rrect_pts((s * 0.66, 0.78), 0.07, 0.05, 0.01, 1), 'tail', res, 'metal', 0.004, 0.006, both=False, bw=0.008)
+        o.body.extend(rbox((x0 - 0.06, s * 0.66, 0.55), (0.06, 0.06, 0.05), 0.01, 'paint', 1))
+    o.body.extend(box((x0 - 0.06, 0.0, 0.47), (0.06, 0.05, 0.03), 'black'))
+    # The canvas top folded down behind the rear seat, its bows over it.
+    o.body.extend(rbox((x0 + 0.13, 0.0, 1.03), (0.1, 0.72, 0.06), 0.04, 'canvas', 2 if res else 1))
+    if res:
+        for dx in (0.08, 0.15):
+            o.body.extend(tube([Vector((x0 + dx, 0.74, 0.98)), Vector((x0 + dx, 0.74, 1.1)), Vector((x0 + dx, -0.74, 1.1)), Vector((x0 + dx, -0.74, 0.98))], 0.012, 'black', 4))
+
+
+@car
+def jeep(res):
+    o = closed_car(res, jeep_params())
+    o.meta['dims'][0] = 3.62
+    # Olive drab painted wheels.
+    for w in (o.wheel.values() if res else [o.body]):
+        w.recolor('canvas', only='rim')
+    return o
