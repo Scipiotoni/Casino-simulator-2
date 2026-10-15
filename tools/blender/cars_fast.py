@@ -945,3 +945,202 @@ def ferrari_car(res):
 
 ferrari_car.__name__ = 'ferrari'
 car(ferrari_car)
+
+
+# ------------------------------------------------------------------ Woking 720 (the British supercar)
+
+def mclaren_decor(o, res, pr, prg, hull, p, k):
+    L = p['L']
+    x0, x1 = -L / 2, L / 2
+    # Eye-socket lamps: a dark teardrop at each corner of the nose, the lamp in its top.
+    hf = aim((x1 - 0.24, 0.62, 0.36), 0.5, 0.25)
+    sock = rounded([(-0.13, 0.07), (0.1, 0.1), (0.15, 0.03), (0.07, -0.13), (-0.04, -0.15), (-0.13, -0.03)], 2)
+    lamp(o, pr, hf, sock, 'gloss', res, 'black', 0.0, 0.004, bw=0.012)
+    lamp(o, pr, hf, rounded([(-0.09, 0.04), (0.09, 0.07), (0.11, 0.03), (-0.08, 0.0)], 1), 'head', res, None, 0.004, 0.01)
+    if res:
+        flat(o, pr, hf, rounded([(-0.04, -0.04), (0.06, -0.02), (0.03, -0.1), (-0.02, -0.11)], 1), 'grille', 0.012, both=True, rings=1)
+    flat(o, pr, 'front', rounded([(-0.42, 0.14), (0.42, 0.14), (0.36, 0.22), (-0.36, 0.22)], 1), 'grille', 0.004, res=res, rings=2)
+    o.body.extend(rbox((x1 - 0.16, 0, 0.11), (0.12, 0.62, 0.01), 0.005, 'gloss', 1))
+    if res:
+        gaps(o, pr, [[(0.92, 0.5), (1.8, 0.42), (2.16, 0.28), (2.24, 0.0)]], frame='top')
+    # The channel along the door leading into the scoop.
+    flat(o, pr, 'side', rounded([(0.4, 0.52), (0.1, 0.46), (-0.3, 0.38), (-0.3, 0.64), (0.1, 0.6)], 2), 'gloss', 0.003, both=True, res=res, rings=2)
+    # The tail: slim C-shaped lamps, mesh right across, the airbrake, a high centre exhaust pair.
+    for s in (1, -1):
+        line(o, pr, 'rear', [(s * 0.6, 0.84), (s * 0.82, 0.84), (s * 0.86, 0.78), (s * 0.82, 0.7), (s * 0.66, 0.7)], 0.025, 'tail', 0.007)
+    flat(o, pr, 'rear', [(-0.7, 0.36), (0.7, 0.36), (0.7, 0.64), (0.48, 0.76), (-0.48, 0.76), (-0.7, 0.64)], 'grille', 0.004, res=res, rings=2)
+    if res:
+        for z in (0.42, 0.5, 0.58, 0.66):
+            line(o, pr, 'rear', [(-0.66, z), (0.66, z)], 0.006, 'metal', 0.007)
+        for y in (-0.08, 0.08):
+            o.body.extend(cyl((x0 + 0.2, y, 0.62), (x0 - 0.02, y, 0.62), 0.05, 'chrome', 12, caps=False))
+            o.body.extend(cyl((x0 - 0.015, y, 0.62), (x0 - 0.008, y, 0.62), 0.045, 'gap', 10))
+    diffuser(o, pr, x0, res, 0.6, 0.15, 0.34)
+    zt = hull.surface_z(x0 + 0.15, 0.0)
+    o.body.extend(prism([(x0 + 0.4, zt), (x0 + 0.4, zt + 0.02), (x0 + 0.12, zt + 0.04), (x0 + 0.11, zt + 0.015), (x0 + 0.16, zt - 0.02)], -0.74, 0.74, 'paint'))
+
+
+def mclaren_car(res):
+    k = dict(
+        L=4.54, W=1.93, xf=1.36, xr=-1.31, R=0.335, Rr=0.35, track=1.64, track_r=1.6, color=0xff7a1a,
+        ws=0.82, bl=-1.15, nose=0.36, cowl=0.72, belt=0.8, hip=0.95, deck=0.93, wingf=0.75, dip=0.08,
+        roof=[(-1.15, 0.97), (-0.85, 1.08), (-0.5, 1.17), (-0.2, 1.2), (0.05, 1.18), (0.3, 1.08), (0.55, 0.93), (0.82, 0.76)],
+        hdr=0.05, rwin=-0.7, qx=-0.62, qxr=-0.45, sail='glass', pillar='gloss',
+        wf=0.96, wd=0.9, wr=0.965, rw=(0.34, 0.56, 0.7), bw=(0.5, 0.71, 0.76),
+        hip_x=-0.25, hip_up=0.18, eye_up=0.64, tumble=C((-2.3, 0.12), (-1.2, 0.13), (0.0, 0.15), (1.4, 0.1), (2.3, 0.1)),
+        rs=const(0.06), rim='multi', spokes=5, ratio=0.75, tw=0.245, twr=0.305,
+        cutters=lambda res, hull: side_intake(-0.3, -0.86, 0.36, 0.66, 0.8, 0.6),
+        decor=mclaren_decor, plate_f=0.27, plate_r=0.28, door=(0.76, -0.3), front=(0.55, 2.2),
+    )
+    p = mid_params(k)
+    p['gh_rear'] = (0.35, 2.0)
+    return fast_car(res, p)
+
+
+mclaren_car.__name__ = 'mclaren'
+car(mclaren_car)
+
+
+# ------------------------------------------------------------------ Molsheim Chimera (the W16 hypercar)
+
+def chiron_c(z):
+    """The side's big C: how far forward of the door's middle it is at each height."""
+    return -0.5 + 0.55 * ((z - 0.55) / 0.33) ** 2
+
+
+def prism_any(outline, y0, y1, region):
+    """Like carkit.prism but wound consistently for concave outlines too (a cutter must be closed and outward)."""
+    m = Mesh()
+    a = [m.vert((x, y0, z)) for x, z in outline]
+    b = [m.vert((x, y1, z)) for x, z in outline]
+    n = len(outline)
+    for k2 in range(n):
+        k3 = (k2 + 1) % n
+        m.face((a[k2], a[k3], b[k3], b[k2]), region)
+    m.face(list(reversed(a)), region)
+    m.face(b, region)
+    if K._fnormal(m, m.f[-1]).y * (1 if y1 > y0 else -1) < 0:
+        m.f = [tuple(reversed(f)) for f in m.f]
+    return m
+
+
+def bugatti_decor(o, res, pr, prg, hull, p, k):
+    L = p['L']
+    x0, x1 = -L / 2, L / 2
+    # The horseshoe grille in a chrome surround, big black intakes either side of it.
+    shoe = rounded([(-0.17, 0.6), (0.17, 0.6), (0.16, 0.42), (0.11, 0.3), (0.0, 0.27), (-0.11, 0.3), (-0.16, 0.42)], 2)
+    flat(o, pr, 'front', shoe, 'grille', 0.006, bezel=(0.03, 'chrome', 0.008), res=res, rings=2)
+    if res:
+        for z in (0.36, 0.44, 0.52):
+            line(o, pr, 'front', [(-0.15, z), (0.15, z)], 0.006, 'metal', 0.01)
+    fi = aim((x1 - 0.2, 0.55, 0.28), 0.35, 0.0)
+    flat(o, pr, fi, [(-0.22, -0.12), (0.24, -0.12), (0.26, 0.06), (0.1, 0.1), (-0.18, 0.06)], 'grille', 0.004, both=True, bezel=(0.014, 'gloss', 0.003), res=res, rings=2)
+    # Four-lens lamps: a slim housing on each corner with four small lenses in it.
+    hf = aim((x1 - 0.3, 0.64, 0.62), 0.55, 0.4)
+    lamp(o, pr, hf, rounded([(-0.17, 0.0), (0.12, -0.05), (0.19, -0.02), (0.17, 0.03), (-0.15, 0.05)], 1), 'gloss', res, 'chrome', 0.004, 0.006, bw=0.01)
+    for j in range(4):
+        lamp(o, pr, hf, circle_pts((-0.11 + j * 0.08, 0.02 - j * 0.017), 0.025, 10), 'head', res, None, 0.008, 0.012, rings=1)
+    o.body.extend(rbox((x1 - 0.16, 0, 0.12), (0.12, 0.6, 0.01), 0.005, 'gloss', 1))
+    # The C round the side intake, in chrome.
+    zs = [0.24 + k2 * 0.06 for k2 in range(12)]
+    line(o, pr, 'side', [(chiron_c(z) + 0.02, z) for z in zs], 0.04, 'chrome', 0.006, both=True)
+    # The spine down the middle of the roof and the engine cover.
+    path = [Vector((x, 0, p['roof_z'](x) + 0.008)) for x in (0.1, -0.2, -0.5, -0.8)] + \
+           [Vector((x, 0, hull.surface_z(x, 0.0) + 0.01)) for x in (-1.1, -1.5, -1.9)]
+    o.body.extend(tube(path, 0.018, 'paint2', 6 if res else 4))
+    # The tail: one light bar right across, a mesh panel, four square exhausts, the fixed spoiler.
+    line(o, pr, 'rear', [(-0.9, k['deck'] - 0.1), (0.9, k['deck'] - 0.1)], 0.025, 'tail', 0.007)
+    flat(o, pr, 'rear', [(-0.75, 0.34), (0.75, 0.34), (0.75, 0.78), (-0.75, 0.78)], 'grille', 0.004, res=res, rings=2)
+    if res:
+        for y in (-0.15, -0.05, 0.05, 0.15):
+            o.body.extend(rbox((x0 + 0.1, y, 0.32), (0.12, 0.04, 0.035), 0.008, 'chrome', 1))
+            o.body.extend(rbox((x0 - 0.02, y, 0.32), (0.006, 0.032, 0.027), 0.004, 'gap', 1))
+    diffuser(o, pr, x0, res, 0.66, 0.16, 0.3)
+    zt = hull.surface_z(x0 + 0.25, 0.3)
+    o.body.extend(aerofoil(x0 + 0.24, zt + 0.07, 0.34, 0.06, -0.86, 0.86, 0.06, 'paint2'))
+    for s in (1, -1):
+        o.body.extend(rbox((x0 + 0.25, s * 0.45, zt + 0.03), (0.08, 0.012, 0.04), 0.006, 'paint2', 1))
+
+
+def bugatti_car(res):
+    k = dict(
+        L=4.54, W=2.04, xf=1.36, xr=-1.35, R=0.345, Rr=0.36, track=1.72, track_r=1.68, color=0x1a2a6a,
+        ws=0.7, bl=-0.95, nose=0.6, cowl=0.8, belt=0.85, hip=1.0, deck=1.0, wingf=0.84, dip=0.05,
+        roof=[(-0.95, 1.03), (-0.7, 1.12), (-0.4, 1.2), (-0.15, 1.21), (0.1, 1.18), (0.35, 1.06), (0.55, 0.93), (0.7, 0.83)],
+        hdr=0.1, rwin=-0.72, qx=-0.5, qxr=-0.42, sail='paint',
+        wf=1.0, wd=0.97, wr=1.02, rw=(0.5, 0.58, 0.72), bw=(0.62, 0.74, 0.78),
+        hip_x=-0.22, hip_up=0.2, eye_up=0.66, tumble=C((-2.3, 0.14), (-1.2, 0.14), (0.0, 0.14), (1.4, 0.11), (2.3, 0.1)),
+        rs=const(0.1), rim='alloy', spokes=6, ratio=0.74, tw=0.285, twr=0.355, nose_bot=0.12,
+        cutters=lambda res, hull: [prism_any([(chiron_c(z) - 0.02, z) for z in (0.3, 0.42, 0.55, 0.68, 0.8)] +
+                                         [(chiron_c(z) - 0.2, z) for z in (0.76, 0.66, 0.55, 0.44, 0.34)], 0.88, 1.6, 'grille')] * 1,
+        decor=bugatti_decor, plate_f=0.2, plate_r=0.44, door=(0.66, -0.4), front=(0.55, 2.0),
+        hull_region=lambda i, hull: ('paint2' if i['seg'] not in ('bot', 'in') and (
+            (i['seg'] in ('low', 'up', 'sill', 'sh') and i['c'].x > chiron_c(i['c'].z)) or (i['seg'] in ('top', 'cap') and i['c'].x > 0.68))
+            else None),
+    )
+    k['cutters'] = lambda res, hull, c=k['cutters']: [m for m in c(res, hull)] + [m.mirrored() for m in c(res, hull)]
+    return fast_car(res, mid_params(k))
+
+
+bugatti_car.__name__ = 'bugatti'
+car(bugatti_car)
+
+
+# ------------------------------------------------------------------ Toro Countdown (the '80s poster wedge)
+
+def countach_decor(o, res, pr, prg, hull, p, k):
+    L = p['L']
+    x0, x1 = -L / 2, L / 2
+    # Pop-up lamps, shown closed: two panels outlined on the bonnet; driving lamps in the nose.
+    if res:
+        for s in (1, -1):
+            line(o, pr, 'top', rrect_pts((1.62, s * 0.58), 0.34, 0.22, 0.01, 1), 0.006, 'gap', 0.0015, closed=True)
+        gaps(o, pr, [[(0.7, 0.4), (1.9, 0.35), (2.0, 0.0)]], frame='top')
+    for s in (1, -1):
+        lamp(o, pr, 'front', rrect_pts((s * 0.5, 0.42), 0.26, 0.05, 0.008, 1), 'head', res, 'gloss', 0.003, 0.006, both=False, bw=0.01)
+        lamp(o, pr, 'front', rrect_pts((s * 0.78, 0.42), 0.12, 0.05, 0.008, 1), 'amber', res, 'gloss', 0.003, 0.006, both=False, bw=0.01)
+    line(o, pr, 'front', [(-0.9, 0.3), (0.9, 0.3)], 0.08, 'black', 0.004)
+    # NACA ducts in the doors and the boxy air boxes on the shoulders behind the cabin.
+    flat(o, pr, 'side', [(0.25, 0.7), (-0.35, 0.76), (-0.37, 0.64)], 'grille', 0.004, both=True, bezel=(0.008, 'gloss', 0.003), res=res, rings=2)
+    for s in (1, -1):
+        zb = hull.surface_z(-0.95, 0.66)
+        o.body.extend(rbox((-1.0, s * 0.66, zb + 0.06), (0.32, 0.2, 0.09), 0.02, 'paint', 2 if res else 1))
+        o.body.extend(rbox((-0.69, s * 0.66, zb + 0.08), (0.012, 0.17, 0.055), 0.006, 'grille', 1))
+    # Tail: rectangular lamp clusters in a black panel, quad pipes, the big V-legged wing.
+    flat(o, pr, 'rear', [(-0.86, 0.5), (0.86, 0.5), (0.86, 0.72), (-0.86, 0.72)], 'black', 0.003, res=res, rings=2)
+    for s in (1, -1):
+        for (y, w, reg) in ((0.74, 0.18, 'tail'), (0.57, 0.13, 'amber'), (0.42, 0.15, 'tail')):
+            lamp(o, pr, 'rear', rrect_pts((s * y, 0.61), w, 0.13, 0.008, 1), reg, res, None, 0.003, 0.008, both=False, rings=1)
+    line(o, pr, 'rear', [(-0.9, 0.36), (0.9, 0.36)], 0.08, 'black', 0.004)
+    if res:
+        for s in (1, -1):
+            for y in (0.22, 0.34):
+                o.body.extend(cyl((x0 + 0.2, s * y, 0.27), (x0 - 0.03, s * y, 0.27), 0.04, 'chrome', 12, caps=False))
+                o.body.extend(cyl((x0 - 0.025, s * y, 0.27), (x0 - 0.018, s * y, 0.27), 0.035, 'gap', 10))
+    wz = k['deck'] + 0.3
+    o.body.extend(aerofoil(x0 + 0.22, wz, 0.4, 0.07, -0.88, 0.88, 0.1, 'paint'))
+    for s in (1, -1):
+        o.body.extend(rbox((x0 + 0.21, s * 0.885, wz - 0.02), (0.2, 0.007, 0.06), 0.006, 'paint', 1))
+        zd = hull.surface_z(x0 + 0.3, 0.6)
+        o.body.extend(tube([Vector((x0 + 0.3, s * 0.6, zd - 0.02)), Vector((x0 + 0.24, s * 0.1, wz - 0.02))], 0.025, 'paint', 6 if res else 4))
+
+
+def countach_car(res):
+    k = dict(
+        L=4.14, W=2.0, xf=1.24, xr=-1.21, R=0.31, Rr=0.335, track=1.56, track_r=1.6, color=0xf4f4f6,
+        ws=0.58, bl=-0.75, nose=0.5, cowl=0.8, belt=0.82, hip=0.98, deck=0.95, wingf=0.73, dip=0.03,
+        roof=[(-0.75, 0.99), (-0.6, 1.05), (-0.4, 1.07), (-0.15, 1.07), (0.05, 1.02), (0.3, 0.93), (0.58, 0.82)],
+        hdr=0.05, rwin=-0.62, qx=-0.42, qxr=-0.35, sail='black', corner=0.025,
+        wf=0.96, wd=0.9, wr=0.98, rw=(0.5, 0.56, 0.68), bw=(0.6, 0.66, 0.72),
+        hip_x=-0.15, hip_up=0.17, eye_up=0.62, tumble=C((-2.1, 0.15), (-1.2, 0.17), (0.0, 0.2), (1.2, 0.14), (2.1, 0.14)),
+        rs=const(0.018), cfrac=const(0.42), rim='steel', spokes=5, ratio=0.6, tw=0.225, twr=0.345, gap=0.05,
+        flares=[(1.24, 0.42, 0.05, 0.45, 0.3), (-1.21, 0.5, 0.07, 0.5, 0.34)],
+        decor=countach_decor, plate_f=0.2, plate_r=0.42, door=(0.5, -0.4), front=(0.25, 4.0), rear=(0.15, 4.0), xdoor=-0.1,
+    )
+    p = mid_params(k)
+    p['arch_flat'] = 0.7
+    return fast_car(res, p)
+
+
+countach_car.__name__ = 'countach'
+car(countach_car)
