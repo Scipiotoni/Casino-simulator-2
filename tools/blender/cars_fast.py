@@ -379,3 +379,222 @@ def sports_decor(o, res, pr, prg, hull, p):
 @car
 def sports(res):
     return fast_car(res, sports_params())
+
+
+# ------------------------------------------------------------------ Thunder Muscle
+
+def muscle_params():
+    L, W = 4.8, 1.88
+    x0, x1 = -L / 2, L / 2
+    xf, xr = 1.42, -1.32
+    R = 0.335
+    p = dict(
+        L=L, W=W, xf=xf, xr=xr, R=R, tyre_w=0.235, track=1.54, arch_gap=0.055, arch_flat=0.25, color=0x1f1f24,
+        bottom=C((x0, 0.36), (x0 + 0.12, 0.27), (x0 + 0.4, 0.22), (xr, 0.17), (xf, 0.17), (xf + 0.5, 0.2), (x1 - 0.12, 0.24), (x1, 0.28)),
+        shoulder=C((x0, 0.86), (x0 + 0.03, 0.925), (x0 + 0.12, 0.955), (-1.9, 0.96), (xr, 0.955), (-0.6, 0.915), (0.55, 0.89),
+                   (xf, 0.865), (2.1, 0.84), (x1 - 0.05, 0.825), (x1, 0.76)),
+        top=C((x0, 0.9), (x0 + 0.03, 0.975), (x0 + 0.07, 1.0), (x0 + 0.25, 0.985), (-1.75, 0.99), (-1.2, 1.0), (0.55, 0.9),
+              (xf, 0.875), (2.1, 0.85), (x1 - 0.04, 0.835), (x1, 0.79)),
+        width=C((x0, 0.91), (xr - 0.3, 0.93), (xr, 0.94), (-0.5, 0.925), (0.5, 0.925), (xf, 0.93), (x1 - 0.2, 0.925), (x1, 0.915)),
+        tuck=const(0.09), tumble=const(0.05),
+        cfrac=C((x0, 0.8), (xr, 0.78), (0.0, 0.8), (xf, 0.8), (x1, 0.82)),
+        rb=const(0.07), rs=const(0.035),
+        front=(0.26, 3.6), rear=(0.22, 3.6),
+        flares=[(xf, 0.55, 0.012, 0.66, 0.3), (xr, 0.8, 0.03, 0.72, 0.3)],
+        open=[(-1.1, 0.42, 0.25)],
+        bl_base=-1.75, ws_base=0.55, inset=0.035,
+        roof_z=C((-1.75, 0.985), (-1.4, 1.07), (-1.05, 1.155), (-0.7, 1.24), (-0.45, 1.285), (-0.2, 1.3), (0.0, 1.285), (0.2, 1.19), (0.38, 1.06), (0.55, 0.92)),
+        rail_z=C((-1.75, 0.975), (-1.4, 1.05), (-1.05, 1.128), (-0.7, 1.205), (-0.45, 1.247), (-0.2, 1.26), (0.0, 1.245), (0.2, 1.155), (0.38, 1.04), (0.55, 0.905)),
+        rail_w=C((-1.75, 0.6), (-1.2, 0.66), (-0.6, 0.67), (0.0, 0.68), (0.55, 0.79)),
+        corner=C((-1.0, 0.05), (0.0, 0.045), (0.4, 0.035)),
+        lines=[(-1.08, -0.86), (-0.6, -0.6), (-0.565, -0.565), (0.45, 0.43)], between=2,
+        driver_y=0.37, hip_f=(-0.42, 0.44), benches=[(-1.05, 1.15, 0.46)],
+        dash=(0.6, 0.22, 0.75, 0.55, 0.88), wheel_c=(0.04, 0.82), wheel_r=0.19, wheel_tilt=0.5,
+        roof_x=-0.2, ntop=7,
+    )
+
+    def glass_region(i):
+        seg, xb, xr_, k = i['seg'], i['xb'], i['xr'], i['k']
+        if seg == 'side':
+            if i['zone'] == 'front' or xb > 0.45:
+                return 'black'
+            if -0.6 < xb < -0.565:
+                return 'chrome'
+            if xb < -1.08:
+                return 'paint'
+            return 'glass'
+        if seg == 'corner':
+            return 'paint'
+        if xr_ > 0.0:
+            return 'glass'
+        if xr_ < -0.78:
+            # The back window, narrower than the roof between the sail panels.
+            return 'paint' if k <= 4 else 'glass'
+        return 'paint'
+
+    p['glass_region'] = glass_region
+    p['decor'] = muscle_decor
+
+    def cutters(res, hull):
+        # The grille: a recess right across the nose.
+        g = rrect_pts((0.0, 0.625), 1.46, 0.25, 0.04, 2)
+        out = []
+        m = Mesh()
+        a = [m.vert((x1 - 0.085, s, t)) for (s, t) in g]
+        b = [m.vert((x1 + 0.4, s, t)) for (s, t) in g]
+        n = len(g)
+        for k in range(n):
+            k2 = (k + 1) % n
+            m.face((a[k], a[k2], b[k2], b[k]), 'grille')
+        m.face(list(reversed(a)), 'grille')
+        m.face(b, 'grille')
+        K._orient(m, (x1, 0, 0.625))
+        out.append(m)
+        return out
+
+    p['cutters'] = cutters
+
+    def wheels(res):
+        seg = 22 if res else 8
+        w = P.wheel(R, 0.235, 'slot', 'road', 0.6, seg, res)
+        return w, None
+
+    p['wheels'] = wheels
+    return p
+
+
+def bullet_mirror(x, y, z, res):
+    """A round chrome door mirror on a short stalk (left side)."""
+    m = Mesh()
+    m.extend(cyl((x, y - 0.01, z), (x - 0.01, y + 0.07, z + 0.05), 0.012, 'chrome', 6))
+    head = lathe([(0.0, -0.05), (0.04, -0.045), (0.058, -0.02), (0.06, 0.0), (0.06, 0.012)], 'chrome', 14 if res else 6,
+                 axis=(1, 0, 0), c=(x - 0.02, y + 0.075, z + 0.065))
+    m.extend(head)
+    g = Mesh()
+    ids = [g.vert((x - 0.02 - 0.013, y + 0.075 + 0.055 * math.cos(2 * math.pi * k / 12), z + 0.065 + 0.055 * math.sin(2 * math.pi * k / 12))) for k in range(12)]
+    g.face(ids, 'mirror')
+    K._orient(g, (x + 0.1, y + 0.075, z + 0.065))
+    m.extend(g)
+    return m
+
+
+def blade(x, z, half_w, h, d, wrap, region='chrome', sign=1, res=1, ends=0.16):
+    """One continuous blade bumper across the car at x (sign +1 at the front), its ends wrapping back."""
+    n = 14 if res else 6
+    path = [Vector((x - sign * (wrap + ends), -half_w - 0.015, z))]
+    for k in range(n + 1):
+        y = -half_w + 2 * half_w * k / n
+        path.append(Vector((x - sign * wrap * (abs(y) / half_w) ** 4, y, z)))
+    path.append(Vector((x - sign * (wrap + ends), half_w + 0.015, z)))
+    r = min(h, d) * 0.4
+    sec = [(u, v) for (u, v) in rrect_pts((0.0, 0.0), d, h, r, 2 if res else 1)]
+    m = Mesh()
+    rings = []
+    for i, pt in enumerate(path):
+        t = path[min(len(path) - 1, i + 1)] - path[max(0, i - 1)]
+        t.z = 0
+        t.normalize()
+        nrm = Vector((t.y, -t.x, 0))
+        if nrm.dot(Vector((pt.x, pt.y, 0))) < 0:
+            nrm = -nrm
+        rings.append([m.vert(pt + nrm * u + Vector((0, 0, v))) for (u, v) in sec])
+    ns = len(sec)
+    for i in range(len(rings) - 1):
+        for j in range(ns):
+            j2 = (j + 1) % ns
+            m.face((rings[i][j], rings[i][j2], rings[i + 1][j2], rings[i + 1][j]), region)
+    for ring, pt in ((rings[0], path[0]), (rings[-1], path[-1])):
+        c = m.vert(pt)
+        for j in range(ns):
+            m.face((c, ring[j], ring[(j + 1) % ns]), region)
+    for i, f in enumerate(m.f):
+        cen = sum((m.v[j] for j in f), Vector()) / len(f)
+        best = min(path, key=lambda q: (q - cen).length)
+        if K._fnormal(m, f).dot(cen - best) < 0:
+            m.f[i] = tuple(reversed(f))
+    return m
+
+
+def muscle_decor(o, res, pr, prg, hull, p):
+    L = p['L']
+    x0, x1 = -L / 2, L / 2
+    xf, xr, R = p['xf'], p['xr'], p['R']
+    # The bonnet scoop: a raised intake on the middle of the bonnet, open at the front.
+    zb = hull.surface_z(1.3, 0.0)
+    slope = math.atan2(hull.surface_z(1.0, 0.0) - hull.surface_z(1.6, 0.0), 0.6)
+    M = Matrix.Translation((1.3, 0.0, zb + 0.01)) @ Matrix.Rotation(slope, 4, 'Y')
+    scoop = rbox((0, 0, 0), (0.3, 0.16, 0.055), 0.045, 'paint', 2 if res else 1, M)
+    o.body.extend(scoop)
+    o.body.extend(rbox((0.262, 0, 0.012), (0.04, 0.125, 0.027), 0.012, 'grille', 1, M))
+    # The ducktail: a lip along the end of the deck.
+    zt = hull.surface_z(x0 + 0.07, 0.0)
+    duck = prism([(x0 + 0.22, zt - 0.03), (x0 + 0.22, zt - 0.01), (x0 + 0.05, zt + 0.03), (x0 + 0.015, zt + 0.028), (x0 + 0.03, zt - 0.03)], -0.7, 0.7, 'paint')
+    o.body.extend(duck)
+    ps = Projector(o.body)
+    # Twin stripes over the bonnet (and the scoop), the roof and the deck lid (and the lip).
+    for (y0, y1) in ((0.05, 0.27),):
+        yc, w = (y0 + y1) / 2, y1 - y0
+        for (a, b, proj) in ((x1 - 0.04, 0.6, ps), (-0.02, -0.76, prg), (-1.8, x0 + 0.02, ps)):
+            n = max(2, int(abs(a - b) / 0.06))
+            pts = [(a + (b - a) * k / n, yc) for k in range(n + 1)]
+            line(o, proj, 'top', pts, w, 'stripe', 0.0035, both=True)
+
+    # The grille in its recess: quad lamps in chrome rings, a chrome surround, a fine mesh.
+    if res:
+        for z in (0.56, 0.6, 0.65, 0.69):
+            line(o, pr, 'front', [(-0.68, z), (0.68, z)], 0.006, 'gloss', 0.01)
+        for y in (-0.2, -0.1, 0.0, 0.1, 0.2):
+            line(o, pr, 'front', [(y, 0.52), (y, 0.73)], 0.006, 'gloss', 0.01)
+    for s in (0.6, 0.4):
+        lamp(o, pr, 'front', circle_pts((s, 0.625), 0.072, 14), 'head', res, 'chrome', 0.012, 0.012, bw=0.016)
+        if res:
+            lamp(o, pr, 'front', circle_pts((s, 0.625), 0.02, 8), 'chrome', res, None, 0.004, 0.026, rings=1)
+    line(o, pr, 'front', rrect_pts((0.0, 0.625), 1.5, 0.29, 0.05, 2), 0.022, 'chrome', 0.004, closed=True)
+    # Chrome blade bumpers wrapping round the corners, the front valance with turn signals and the plate.
+    o.body.extend(blade(x1 + 0.02, 0.43, 0.88, 0.1, 0.08, 0.16, 'chrome', 1, res))
+    o.body.extend(blade(x0 - 0.02, 0.47, 0.88, 0.11, 0.08, 0.13, 'chrome', -1, res))
+    lamp(o, pr, 'front', rrect_pts((0.52, 0.335), 0.17, 0.045, 0.01, 1), 'amber', res, 'chrome', 0.004, 0.006, bw=0.008)
+    plate(o, pr, 'front', (0.0, 0.315), w=0.3, h=0.12)
+
+    # Tail: a black panel across with three tall lamps each side, the fuel cap in the middle.
+    flat(o, pr, 'rear', rrect_pts((0.0, 0.73), 1.62, 0.2, 0.03, 2), 'black', 0.004, bezel=(0.014, 'chrome', 0.003), res=res, rings=1)
+    for s in (1, -1):
+        for k in range(3):
+            y = s * (0.47 + k * 0.11)
+            lamp(o, pr, 'rear', rrect_pts((y, 0.73), 0.075, 0.15, 0.012, 1), 'tail', res, 'chrome', 0.004, 0.008, both=False, bw=0.008, rings=1)
+    if res:
+        lamp(o, pr, 'rear', circle_pts((0.0, 0.73), 0.06, 14), 'chrome', res, 'gloss', 0.01, 0.01, both=False, bw=0.008)
+    plate(o, pr, 'rear', (0.0, 0.335), w=0.3, h=0.13)
+    if res:
+        for s in (1, -1):
+            o.body.extend(cyl((x0 + 0.12, s * 0.55, 0.25), (x0 - 0.02, s * 0.55, 0.25), 0.035, 'chrome', 10, caps=False))
+            o.body.extend(cyl((x0 - 0.015, s * 0.55, 0.25), (x0 - 0.01, s * 0.55, 0.25), 0.03, 'gap', 8))
+    # Sides: a scoop ahead of the rear wheel, marker lamps, chrome round the windows and on the sills.
+    sc = aim((-0.72, 0.9, 0.66), math.pi / 2, 0.0)
+    flat(o, pr, sc, [(0.09, -0.06), (0.09, 0.06), (-0.1, 0.03), (-0.1, -0.04)], 'grille', 0.004, both=True, bezel=(0.012, 'chrome', 0.003), res=res)
+    lamp(o, pr, 'side', rrect_pts((x1 - 0.22, 0.6), 0.09, 0.035, 0.008, 1), 'amber', res, 'chrome', 0.002, 0.005, bw=0.006)
+    lamp(o, pr, 'side', rrect_pts((x0 + 0.24, 0.62), 0.09, 0.035, 0.008, 1), 'tail', res, 'chrome', 0.002, 0.005, bw=0.006)
+    if res:
+        line(o, prg, 'side', along(p['shoulder'], 0.5, -1.06, 14, 0.008), 0.014, 'chrome', 0.004, both=True)
+        line(o, pr, 'side', [(xf - R - 0.07, 0.25), (xr + R + 0.08, 0.25)], 0.025, 'chrome', 0.004, both=True)
+        gaps(o, pr, [
+            [(0.5, 0.88), (0.53, 0.65), (0.5, 0.4), (0.47, 0.25)],
+            [(-0.62, 0.9), (-0.62, 0.6), (-0.63, 0.25)],
+            [(0.47, 0.25), (-0.63, 0.25)],
+        ])
+        gaps(o, pr, [[(0.58, 0.78), (1.5, 0.79), (2.3, 0.77), (2.36, 0.0)]], frame='top')
+        gaps(o, pr, [[(-1.78, 0.74), (-2.32, 0.72), (-2.36, 0.0)]], frame='top')
+        handle(o, pr, -0.48, 0.8, 'chrome', w=0.14, h=0.03)
+    # Mirrors: chrome bullets on the doors.
+    o.body.extend(bullet_mirror(0.42, 0.85, 0.88, res).both())
+    # A chrome strip across the cowl and the wipers.
+    cx = p['ws_base'] - 0.03
+    line(o, pr, 'top', [(cx, -0.74), (cx, 0.74)], 0.06, 'black', 0.003)
+    if res:
+        for (a, b) in ((0.52, -0.05), (-0.03, -0.6)):
+            o.body.extend(tube([Vector((cx - 0.02, a, p['roof_z'](cx - 0.02) + 0.01)), Vector((cx - 0.06, b, p['roof_z'](cx - 0.06) + 0.012))], 0.006, 'chrome', 4))
+
+
+@car
+def muscle(res):
+    return fast_car(res, muscle_params())
