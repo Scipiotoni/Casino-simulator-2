@@ -692,7 +692,7 @@ def delorean_params():
         shoulder=C((x0, 0.86), (x0 + 0.04, 0.9), (-1.4, 0.905), (-0.5, 0.87), (0.3, 0.82), (1.2, 0.74), (x1 - 0.05, 0.63), (x1, 0.59)),
         top=C((x0, 0.87), (x0 + 0.04, 0.91), (-1.4, 0.915), (0.4, 0.835), (1.2, 0.755), (x1 - 0.05, 0.645), (x1, 0.6)),
         width=C((x0, 0.93), (0.0, 0.94), (x1, 0.91)),
-        tuck=const(0.1), tumble=const(0.035), cfrac=const(0.5),
+        tuck=const(0.08), tumble=const(0.035), cfrac=const(0.88),
         rb=const(0.04), rs=const(0.03),
         front=(0.28, 4.5), rear=(0.18, 5.0),
         open=[(-0.85, 0.5, 0.24)],
@@ -740,14 +740,14 @@ def delorean_decor(o, res, pr, prg, hull, p):
     x0, x1 = -L / 2, L / 2
     xf, xr, R, Rr = p['xf'], p['xr'], p['R'], p['R_rear']
     # Black rubber bumpers wrapping round to the arches; a rubbing strip along the sides.
-    flat(o, pr, 'front', rrect_pts((0.0, 0.345), 1.84, 0.2, 0.03, 2), 'black', 0.012, res=res)
-    flat(o, pr, 'rear', rrect_pts((0.0, 0.39), 1.86, 0.28, 0.03, 2), 'black', 0.012, res=res)
-    for (a, b) in ((x1 + 0.02, xf + R + 0.08), (xr - Rr - 0.08, x0 - 0.02)):
-        flat(o, pr, 'side', [(a, 0.26), (b, 0.26), (b, 0.44), (a, 0.44)], 'black', 0.012, both=True, res=res)
+    flat(o, pr, 'front', rrect_pts((0.0, 0.345), 1.84, 0.2, 0.03, 2), 'black', 0.012, res=res, rings=1)
+    flat(o, pr, 'rear', rrect_pts((0.0, 0.39), 1.86, 0.28, 0.03, 2), 'black', 0.012, res=res, rings=1)
+    for (a, b) in ((x1 - 0.06, xf + R + 0.07), (xr - Rr - 0.07, x0 + 0.05)):
+        flat(o, pr, 'side', [(a, 0.27), (b, 0.27), (b, 0.44), (a, 0.44)], 'black', 0.012, both=True, res=res, rings=1)
     if res:
         line(o, pr, 'side', [(xf - R - 0.08, 0.47), (xr + Rr + 0.08, 0.47)], 0.03, 'black', 0.006, both=True)
     # The black grille band across the nose with the four rectangular headlamps in it.
-    flat(o, pr, 'front', rrect_pts((0.0, 0.52), 1.76, 0.11, 0.01, 1), 'grille', 0.006, res=res)
+    flat(o, pr, 'front', rrect_pts((0.0, 0.52), 1.76, 0.11, 0.01, 1), 'grille', 0.006, res=res, rings=1)
     for (c, w) in (((0.5, 0.52), 0.17), ((0.72, 0.52), 0.17)):
         lamp(o, pr, 'front', rrect_pts(c, w, 0.08, 0.01, 1), 'head', res, 'chrome', 0.006, 0.01, bw=0.008)
     if res:
@@ -758,7 +758,7 @@ def delorean_decor(o, res, pr, prg, hull, p):
     plate(o, pr, 'front', (0.0, 0.34), lift=0.02)
 
     # The wide black louvred tail panel with the lamps behind its slats.
-    flat(o, pr, 'rear', rrect_pts((0.0, 0.71), 1.8, 0.22, 0.015, 1), 'gloss', 0.006, res=res)
+    flat(o, pr, 'rear', rrect_pts((0.0, 0.71), 1.8, 0.22, 0.015, 1), 'gloss', 0.006, res=res, rings=1)
     lamp(o, pr, 'rear', rrect_pts((0.68, 0.71), 0.38, 0.17, 0.01, 1), 'tail', res, None, 0.002, 0.009, rings=1)
     if res:
         lamp(o, pr, 'rear', rrect_pts((0.44, 0.71), 0.1, 0.17, 0.01, 1), 'amber', res, None, 0.002, 0.009, rings=1)
