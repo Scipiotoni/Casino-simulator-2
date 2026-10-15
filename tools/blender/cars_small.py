@@ -574,3 +574,113 @@ def buggy_build(res):
 @car
 def buggy(res):
     return buggy_build(res)
+
+
+# ------------------------------------------------------------------ the Bulldog Mini
+
+def mini_params():
+    L, W = 3.82, 1.73
+    x0, x1 = -L / 2, L / 2
+    xf, xr = 1.2, -1.3
+    R = 0.31
+    p = dict(
+        L=L, W=W, xf=xf, xr=xr, R=R, tyre_w=0.195, track=1.5, arch_gap=0.04, rim='twin', spokes=5, color=0x1f5a3a,
+        bottom=C((x0, 0.42), (x0 + 0.1, 0.32), (x0 + 0.35, 0.24), (xr, 0.17), (xf, 0.17), (x1 - 0.35, 0.24), (x1 - 0.08, 0.33), (x1, 0.42)),
+        shoulder=C((x0, 0.86), (x0 + 0.08, 0.92), (x0 + 0.3, 0.96), (-0.8, 0.955), (0.6, 0.915), (0.9, 0.895), (1.4, 0.86), (x1 - 0.15, 0.82), (x1 - 0.03, 0.76), (x1, 0.72)),
+        top=C((x0, 0.88), (x0 + 0.08, 0.95), (x0 + 0.3, 0.985), (-0.8, 0.98), (0.6, 0.935), (1.4, 0.9), (x1 - 0.15, 0.85), (x1 - 0.03, 0.78), (x1, 0.74)),
+        width=C((x0, 0.8), (x0 + 0.4, 0.83), (0.0, 0.835), (x1 - 0.4, 0.83), (x1, 0.8)),
+        tuck=const(0.06), tumble=const(0.05), cfrac=const(0.7), rb=const(0.07), rs=const(0.06),
+        front=(0.45, 2.6), rear=(0.3, 3.0),
+        flares=[(xf, 0.5, 0.015, 0.55, 0.25), (xr, 0.5, 0.015, 0.55, 0.25)],
+        open=[(-1.15, 0.7, 0.26)],
+        bl_base=-1.68, ws_base=0.72, inset=0.03, between=2,
+        roof_z=C((-1.68, 0.97), (-1.62, 1.12), (-1.55, 1.3), (-1.45, 1.38), (-1.2, 1.405), (-0.4, 1.41), (0.0, 1.4), (0.15, 1.37), (0.35, 1.22), (0.55, 1.07), (0.72, 0.93)),
+        rail_z=C((-1.68, 0.96), (-1.62, 1.09), (-1.55, 1.25), (-1.45, 1.32), (-1.2, 1.345), (-0.4, 1.35), (0.0, 1.34), (0.15, 1.315), (0.35, 1.18), (0.55, 1.04), (0.72, 0.915)),
+        rail_w=C((-1.68, 0.68), (-1.3, 0.66), (-0.4, 0.655), (0.2, 0.66), (0.72, 0.7)),
+        corner=const(0.05),
+        lines=[(-1.6, -1.6), (-1.5, -1.47), (-1.25, -1.15), (-0.56, -0.53), (-0.48, -0.46), (0.2, 0.17), (0.6, 0.45)],
+        driver_y=0.36, hip_f=(-0.15, 0.48), benches=[(-0.95, 1.1, 0.5)], seats=4,
+        dash=(0.72, 0.45, 0.68, 0.58, 0.9), wheel_c=(0.25, 0.83),
+        mirror=(0.62, 0.7, 0.93), mirror_region='white', mirror_out=0.16,
+    )
+
+    def glass_region(i):
+        seg, xb, xr_ = i['seg'], i['xb'], i['xr']
+        if seg == 'side':
+            if i['zone'] == 'front' or xb > 0.6 or -0.56 < xb < -0.48 or xb < -1.25:
+                return 'gloss'
+            return 'glass'
+        if seg == 'corner':
+            return 'gloss' if (xr_ > 0.17 or xr_ < -1.47) else 'white'
+        if xr_ > 0.17 or xr_ < -1.47:
+            return 'glass'
+        return 'white'
+
+    p['glass_region'] = glass_region
+    p['decor'] = mini_decor
+    return p
+
+
+def mini_decor(o, res, pr, prg, hull, p):
+    L = p['L']
+    x0, x1 = -L / 2, L / 2
+    xf, xr, R = p['xf'], p['xr'], p['R']
+    # Big round headlamps in the bonnet with LED rings, the hexagonal grille between them.
+    hf = aim((x1 - 0.2, 0.56, 0.68), 0.42, 0.12)
+    lamp(o, pr, hf, circle_pts((0, 0), 0.11, 20 if res else 10), 'head', res, 'chrome', 0.014, 0.006, bw=0.016)
+    if res:
+        line(o, pr, hf, circle_pts((0, 0), 0.085, 20), 0.012, 'white', 0.022, closed=True, both=True)
+        lamp(o, pr, hf, circle_pts((0, 0), 0.04, 12), 'chrome', res, None, 0.004, 0.024, rings=2)
+    hexg = [(-0.3, 0.62), (0.3, 0.62), (0.38, 0.49), (0.3, 0.35), (-0.3, 0.35), (-0.38, 0.49)]
+    flat(o, pr, 'front', hexg, 'grille', 0.004, bezel=(0.02, 'chrome', 0.006), res=res)
+    if res:
+        line(o, pr, 'front', [(-0.37, 0.53), (0.37, 0.53)], 0.016, 'chrome', 0.008)
+    plate(o, pr, 'front', (0.0, 0.43), 0.3, 0.11)
+    line(o, pr, 'front', [(-0.6, 0.27), (0.6, 0.27)], 0.05, 'black', 0.003)
+    ff = aim((x1 - 0.25, 0.62, 0.33), 0.55, 0.0)
+    flat(o, pr, ff, circle_pts((0, 0), 0.05, 12), 'grille', 0.004, both=True, bezel=(0.01, 'gloss', 0.003), res=res)
+    if res:
+        lamp(o, pr, ff, circle_pts((0.0, 0.0), 0.032, 10), 'head', res, 'chrome', 0.004, 0.009, bw=0.006, rings=2)
+        # A bonnet scoop, the side scuttles with indicators.
+        zb = hull.surface_z(1.3, 0.0)
+        o.body.extend(rbox((1.32, 0.0, zb + 0.015), (0.14, 0.17, 0.035), 0.03, 'gloss', 2))
+        o.body.extend(rbox((1.42, 0.0, zb + 0.02), (0.012, 0.14, 0.02), 0.008, 'grille', 1))
+        flat(o, pr, 'side', rounded(rrect_pts((1.38, 0.66), 0.16, 0.07, 0.02, 2), 1), 'chrome', 0.004, both=True, rings=1)
+        lamp(o, pr, 'side', rrect_pts((1.38, 0.66), 0.06, 0.03, 0.01, 2), 'amber', res, None, 0.002, 0.008, rings=1)
+    # Upright tail lamps on the back corners, a chrome handle over the plate, the black bumper.
+    tf = aim((x0 + 0.1, 0.66, 0.8), math.pi - 0.5, 0.0)
+    lamp(o, pr, tf, rounded(rrect_pts((0, 0), 0.16, 0.24, 0.04, 2), 1), 'tail', res, 'chrome', 0.006, 0.006, bw=0.01)
+    if res:
+        lamp(o, pr, tf, rrect_pts((-0.04, -0.06), 0.05, 0.05, 0.01, 2), 'white', res, None, 0.002, 0.016, rings=1)
+        line(o, pr, 'rear', [(-0.24, 0.8), (0.24, 0.8)], 0.035, 'chrome', 0.007)
+        gaps(o, pr, [[(-0.55, 0.96), (-0.58, 0.6), (-0.52, 0.53), (0.52, 0.53), (0.58, 0.6), (0.55, 0.96)]], frame='rear', both=False)
+    plate(o, pr, 'rear', (0.0, 0.68), 0.3, 0.12)
+    line(o, pr, 'rear', [(-0.7, 0.36), (0.7, 0.36)], 0.14, 'black', 0.003)
+    if res:
+        for s in (1, -1):
+            o.body.extend(cyl((x0 + 0.12, s * 0.07, 0.27), (x0 - 0.03, s * 0.07, 0.27), 0.035, 'chrome', 12, caps=False))
+            o.body.extend(cyl((x0 - 0.01, s * 0.07, 0.27), (x0 - 0.029, s * 0.07, 0.27), 0.029, 'gap', 12))
+        # A roof spoiler over the hatch glass.
+        o.body.extend(rbox((-1.47, 0.0, p['roof_z'](-1.42) + 0.005), (0.07, 0.6, 0.02), 0.018, 'white', 2))
+        gaps(o, pr, [
+            [(0.66, 0.9), (0.69, 0.7), (0.65, 0.5), (0.6, 0.3)],
+            [(-0.52, 0.93), (-0.54, 0.6), (-0.52, 0.3)],
+        ])
+        gaps(o, pr, [[(0.74, 0.7), (1.2, 0.7), (1.6, 0.62), (1.8, 0.48)]], frame='top')
+        handle(o, pr, -0.35, 0.86, 'chrome', 0.12, 0.028)
+        line(o, prg, 'side', along(p['shoulder'], 0.6, -1.24, 12, -0.004), 0.016, 'chrome', 0.004, both=True)
+    # Black plastic arch trims and sills.
+    for xc in (xf, xr):
+        line(o, pr, 'side', arch_pts(xc, R, R + 0.085, 4, 176, 28 if res else 10), 0.055, 'black', 0.006, both=True)
+    line(o, pr, 'side', [(xf - R - 0.06, 0.27), (xr + R + 0.06, 0.27)], 0.08, 'black', 0.004, both=True)
+    cx = p['ws_base'] - 0.03
+    line(o, pr, 'top', [(cx, -0.62), (cx, 0.62)], 0.06, 'black', 0.003)
+    if res:
+        for (a, b) in ((0.48, -0.05), (-0.05, -0.58)):
+            o.body.extend(tube([Vector((cx - 0.02, a, p['roof_z'](cx - 0.02) + 0.01)), Vector((cx - 0.12, b, p['roof_z'](cx - 0.12) + 0.012))], 0.007, 'black', 4))
+        o.body.extend(rbox((-0.9, 0, p['roof_z'](-0.9) + 0.01), (0.07, 0.02, 0.025), 0.016, 'white', 1))
+
+
+@car
+def mini(res):
+    return closed_car(res, mini_params())
