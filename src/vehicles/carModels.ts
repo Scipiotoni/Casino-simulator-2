@@ -3,15 +3,26 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { SHINY_VCOL } from '../render/kit';
 import { VCOL, phong, withRim } from '../render/materials';
-import carsUrl from './assets/cars.glb?url';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import type { BuiltVehicle, VehicleDef } from './models';
 
 /**
- * The cars modelled in Blender (tools/blender/build_cars.py): every car's high and low detail
- * body, its front and rear wheel and any moving parts, with its wheels, seats and driver's eye
- * in the node's extras. Loaded once at boot; each body is merged into a handful of draw calls
- * (matte, shiny, paint, glass and lamps), the paint taking each car's own colour.
+ * The cars modelled in Blender (tools/blender/build_cars.py): one small packed file per car
+ * with its high and low detail body, its front and rear wheel and any moving parts, and its
+ * wheels, seats and driver's eye in a JSON file beside it. The JSON is bundled (so the physics
+ * know every car's size from the start); a car's model is only downloaded when one is first
+ * needed, and until then the car shows its simple stand-in. Each body is merged into a handful
+ * of draw calls (matte, shiny, paint, glass and lamps), the paint taking each car's own colour.
  */
+
+const URLS = urlsById(import.meta.glob('./assets/cars/*.glb', { query: '?url', import: 'default', eager: true }) as Record<string, string>);
+const METAS = urlsById(import.meta.glob('./assets/cars/*.json', { import: 'default', eager: true }) as Record<string, Meta>);
+
+function urlsById<T>(m: Record<string, T>): Map<string, T> {
+  const out = new Map<string, T>();
+  for (const [path, v] of Object.entries(m)) out.set(path.replace(/^.*\/([^/]+)\.\w+$/, '$1'), v);
+  return out;
+}
 
 /** Which surfaces are matte, which glossy, which see-through and which glow. */
 const MATTE = new Set(['black', 'interior', 'seat', 'grille', 'plate', 'tyre', 'wall', 'liner', 'gap', 'canvas', 'track']);
@@ -42,56 +53,80 @@ export function carAsset(id: string): CarAsset | undefined {
   return assets.get(id);
 }
 
-/**
- * Load the modelled cars (or leave the procedural ones in place if the file can't be read).
- * Each def's length, width and wheel size are set from its model so the physics fit it.
- */
-export async function loadCars(defs: VehicleDef[]): Promise<void> {
-  let gltf;
-  try {
-    gltf = await new GLTFLoader().loadAsync(carsUrl);
-  } catch (e) {
-    console.warn('Cars could not be loaded; using the simple ones', e);
-    return;
-  }
-  gltf.scene.updateMatrixWorld(true);
-  // Nodes by their name in the file (three renames objects to keep names unique).
-  const nodes = new Map<string, THREE.Object3D>();
-  gltf.scene.traverse((o) => {
-    const n = o.userData?.name;
-    if (typeof n === 'string' && !nodes.has(n)) nodes.set(n, o);
-  });
+/** Is there a Blender model for this car (loaded or not)? */
+export function hasModel(id: string): boolean {
+  return URLS.has(id);
+}
+
+/** Set every modelled car's length, width and wheel size from its model, so the physics fit it. */
+export function sizeCars(defs: VehicleDef[]): void {
   for (const d of defs) {
-    const node = nodes.get(d.id);
-    const raw = node?.userData?.car;
-    if (!node || typeof raw !== 'string') continue;
-    let meta: Meta;
-    try {
-      meta = JSON.parse(raw) as Meta;
-    } catch {
-      continue;
-    }
-    const lo = nodes.get(`${d.id}_lo`);
-    const hi = merged(node);
-    if (!hi) continue;
-    const wheels: CarAsset['wheels'] = {};
-    for (const k of ['f', 'r'] as const) {
-      const w = nodes.get(`${d.id}_w${k}`);
-      const g = w && merged(w, true);
-      if (g) wheels[k] = g;
-    }
-    const parts = new Map<string, THREE.BufferGeometry>();
-    for (const [name, o] of nodes) {
-      if (!name.startsWith(`${d.id}_`) || name === `${d.id}_lo` || /_w[fr]$/.test(name)) continue;
-      const g = merged(o);
-      if (g) parts.set(name.slice(d.id.length + 1), g);
-    }
-    assets.set(d.id, { hi, lo: (lo && merged(lo)) || hi, wheels, parts, meta });
-    // The physics follow the model.
+    const meta = METAS.get(d.id);
+    if (!meta) continue;
     d.L = meta.dims[0];
     d.W = meta.dims[1];
     d.wheelR = meta.wheelR[0];
   }
+}
+
+const loading = new Map<string, Promise<boolean>>();
+let loader: GLTFLoader | null = null;
+
+/** Download a car's model (once); resolves false if it has none or it can't be read. */
+export function ensureCar(id: string): Promise<boolean> {
+  if (assets.has(id)) return Promise.resolve(true);
+  const url = URLS.get(id);
+  const meta = METAS.get(id);
+  if (!url || !meta) return Promise.resolve(false);
+  let p = loading.get(id);
+  if (!p) {
+    if (!loader) {
+      loader = new GLTFLoader();
+      loader.setMeshoptDecoder(MeshoptDecoder);
+    }
+    p = loader.loadAsync(url).then((gltf) => {
+      const a = parse(id, gltf.scene, meta);
+      if (a) assets.set(id, a);
+      return !!a;
+    }, (e) => {
+      console.warn(`The ${id} model could not be loaded; keeping the simple one`, e);
+      return false;
+    });
+    loading.set(id, p);
+  }
+  return p;
+}
+
+/** Download several cars' models at once (the ones the streets need from the start). */
+export async function loadCars(ids: string[]): Promise<void> {
+  await Promise.all(ids.map((id) => ensureCar(id)));
+}
+
+function parse(id: string, scene: THREE.Object3D, meta: Meta): CarAsset | null {
+  scene.updateMatrixWorld(true);
+  // Nodes by their name in the file (three renames objects to keep names unique).
+  const nodes = new Map<string, THREE.Object3D>();
+  scene.traverse((o) => {
+    const n = o.userData?.name;
+    if (typeof n === 'string' && !nodes.has(n)) nodes.set(n, o);
+  });
+  const node = nodes.get(id);
+  const hi = node && merged(node);
+  if (!hi) return null;
+  const lo = nodes.get(`${id}_lo`);
+  const wheels: CarAsset['wheels'] = {};
+  for (const k of ['f', 'r'] as const) {
+    const w = nodes.get(`${id}_w${k}`);
+    const g = w && merged(w, true);
+    if (g) wheels[k] = g;
+  }
+  const parts = new Map<string, THREE.BufferGeometry>();
+  for (const [name, o] of nodes) {
+    if (!name.startsWith(`${id}_`) || name === `${id}_lo` || /_w[fr]$/.test(name)) continue;
+    const g = merged(o);
+    if (g) parts.set(name.slice(id.length + 1), g);
+  }
+  return { hi, lo: (lo && merged(lo)) || hi, wheels, parts, meta };
 }
 
 /**
@@ -109,7 +144,13 @@ function merged(node: THREE.Object3D, plain = false): THREE.BufferGeometry | nul
     const mats = Array.isArray(m.material) ? m.material : [m.material];
     const mat = mats[0] as THREE.MeshStandardMaterial;
     const region = (mat?.name ?? '').replace(/\.\d+$/, '');
-    let g = m.geometry.clone();
+    let g = new THREE.BufferGeometry();
+    // Packed files store quantized (integer) positions and normals: back to floats first.
+    for (const k of ['position', 'normal'] as const) {
+      const a = m.geometry.getAttribute(k);
+      if (a) g.setAttribute(k, toFloat(a));
+    }
+    if (m.geometry.index) g.setIndex(m.geometry.index.clone());
     g = g.index ? g.toNonIndexed() : g;
     g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld));
     for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal') g.deleteAttribute(k);
@@ -141,6 +182,12 @@ function merged(node: THREE.Object3D, plain = false): THREE.BufferGeometry | nul
   if (!plain) for (const [s, c, i] of groups) out.addGroup(s, c, i);
   out.computeBoundingSphere();
   return out;
+}
+
+function toFloat(a: THREE.BufferAttribute | THREE.InterleavedBufferAttribute): THREE.BufferAttribute {
+  const out = new Float32Array(a.count * a.itemSize);
+  for (let i = 0; i < a.count; i++) for (let c = 0; c < a.itemSize; c++) out[i * a.itemSize + c] = a.getComponent(i, c);
+  return new THREE.BufferAttribute(out, a.itemSize);
 }
 
 // ---------------------------------------------------------------- materials

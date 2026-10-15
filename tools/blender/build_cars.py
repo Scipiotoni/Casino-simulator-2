@@ -1,8 +1,12 @@
 """
-Builds every car in Casino Simulator 2 in Blender and exports them as one glTF file.
+Builds every car in Casino Simulator 2 in Blender and exports each one as its own small
+glTF file (src/vehicles/assets/cars/<id>.glb, packed with gltfpack: quantized and meshopt
+compressed) plus its metadata (<id>.json), so the game only downloads the cars it shows.
 
 Run with Blender's Python module (pip install bpy) or Blender itself:
     python tools/blender/build_cars.py [out_dir] [--render] [--only=sedan,taxi]
+
+--only builds and exports just those cars and leaves the other files alone.
 
 Each car is modelled after a real-world kind of car (no makes, badges or logos): a lofted
 lower body with wheel arches cut out of it, a lofted glasshouse with pillars and roof, then
@@ -24,7 +28,10 @@ detail) into tools/blender/previews/.
 import json
 import math
 import os
+import shutil
+import subprocess
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -65,7 +72,7 @@ def tri_count(ob):
     return sum(len(p.vertices) - 2 for p in ob.data.polygons)
 
 
-def export(path):
+def export(path, selected=None):
     bpy.ops.export_scene.gltf(
         filepath=path,
         export_format='GLB',
@@ -77,6 +84,7 @@ def export(path):
         export_texcoords=False,
         export_extras=True,
         use_visible=False,
+        use_selection=selected is not None,
     )
 
 
@@ -219,18 +227,27 @@ def main():
         for cid, (hi, lo) in built.items():
             render_car(cid, hi, lo, cam)
         return
-    # Export everything into one file (always the full set).
+    # One file per car (only the ones built), packed with gltfpack, and its metadata beside it.
     for o in list(bpy.context.scene.objects):
         bpy.data.objects.remove(o)
+    out = os.path.abspath(os.path.join(OUT, 'cars'))
+    os.makedirs(out, exist_ok=True)
+    root = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+    tmp = tempfile.mkdtemp()
     for cid, (hi, lo) in built.items():
-        to_objects(cid, hi, lo)
-    os.makedirs(OUT, exist_ok=True)
-    path = os.path.abspath(os.path.join(OUT, 'cars.glb'))
-    export(path)
-    print('exported', path, os.path.getsize(path), 'bytes')
-    for ob in bpy.context.scene.objects:
-        if ob.type == 'MESH':
-            print(f'  {ob.name}: {tri_count(ob)} tris')
+        obs = to_objects(cid, hi, lo)
+        for ob in bpy.context.scene.objects:
+            ob.select_set(ob in obs)
+        raw = os.path.join(tmp, cid + '.glb')
+        export(raw, selected=True)
+        path = os.path.join(out, cid + '.glb')
+        subprocess.run(['npx', 'gltfpack', '-i', raw, '-o', path, '-cc', '-kn', '-km', '-ke'], cwd=root, check=True, stdout=subprocess.DEVNULL)
+        with open(os.path.join(out, cid + '.json'), 'w') as f:
+            json.dump(hi.meta, f, separators=(',', ':'))
+        print(f'exported {cid}: {os.path.getsize(raw)} -> {os.path.getsize(path)} bytes, ' + ', '.join(f'{ob.name} {tri_count(ob)}' for ob in obs))
+        for ob in obs:
+            bpy.data.objects.remove(ob)
+    shutil.rmtree(tmp, ignore_errors=True)
 
 
 if __name__ == '__main__':
