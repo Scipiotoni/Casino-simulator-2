@@ -407,3 +407,170 @@ def convertible(res):
     if not res:
         p['screen'](o, res)
     return o
+
+
+# ------------------------------------------------------------------ the Dune Buggy
+
+def rounded_path(pts, r=0.08, n=3):
+    """A polyline with its inner corners rounded off (for bent tubes)."""
+    pts = [Vector(p) for p in pts]
+    out = [pts[0]]
+    for a, b, c in zip(pts, pts[1:], pts[2:]):
+        d0 = (a - b)
+        d1 = (c - b)
+        rr = min(r, d0.length * 0.45, d1.length * 0.45)
+        p0 = b + d0.normalized() * rr
+        p1 = b + d1.normalized() * rr
+        for k in range(n + 1):
+            t = k / n
+            out.append(p0 * (1 - t) ** 2 + b * 2 * t * (1 - t) + p1 * t * t)
+    out.append(pts[-1])
+    return out
+
+
+def vw_engine(x, z, res):
+    """An air-cooled flat four seen from behind: crankcase, finned barrels, fan shroud, carbs, exhaust."""
+    m = Mesh()
+    s2 = 2 if res else 1
+    m.extend(rbox((x + 0.4, 0, z - 0.12), (0.26, 0.22, 0.13), 0.05, 'metal', s2))  # gearbox
+    m.extend(rbox((x, 0, z - 0.04), (0.2, 0.2, 0.14), 0.05, 'metal', s2))  # crankcase
+    for s in (1, -1):
+        m.extend(rbox((x, s * 0.31, z), (0.17, 0.11, 0.1), 0.04, 'black', s2))  # barrels and heads
+        if res:
+            for k in range(4):
+                m.extend(cyl((x - 0.12 + k * 0.08, s * 0.2, z), (x - 0.12 + k * 0.08, s * 0.42, z), 0.07, 'metal', 10, caps=False))
+            m.extend(rbox((x, s * 0.43, z), (0.15, 0.015, 0.075), 0.01, 'metal', 1))
+    # The fan shroud on top, the generator on it, the pulley at the back.
+    m.extend(rbox((x - 0.02, 0, z + 0.17), (0.17, 0.33, 0.08), 0.07, 'chrome', s2))
+    m.extend(cyl((x - 0.2, 0, z + 0.22), (x + 0.12, 0, z + 0.22), 0.1, 'chrome', 14 if res else 8))
+    m.extend(cyl((x - 0.24, 0, z - 0.02), (x - 0.2, 0, z - 0.02), 0.085, 'chrome', 14 if res else 8))
+    if res:
+        m.extend(torus((x - 0.22, 0, z + 0.1), (1, 0, 0), 0.075, 0.012, 'black', 16, 4))
+        m.extend(cyl((x - 0.24, 0, z + 0.22), (x - 0.205, 0, z + 0.22), 0.05, 'metal', 12))
+        # Twin carbs with round chrome air cleaners.
+        for s in (1, -1):
+            m.extend(cyl((x + 0.02, s * 0.2, z + 0.12), (x + 0.02, s * 0.2, z + 0.3), 0.025, 'metal', 8))
+            m.extend(cyl((x + 0.02, s * 0.2, z + 0.3), (x + 0.02, s * 0.2, z + 0.37), 0.095, 'chrome', 16))
+        # Headers sweeping under to two chrome tailpipes.
+        for s in (1, -1):
+            m.extend(tube(rounded_path([(x + 0.05, s * 0.36, z - 0.08), (x + 0.0, s * 0.3, z - 0.2), (x - 0.15, s * 0.18, z - 0.22), (x - 0.3, s * 0.16, z - 0.12)], 0.06), 0.022, 'metal', 6))
+            m.extend(cyl((x - 0.28, s * 0.16, z - 0.13), (x - 0.42, s * 0.16, z - 0.07), 0.035, 'chrome', 12, caps=False))
+            m.extend(cyl((x - 0.41, s * 0.16, z - 0.075), (x - 0.405, s * 0.16, z - 0.077), 0.03, 'gap', 12))
+    return m
+
+
+def buggy_build(res):
+    from carcommon import Out, wheels_into, cabin_meta, arches
+    from carbody import Hull
+    x0, x1 = -1.42, 1.66
+    xf, xr = 1.05, -0.98
+    R, Rr = 0.33, 0.36
+    trf, trr = 1.38, 1.42
+    twf, twr = 0.2, 0.3
+    o = Out()
+    open_ = [(-0.74, 0.5, 0.33)]
+
+    def region(i):
+        seg, c = i['seg'], i['c']
+        if seg == 'bot':
+            return 'black'
+        if seg == 'in':
+            return 'paint' if c.z > 0.42 else 'interior'
+        return None
+
+    hull = Hull(x0, x1,
+                bottom=C((x0, 0.5), (x0 + 0.12, 0.4), (xr, 0.33), (xf, 0.33), (x1 - 0.2, 0.36), (x1, 0.46)),
+                shoulder=C((x0, 0.62), (x0 + 0.1, 0.72), (xr - 0.2, 0.84), (xr, 0.86), (xr + 0.35, 0.8), (-0.3, 0.68), (0.25, 0.7), (xf - 0.3, 0.8), (xf, 0.82), (x1 - 0.25, 0.72), (x1 - 0.05, 0.6), (x1, 0.55)),
+                top=C((x0, 0.63), (x0 + 0.1, 0.7), (xr, 0.74), (-0.3, 0.72), (0.4, 0.72), (xf, 0.7), (x1 - 0.2, 0.64), (x1 - 0.05, 0.585), (x1, 0.56)),
+                width=C((x0, 0.68), (xr, 0.74), (-0.3, 0.7), (xf, 0.72), (x1 - 0.2, 0.68), (x1, 0.62)),
+                tuck=const(0.07), tumble=const(0.05), cfrac=const(0.6), rb=const(0.06), rs=const(0.08),
+                front=(0.45, 2.2), rear=(0.26, 2.6), open=open_, lip=0.04, region=region,
+                flares=[(xf, 0.5, 0.075, 0.68, 0.3), (xr, 0.55, 0.09, 0.72, 0.3)], keys=[xf, xr])
+    hm = hull.build(res)
+    hm = arches(hm, [(xf, R, R + 0.07), (xr, Rr, Rr + 0.07)], 0.5, 0.95, 0.0, res)
+    o.body.extend(hm)
+    pr = Projector(hm)
+    seg = 8 if res else 4
+    tr = 0.024
+
+    # The roll cage: a main hoop behind the seats, front posts, roof rails, a diagonal, back stays.
+    zt = 1.42
+    cage = Mesh()
+    cage.extend(tube(rounded_path([(-0.68, 0.62, 0.42), (-0.68, 0.62, zt), (-0.68, -0.62, zt), (-0.68, -0.62, 0.42)], 0.14), tr, 'gloss', seg))
+    for s in (1, -1):
+        cage.extend(tube(rounded_path([(0.5, s * 0.6, 0.6), (0.12, s * 0.57, zt - 0.02), (-0.66, s * 0.6, zt)], 0.12), tr * 0.9, 'gloss', seg))
+        cage.extend(tube([(-0.7, s * 0.55, zt - 0.03), (-1.3, s * 0.42, 0.72)], tr * 0.9, 'gloss', seg))
+    cage.extend(tube([(0.14, 0.57, zt - 0.02), (0.14, -0.57, zt - 0.02)], tr * 0.9, 'gloss', seg))
+    cage.extend(tube([(-0.68, 0.62, 0.62), (-0.68, -0.5, zt - 0.06)], tr * 0.8, 'gloss', seg))
+    o.body.extend(cage)
+    # Two spot lamps on the front of the roof.
+    for s in (1, -1):
+        c = Vector((0.2, s * 0.27, zt + 0.07))
+        o.body.extend(cyl((0.14, s * 0.27, zt), c, 0.012, 'gloss', 6))
+        o.body.extend(lathe([(0.0, -0.12), (0.05, -0.1), (0.075, -0.03), (0.08, 0.0)], 'chrome', 14 if res else 6, axis=(1, 0, 0), c=c + Vector((0.07, 0, 0))))
+        o.body.extend(cyl(c + Vector((0.068, 0, 0)), c + Vector((0.072, 0, 0)), 0.074, 'head', 14 if res else 6))
+
+    # Headlamps: chrome buckets standing on the bonnet.
+    for s in (1, -1):
+        y = s * 0.4
+        zb = hull.surface_z(1.3, abs(y))
+        c = Vector((1.38, y, zb + 0.09))
+        o.body.extend(cyl((1.3, y, zb - 0.01), (1.33, y, zb + 0.05), 0.02, 'chrome', 6))
+        o.body.extend(lathe([(0.0, -0.13), (0.06, -0.11), (0.085, -0.04), (0.09, 0.0)], 'chrome', 16 if res else 6, axis=(1, 0, 0), c=c))
+        o.body.extend(cyl(c + Vector((-0.004, 0, 0)), c + Vector((0.006, 0, 0)), 0.083, 'head', 16 if res else 6))
+    # A tubular bumper in front of the nose with the plate on it.
+    fb = rounded_path([(1.3, 0.5, 0.36), (1.8, 0.5, 0.4), (1.86, 0.3, 0.42), (1.86, -0.3, 0.42), (1.8, -0.5, 0.4), (1.3, -0.5, 0.36)], 0.12)
+    o.body.extend(tube(fb, 0.028, 'chrome', seg))
+    o.body.extend(rbox((1.9, 0, 0.42), (0.008, 0.16, 0.065), 0.006, 'plate', 1))
+    o.body.extend(rbox((1.886, 0, 0.42), (0.01, 0.17, 0.075), 0.006, 'black', 1))
+    # The engine out at the back, a hoop round it, the plate and tail lamps.
+    o.body.extend(vw_engine(-1.5, 0.6, res))
+    rb_ = rounded_path([(-1.25, 0.6, 0.5), (-1.78, 0.58, 0.48), (-1.84, 0.4, 0.46), (-1.84, -0.4, 0.46), (-1.78, -0.58, 0.48), (-1.25, -0.6, 0.5)], 0.12)
+    o.body.extend(tube(rb_, 0.026, 'gloss', seg))
+    o.body.extend(rbox((-1.86, -0.46, 0.6), (0.008, 0.15, 0.06), 0.006, 'plate', 1))
+    o.body.extend(rbox((-1.848, -0.46, 0.6), (0.01, 0.16, 0.07), 0.006, 'black', 1))
+    o.body.extend(cyl((-1.84, -0.46, 0.47), (-1.85, -0.46, 0.54), 0.012, 'gloss', 6))
+    tf = aim((x0 + 0.1, 0.5, 0.64), math.pi - 0.3, 0.0)
+    lamp(o, pr, tf, circle_pts((0, 0), 0.045, 14 if res else 6), 'tail', res, 'chrome', 0.008, 0.006, bw=0.01)
+    if res:
+        lamp(o, pr, 'front', circle_pts((0.5, 0.5), 0.03, 10), 'amber', res, 'chrome', 0.005, 0.006, bw=0.006, rings=2)
+        # The bonnet lid's outline, filler cap.
+        line(o, pr, 'top', rounded([(0.62, 0.28), (1.45, 0.24), (1.45, -0.24), (0.62, -0.28)], 2), 0.007, 'gap', 0.002, closed=True)
+        o.body.extend(cyl((0.75, 0.0, hull.surface_z(0.75, 0.0) - 0.01), (0.75, 0.0, hull.surface_z(0.75, 0.0) + 0.02), 0.045, 'chrome', 12))
+
+    # The cockpit: two low buckets, a dash panel with gauges, the wheel, a gear stick; a mirror.
+    dy = 0.33
+    hip = (-0.2, 0.5)
+    if res:
+        for s in (1, -1):
+            o.body.extend(P.seat(hip[0] + 0.04, s * dy, hip[1] - 0.09, 0.44, 0.46, 0.6, 0.32, 'black'))
+        o.body.extend(rbox((0.55, 0, 0.66), (0.06, 0.55, 0.08), 0.03, 'paint', 1))
+        o.body.extend(rbox((0.49, dy, 0.66), (0.012, 0.16, 0.06), 0.02, 'black', 1))
+        for dd in (-0.07, 0.07):
+            o.body.extend(cyl((0.48, dy + dd, 0.665), (0.475, dy + dd, 0.665), 0.04, 'white', 12))
+        o.body.extend(P.steering_wheel((0.26, dy, 0.86), 0.62, 0.165, region='black'))
+        o.body.extend(cyl((0.05, 0, 0.36), (-0.02, 0, 0.62), 0.01, 'chrome', 6))
+        o.body.extend(cyl((-0.02, 0, 0.62), (-0.025, 0, 0.66), 0.025, 'black', 8))
+        o.body.extend(rbox((0.1, 0, 0.38), (0.25, 0.08, 0.06), 0.03, 'interior', 1))
+        mc = Vector((0.36, 0.66, 1.1))
+        o.body.extend(cyl((0.33, 0.585, 1.02), mc, 0.008, 'gloss', 6))
+        o.body.extend(cyl(mc, mc + Vector((0.025, 0.005, 0.0)), 0.06, 'chrome', 12))
+        o.body.extend(cyl(mc + Vector((-0.002, 0, 0)), mc + Vector((-0.004, 0, 0)), 0.052, 'mirror', 12))
+    else:
+        o.body.extend(rbox((hip[0] - 0.22, 0, hip[1] + 0.12), (0.05, 0.5, 0.26), 0.03, 'black', 1))
+        o.body.extend(rbox((hip[0] + 0.04, 0, hip[1] - 0.14), (0.24, 0.5, 0.06), 0.03, 'black', 1))
+    cabin_meta(o, [(hip[0], dy, hip[1]), (hip[0], -dy, hip[1])], (hip[0] + 0.1, dy, hip[1] + 0.69))
+
+    # Balloon tyres on chrome slotted wheels, the rear ones fat with a blocky tread.
+    wseg = 20 if res else 8
+    wf = P.wheel(R, twf, 'slot', 'road', 0.5, wseg, res)
+    wr = P.wheel(Rr, twr, 'slot', 'knobby', 0.47, wseg, res)
+    wheels_into(o, res, (xf, xr), trf, R, wf, wr, Rr, trr)
+    o.meta['dims'] = [3.72, 1.74, zt + 0.1]
+    o.meta['color'] = 0xff7a1a
+    return o
+
+
+@car
+def buggy(res):
+    return buggy_build(res)
