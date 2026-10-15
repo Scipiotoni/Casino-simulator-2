@@ -4,10 +4,11 @@ import { labelTexture } from '../render/signs';
 import { lotFrontPoint, type Lot } from './layout';
 import type { Game } from '../game/game';
 import { Vehicle } from '../vehicles/vehicle';
+import { DEALERS, dealer, isDealer } from './dealers';
 
 /**
- * The story's shops and services on their fixed lots: Bullseye Guns, Island Motors (with
- * cars on the forecourt), Paradise Realty, the Drip Locker clothing store, Mercy Island
+ * The shops and services on their fixed lots: Bullseye Guns, the car dealers (with cars on
+ * their forecourts, see dealers.ts), Paradise Realty, the Drip Locker clothing store, Mercy Island
  * Hospital and the police station. Each is a storefront building with a lit sign and a
  * counter you walk up to (no interior: the menu is the shop).
  */
@@ -27,7 +28,7 @@ interface ShopDef {
 
 const DEFS: ShopDef[] = [
   { key: 'gunShop', name: 'Bullseye Guns', sign: 'BULLSEYE GUNS', color: 0x4a3a2a, neon: '#ff5a6a', floors: 1, icon: '🔫', label: 'Browse Bullseye Guns', sub: 'Pistols, rifles, shotguns', action: (g) => g.ui.gunShop() },
-  { key: 'carDealer', name: 'Island Motors', sign: 'ISLAND MOTORS', color: 0xe8ecf2, neon: '#3aa7ff', floors: 1, icon: '🚗', label: 'Buy a car', sub: 'Island Motors showroom', action: (g) => g.ui.carDealer() },
+  ...DEALERS.map((d): ShopDef => ({ key: d.key, name: d.name, sign: d.sign, color: d.color, neon: d.neon, floors: 1, icon: '🚗', label: `Browse ${d.name}`, sub: d.tagline, action: (g) => g.ui.carDealer(d.key) })),
   { key: 'realEstate', name: 'Paradise Realty', sign: 'PARADISE REALTY', color: 0xf4efe2, neon: '#3ddc84', floors: 2, icon: '🏢', label: 'Browse Paradise Realty', sub: 'Every lot for sale on the island', action: (g) => g.ui.realtyPanel() },
   { key: 'clothing', name: 'Drip Locker', sign: 'DRIP LOCKER', color: 0x2a1a3a, neon: '#d68bff', floors: 1, icon: '👕', label: 'Shop at Drip Locker', sub: 'Outfits', action: (g) => g.ui.wardrobe(true) },
   { key: 'hospital', name: 'Mercy Island Hospital', sign: 'MERCY HOSPITAL', color: 0xf4f4f4, neon: '#ff6b6b', floors: 4, icon: '➕', label: 'Hospital', sub: 'Free check-up', action: (g) => g.ui.hospital() },
@@ -63,7 +64,7 @@ function storefront(g: Game, def: ShopDef, lot: Lot, y: number): ShopSite {
   const ld = lot.front === 'N' || lot.front === 'S' ? lot.z1 - lot.z0 : lot.x1 - lot.x0;
   const W = Math.min(lw - 6, def.key === 'hospital' ? 60 : 30);
   const D = Math.min(ld - 12, def.key === 'hospital' ? 40 : 20);
-  const setback = def.key === 'carDealer' ? 18 : 6;
+  const setback = isDealer(def.key) ? 18 : 6;
   // Local frame: x across the front, -z into the lot; the front wall sits at z = 0.
   group.position.set(fp.x - Math.sin(fp.yaw) * setback, 0, fp.z - Math.cos(fp.yaw) * setback);
   group.rotation.y = fp.yaw;
@@ -105,12 +106,12 @@ function storefront(g: Game, def: ShopDef, lot: Lot, y: number): ShopSite {
     k.box(1.2, 0.8, 0.8, 0xd8d2c0, { x: -3, y: y + 0.4, z: 2.4 });
     k.box(1.2, 0.8, 0.8, 0xd8d2c0, { x: 3, y: y + 0.4, z: 2.4 });
   }
-  if (def.key === 'carDealer') {
+  if (isDealer(def.key)) {
     // Glass showroom front and a forecourt with flags.
     k.box(W, 0.06, setback - 2, 0xd8d8dc, { y: y + 0.03, z: (setback - 2) / 2 + 0.5 });
     for (let x = -W / 2; x <= W / 2; x += W / 4) {
       k.cyl(0.05, 0.05, 6, 0xd0d0d0, { x, y: y + 3, z: setback - 2 }, 'shiny', 6);
-      k.box(1.2, 0.8, 0.02, [0x3aa7ff, 0xffd23d, 0xff5a6a][Math.abs(Math.round(x)) % 3], { x: x + 0.62, y: y + 5.5, z: setback - 2 });
+      k.box(1.2, 0.8, 0.02, [neon, 0xffd23d, 0xff5a6a][Math.abs(Math.round(x)) % 3], { x: x + 0.62, y: y + 5.5, z: setback - 2 });
     }
   }
   group.add(k.bake({ shadows: true }), glow.bake());
@@ -131,8 +132,9 @@ function storefront(g: Game, def: ShopDef, lot: Lot, y: number): ShopSite {
   const door = group.localToWorld(new THREE.Vector3(0, y, 1.6));
   door.y = y;
   // Display cars on the dealer's forecourt (not drivable: they're for sale).
-  if (def.key === 'carDealer') {
-    ['sports', 'convertible', 'muscle', 'suv'].forEach((id, i) => {
+  const dl = dealer(def.key);
+  if (dl) {
+    dl.display.forEach((id, i) => {
       const v = new Vehicle(id, undefined, `display${i}`);
       const p = group.localToWorld(new THREE.Vector3(-W / 2 + 4 + i * ((W - 8) / 3), 0, setback * 0.55));
       v.scripted = true;

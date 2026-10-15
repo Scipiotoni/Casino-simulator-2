@@ -41,6 +41,12 @@ from mathutils import Matrix, Vector  # noqa: E402
 import carkit as K  # noqa: E402
 from carcommon import CARS  # noqa: E402
 import cars_saloon  # noqa: E402,F401
+import cars_small  # noqa: E402,F401
+import cars_fast  # noqa: E402,F401
+import cars_classic  # noqa: E402,F401
+import cars_city  # noqa: E402,F401
+import cars_trucks  # noqa: E402,F401
+import cars_offroad  # noqa: E402,F401
 import cars_big  # noqa: E402,F401
 
 ARGS = [a for a in sys.argv[1:] if not a.endswith('.py')]

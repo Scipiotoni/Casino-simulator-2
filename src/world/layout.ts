@@ -454,6 +454,12 @@ export const SPECIAL_SITES: { key: string; x: number; z: number }[] = [
   { key: 'driftwood', x: -1250, z: 2720 },
   { key: 'gunShop', x: 1900, z: -150 },
   { key: 'carDealer', x: 2900, z: 1300 },
+  // The other car dealers: used cars by Palm Court, exotics on the Strip, 4x4s in Dustwater,
+  // classics in Halibut Bay (all on lots the city owned, so no save ever bought one).
+  { key: 'dealerUsed', x: 3250, z: -421 },
+  { key: 'dealerExotic', x: 2721, z: -214 },
+  { key: 'dealer4x4', x: 863, z: -5961 },
+  { key: 'dealerClassic', x: 287, z: -8723 },
   { key: 'realEstate', x: 1550, z: 0 },
   { key: 'clothing', x: 1850, z: 400 },
   { key: 'hospital', x: 1500, z: -900 },

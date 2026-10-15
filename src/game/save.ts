@@ -2,14 +2,17 @@ import { loadJSON, saveJSON, removeKey } from '../core/storage';
 import { appearanceFromSkin, sanitizeAppearance, type Appearance } from '../chars/skins';
 
 /**
- * Everything that persists. Everyone starts the same way (a flat, a car, some cash): this is a
- * new key, nothing is read from the first game's saves.
+ * Everything that persists. Everyone starts the same way (some cash, no home, no car): this
+ * is a new key, nothing is read from the first game's saves.
  */
 
 export const SAVE_KEY = 'cs2.save.v1';
 
-/** Cash in your pocket on day one (plus your flat): enough for a small lot and a first casino. */
+/** Cash in your pocket on day one: enough for a small lot and a first casino (or a home). */
 export const START_MONEY = 30000;
+
+/** The flat in Palm Court, for sale on day one. */
+export const FLAT_PRICE = 8000;
 
 export interface OwnedVehicle {
   id: string;
@@ -71,6 +74,8 @@ export interface SaveData {
   activities?: Record<string, unknown>;
   /** Looks saved in the wardrobe. */
   looks?: SavedLook[];
+  /** Do you own the flat in Palm Court? (Saves from before homes were sold had it.) */
+  flat?: boolean;
   settings: { music: number; sfx: number; sensitivity: number; invertY: boolean };
   savedAt: number;
 }
@@ -89,6 +94,7 @@ export function newSave(name: string, appearance: Appearance): SaveData {
     vehicles: [],
     weapons: [],
     stats: {},
+    flat: false,
     settings: { music: 0.45, sfx: 0.9, sensitivity: 1, invertY: false },
     savedAt: Date.now(),
   };
@@ -103,6 +109,7 @@ export function loadSave(): SaveData | null {
   s.vehicles ??= [];
   s.weapons ??= [];
   s.stats ??= {};
+  if (typeof s.flat !== 'boolean') s.flat = true;
   s.settings ??= { music: 0.45, sfx: 0.9, sensitivity: 1, invertY: false };
   if (!Number.isFinite(s.money)) s.money = 0;
   s.appearance = sanitizeAppearance(s.appearance, appearanceFromSkin('rookie'));

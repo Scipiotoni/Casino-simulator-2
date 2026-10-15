@@ -5,7 +5,8 @@ import { type Lot } from '../world/layout';
 import { BIZ, bizDef, buildCost, upgradeCost, hourlyIncome, lotArea, casinoHourly, casinoLevel, dealersNeeded, MAX_LEVEL, type BizType } from '../business/catalog';
 import { districtName, defaultName, type Business } from '../business/business';
 import { GUNS } from '../combat/guns';
-import { VEHICLES } from '../vehicles/models';
+import type { VehicleClass } from '../vehicles/models';
+import { DEALERS, dealer, dealerStock } from '../world/dealers';
 import { SKINS, RARITY_COLORS, appearanceFromSkin, lockPieces, skinById, type Appearance } from '../chars/skins';
 import { LookEditor, withFace } from './editor';
 import { audio } from '../core/audio';
@@ -17,6 +18,8 @@ import { arrivedFromMainland, goToMainland, mainlandName } from '../activities/c
  * businesses, the shops (guns, cars, clothes), the map, pause and settings, the title screen
  * and the character creator. Opening one pauses movement; closing it hands control back.
  */
+const CLASS_ICONS: Partial<Record<VehicleClass, string>> = { compact: '🚗', sedan: '🚘', taxi: '🚕', sports: '🏎️', super: '🏎️', muscle: '🏁', convertible: '🌴', suv: '🚙', jeep: '🚙', pickup: '🛻', van: '🚐', limo: '🎩', luxury: '🎩', buggy: '🏜️', classic: '✨', truck: '🚚' };
+
 export class GameUI {
   constructor(private g: Game) {}
 
@@ -228,7 +231,7 @@ export class GameUI {
       );
       p.body.appendChild(el('div', 'ptext dim', 'Guests play your games around the clock; the house edge is your profit. More kinds of games bring in more players. Busiest at night, and on the Strip.'));
     }
-    if (s.type === 'house') p.body.appendChild(el('div', 'ptext dim', 'Your home. Sleep here to skip to morning and save. You respawn here if you get knocked out.'));
+    if (s.type === 'house') p.body.appendChild(el('div', 'ptext dim', 'Your home. Sleep here to skip to morning and save. You wake up here after a knockout.'));
     const up = s.level < MAX_LEVEL ? upgradeCost(s.type as BizType, b.lot, s.level) : 0;
     const foot: HTMLButtonElement[] = [];
     foot.push(btn('Sell', 'danger', () => {
@@ -314,30 +317,44 @@ export class GameUI {
     p.body.append(grid, el('div', 'ptext dim', 'Press 1–7 to draw a gun, Q to holster. Right mouse aims, left fires, R reloads. Guns only fire outdoors.'));
   }
 
-  carDealer(): void {
+  carDealer(key = 'carDealer'): void {
     const g = this.g;
-    const p = this.panel({ title: 'Island Motors', subtitle: 'New cars delivered to the lot out front', wide: true, accent: '#3aa7ff' });
+    const d = dealer(key) ?? DEALERS[0];
+    const p = this.panel({ title: d.name, subtitle: `${d.tagline}. Delivered to the kerb out front.`, wide: true, accent: d.neon });
     const grid = el('div', 'pgrid');
     const render = () => {
       grid.innerHTML = '';
-      for (const v of VEHICLES.filter((x) => x.price > 0 && x.id !== 'pickup')) {
+      for (const v of dealerStock(d)) {
         const owned = g.vehicles.list.filter((c) => c.owned && c.def.id === v.id).length;
         grid.appendChild(card({
-          icon: '🚗',
+          icon: CLASS_ICONS[v.cls] ?? '🚗',
           title: v.name,
-          sub: `Top speed ${Math.round(v.top * 3.6)} km/h · ${v.seats} seats${owned ? ` · you own ${owned}` : ''}`,
+          sub: `${v.blurb ? `${v.blurb}\n` : ''}${Math.round(v.top * 3.6)} km/h · ${v.seats} seats${owned ? ` · you own ${owned}` : ''}`,
           price: money(v.price),
-          color: g.money >= v.price ? '#3aa7ff' : '#8e9aaf',
+          color: g.money >= v.price ? d.neon : '#8e9aaf',
           disabled: g.money < v.price,
           onClick: () => {
             p.close();
-            g.buyCar(v.id);
+            g.buyCar(v.id, d.key);
           },
         }));
       }
     };
     render();
     p.body.appendChild(grid);
+    // The other dealers, a teleport away.
+    const others = el('div', 'pfilters');
+    others.appendChild(el('span', 'ptext dim', 'Other dealers:'));
+    for (const o of DEALERS) {
+      if (o === d) continue;
+      const s = g.shops.find((x) => x.key === o.key);
+      if (!s) continue;
+      others.appendChild(btn(`📍 ${o.name}`, 'sm', () => {
+        p.close();
+        g.fastTravel(s.door.x + Math.sin(s.yaw) * 3, s.door.z + Math.cos(s.yaw) * 3, s.yaw + Math.PI, o.name);
+      }, !!g.vehicles.driving));
+    }
+    p.body.appendChild(others);
   }
 
   wardrobe(shop: boolean): void {
@@ -508,7 +525,7 @@ export class GameUI {
       t.innerHTML = `
         <div class="logo big"><div class="l1">CASINO SIMULATOR</div><div class="l2">2</div><div class="l3">JACKPOT ISLAND</div></div>
         <div class="title-menu"></div>
-        <div class="title-foot">Version 2 · everyone starts with $30,000 and a flat</div>`;
+        <div class="title-foot">Version 2 · everyone starts with $30,000 and nothing else</div>`;
       const menu = t.querySelector('.title-menu') as HTMLDivElement;
       const go = (c: 'new' | 'continue') => {
         audio.unlock();
@@ -529,7 +546,7 @@ export class GameUI {
       menu.appendChild(btn('Settings', 'pbtn big', () => this.settings()));
       // The first game is across Interstate 15.
       const back = mainlandName();
-      if (arrivedFromMainland()) menu.prepend(el('div', 'title-hello', esc(`Welcome across Interstate 15${back ? `, ${back}` : ''}! On the island everyone starts with $30,000 and a flat.`)));
+      if (arrivedFromMainland()) menu.prepend(el('div', 'title-hello', esc(`Welcome across Interstate 15${back ? `, ${back}` : ''}! On the island everyone starts with $30,000 and nothing else.`)));
       menu.appendChild(btn('◂ Back to the mainland: Casino Simulator 1', 'title-link', () => goToMainland(g)));
       g.uiRoot.appendChild(t);
     });
@@ -553,7 +570,7 @@ export class GameUI {
         start: withFace(appearanceFromSkin('rookie')),
         mode: 'create',
         title: 'WHO ARE YOU?',
-        subtitle: 'Everyone on Jackpot Island starts with $30,000 and a flat.',
+        subtitle: 'Everyone on Jackpot Island starts with $30,000: no home, no car.',
         top: input,
         actions: [start],
       });
