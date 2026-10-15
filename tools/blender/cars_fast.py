@@ -598,3 +598,194 @@ def muscle_decor(o, res, pr, prg, hull, p):
 @car
 def muscle(res):
     return fast_car(res, muscle_params())
+
+
+# ------------------------------------------------------------------ mid-engined cars
+
+def centre_lock(R, w, kind, ratio, res, spokes=5, nut='chrome'):
+    """A wheel with a big centre-lock nut in the middle of the spokes."""
+    seg = 22 if res else 8
+    m = P.wheel(R, w, kind, 'road', ratio, seg, res, spokes)
+    if res:
+        fz = w / 2 * 0.62
+        m.extend(cyl((0, -fz + 0.01, 0), (0, -fz - 0.012, 0), 0.06, 'rim2', 12))
+        m.extend(cyl((0, -fz - 0.012, 0), (0, -fz - 0.04, 0), 0.042, nut, 6))
+        for k in range(3):
+            a = 2 * math.pi * k / 3
+            m.extend(rbox((0.05 * math.cos(a), -fz - 0.024, 0.05 * math.sin(a)), (0.022, 0.01, 0.022), 0.006, nut, 1,
+                          Matrix.Rotation(-a, 4, 'Y')))
+    return m
+
+
+def mid_params(k):
+    """
+    A mid-engined car from a handful of heights and stations: the nose, the cowl under the
+    windscreen, the belt at the doors, the hips over the rear wheels and the deck at the tail,
+    the roof profile from the back of the cabin to the windscreen base, widths front, waist and
+    rear. Each car adds its own lamps, intakes and bodywork in k['decor'].
+    """
+    L, W = k['L'], k['W']
+    x0, x1 = -L / 2, L / 2
+    xf, xr = k['xf'], k['xr']
+    R, Rr = k['R'], k['Rr']
+    ws, bl = k['ws'], k['bl']
+    nose, cowl, belt, hip, deck, wingf = k['nose'], k['cowl'], k['belt'], k['hip'], k['deck'], k['wingf']
+    dip = k.get('dip', 0.05)
+    clr = k.get('clr', 0.11)
+    roof = C(*k['roof'])
+    zbl = roof(bl)
+    Wf, Wd, Wr = k['wf'], k['wd'], k['wr']
+    rp = sorted(k['roof'])
+    rail = [(x, z - (0.012 if i in (0, len(rp) - 1) else k.get('rail_drop', 0.03))) for i, (x, z) in enumerate(rp)]
+    p = dict(
+        L=L, W=W, xf=xf, xr=xr, R=R, R_rear=Rr, tyre_w=k.get('tw', 0.255), track=k['track'], track_rear=k.get('track_r', k['track']),
+        arch_gap=k.get('gap', 0.04), color=k['color'],
+        bottom=C((x0, k.get('tail_bot', 0.32)), (x0 + 0.1, 0.22), (x0 + 0.4, clr + 0.03), (xr, clr), (xf, clr), (xf + 0.45, clr + 0.02),
+                 (x1 - 0.12, clr + 0.05), (x1, clr + k.get('nose_bot', 0.1))),
+        shoulder=C((x0, deck - 0.09), (x0 + 0.04, deck - 0.025), (x0 + 0.16, deck), (xr - 0.25, hip), (xr + 0.4, hip - 0.02),
+                   (k.get('xdoor', -0.3), belt), (ws, cowl + 0.02), (xf, wingf), (xf + 0.45, (wingf + nose) / 2 + 0.04),
+                   (x1 - 0.08, nose + 0.025), (x1, nose - 0.05)),
+        top=C((x0, deck - 0.07), (x0 + 0.04, deck), (x0 + 0.16, deck + 0.015), (bl, zbl), (bl + 0.25, zbl), (ws, cowl),
+              (xf, wingf - dip), (xf + 0.45, (wingf + nose) / 2 - dip * 0.5), (x1 - 0.08, nose - 0.01), (x1, nose - 0.07)),
+        crown=k.get('crown', C((x0, 2.0), (ws, 2.0), (xf, 3.0), (x1, 2.5))),
+        width=C((x0, Wr - 0.05), (x0 + 0.3, Wr - 0.01), (xr, Wr), (xr + 0.6, Wd + 0.02), (-0.1, Wd), (xf - 0.5, Wf - 0.01), (xf, Wf),
+                (x1 - 0.25, Wf - 0.02), (x1, Wf - 0.06)),
+        tuck=const(k.get('tuck', 0.05)), tumble=k.get('tumble', const(0.1)),
+        cfrac=k.get('cfrac', const(0.5)), rb=const(0.04), rs=k.get('rs', const(0.05)),
+        front=k.get('front', (0.45, 2.4)), rear=k.get('rear', (0.3, 3.0)),
+        flares=k.get('flares', [(xf, 0.55, 0.015, 0.45, 0.3), (xr, 0.75, 0.03, 0.55, 0.32)]),
+        open=[(k.get('open0', bl + 0.35), ws - 0.08, clr + 0.1)],
+        bl_base=bl, ws_base=ws, inset=0.03,
+        roof_z=roof, rail_z=C(*rail),
+        rail_w=C((bl, k['rw'][0]), ((bl + ws) / 2 - 0.2, k['rw'][1]), (ws, k['rw'][2])),
+        base_w=C((bl, k['bw'][0]), ((bl + ws) / 2, k['bw'][1]), (ws, k['bw'][2])),
+        corner=const(k.get('corner', 0.05)),
+        lines=[(k['qx'], k['qxr']), (ws - 0.12, ws - 0.14)], between=2,
+        driver_y=0.37, hip_f=(k['hip_x'], clr + k.get('hip_up', 0.2)), eye_up=k.get('eye_up', 0.66),
+        dash=(ws + 0.02, ws - 0.38, 0.72, clr + 0.32, cowl - 0.03), wheel_c=(ws - 0.6, cowl - 0.07), wheel_r=0.175, wheel_tilt=0.55,
+        mirror=(ws - 0.18, k['bw'][2] + 0.02, belt + 0.06), mirror_out=0.16, mirror_h=0.075, mirror_l=0.15,
+        mirror_region=k.get('mirror_region', 'paint'), roof_x=k.get('peak', 0.0), recline=0.45, seat_back=0.6,
+        hull_region=k.get('hull_region'), cutters=k.get('cutters'), keys=k.get('keys', []),
+    )
+    hdr, rwin, sail = k['hdr'], k.get('rwin', -9.0), k.get('sail', 'paint')
+
+    def glass_region(i):
+        seg, xb, xr_ = i['seg'], i['xb'], i['xr']
+        if seg == 'side':
+            if i['zone'] == 'front' or xb > ws - 0.12:
+                return 'black'
+            if xb < k['qx']:
+                return sail
+            return 'glass'
+        if seg == 'corner':
+            return k.get('pillar', 'paint')
+        if xr_ > hdr or xr_ < rwin:
+            return 'glass'
+        return k.get('roof_region', 'paint')
+
+    p['glass_region'] = glass_region
+
+    def decor(o, res, pr, prg, hull, p):
+        mid_common(o, res, pr, prg, hull, p, k)
+        k['decor'](o, res, pr, prg, hull, p, k)
+
+    p['decor'] = decor
+    rim = k.get('rim', 'multi')
+    p['wheels'] = lambda res: (centre_lock(R, k.get('tw', 0.255), rim, k.get('ratio', 0.74), res, k.get('spokes', 5), k.get('nut', 'chrome'))
+                               if k.get('lock') else P.wheel(R, k.get('tw', 0.255), rim, 'road', k.get('ratio', 0.74), 22 if res else 8, res, k.get('spokes', 5)),
+                               centre_lock(Rr, k.get('twr', 0.32), rim, k.get('ratio', 0.74), res, k.get('spokes', 5), k.get('nut', 'chrome'))
+                               if k.get('lock') else P.wheel(Rr, k.get('twr', 0.32), rim, 'road', k.get('ratio', 0.74), 22 if res else 8, res, k.get('spokes', 5)))
+    return p
+
+
+def mid_common(o, res, pr, prg, hull, p, k):
+    """What every mid-engined car has: the cowl and a wiper, the sills, the plates, door shut lines."""
+    L = p['L']
+    x0, x1 = -L / 2, L / 2
+    xf, xr, R, Rr = p['xf'], p['xr'], p['R'], p['R_rear']
+    ws = p['ws_base']
+    cx = ws - 0.03
+    line(o, pr, 'top', [(cx, -0.66), (cx, 0.66)], 0.05, 'black', 0.003)
+    if res:
+        o.body.extend(tube([Vector((cx - 0.02, 0.5, p['roof_z'](cx - 0.02) + 0.01)), Vector((cx - 0.07, -0.25, p['roof_z'](cx - 0.07) + 0.012))], 0.006, 'black', 4))
+        line(o, pr, 'side', [(xf - R - 0.05, k.get('sill_z', 0.19)), (xr + Rr + 0.05, k.get('sill_z', 0.19))], 0.07, 'black', 0.003, both=True)
+        d0, d1 = k.get('door', (ws - 0.05, k['qx'] + 0.05))
+        top = k['belt']
+        gaps(o, pr, [[(d0, top), (d0 + 0.02, 0.5), (d0 - 0.06, 0.24)], [(d1, top + 0.03), (d1 - 0.03, 0.5), (d1 - 0.02, 0.24)], [(d0 - 0.06, 0.24), (d1 - 0.02, 0.24)]])
+    plate(o, pr, 'front', (0.0, k.get('plate_f', 0.26)), w=0.3, h=0.1)
+    plate(o, pr, 'rear', (0.0, k.get('plate_r', 0.45)), w=0.3, h=0.12)
+
+
+def side_intake(x_front, x_back, z0, z1, y_in, top_back=None, region='grille'):
+    """A boolean cutter for a scoop in the side: a quadrilateral in side view, cut in from y_in."""
+    tb = top_back if top_back is not None else z1
+    pts = [(x_front, z0 + 0.05), (x_front + 0.0, z1), (x_back, tb), (x_back, z0)]
+    m = prism(pts, y_in, 1.6, region)
+    return [m, m.mirrored()]
+
+
+def big_wing(o, x, z, chord, span, deck_y, deck_z, region='gloss', plate_h=0.14, pitch=0.16, thick=0.07):
+    """A rear wing on two uprights with big end plates."""
+    o.body.extend(aerofoil(x, z, chord, thick, -span, span, pitch, region))
+    for s in (1, -1):
+        o.body.extend(rbox((x - 0.01, s * (span + 0.006), z - plate_h * 0.3), (chord * 0.6, 0.006, plate_h / 2), 0.006, region, 1))
+        o.body.extend(prism([(x + 0.05, deck_z - 0.02), (x - 0.09, deck_z - 0.02), (x - 0.06, z), (x + 0.03, z)], s * deck_y - 0.014, s * deck_y + 0.014, region))
+
+
+def super_decor(o, res, pr, prg, hull, p, k):
+    L = p['L']
+    x0, x1 = -L / 2, L / 2
+    # Headlamps: slim angular slits at the corners of the nose with a light blade inside.
+    hf = aim((x1 - 0.3, 0.66, 0.5), 0.5, 0.5)
+    lamp(o, pr, hf, [(-0.2, 0.015), (0.08, -0.035), (0.2, -0.03), (0.17, 0.0), (-0.18, 0.035)], 'head', res, 'gloss', 0.004, 0.006, bw=0.012)
+    if res:
+        line(o, pr, hf, [(-0.17, 0.018), (0.17, -0.016)], 0.008, 'white', 0.012, both=True)
+    # Big intakes in the nose: two at the corners, one in the middle, a splitter under them.
+    fi = aim((x1 - 0.2, 0.55, 0.26), 0.35, 0.0)
+    flat(o, pr, fi, [(-0.2, -0.1), (0.25, -0.08), (0.22, 0.08), (0.0, 0.07), (-0.18, -0.01)], 'grille', 0.004, both=True, bezel=(0.012, 'gloss', 0.003), res=res, rings=2)
+    flat(o, pr, 'front', rounded([(-0.26, 0.15), (0.26, 0.15), (0.2, 0.22), (-0.2, 0.22)], 1), 'grille', 0.004, res=res, rings=2)
+    o.body.extend(rbox((x1 - 0.2, 0, 0.12), (0.14, 0.6, 0.012), 0.006, 'gloss', 1))
+    if res:
+        gaps(o, pr, [[(0.9, 0.62), (1.8, 0.5), (2.12, 0.36), (2.2, 0.0)]], frame='top')
+        for z in (-0.05, 0.0, 0.05):
+            line(o, pr, fi, [(-0.15, z), (0.2, z + 0.01)], 0.008, 'gloss', 0.008, both=True)
+    # A roof scoop feeding the engine.
+    zr = p['roof_z'](-0.55)
+    o.body.extend(rbox((-0.62, 0, zr + 0.005), (0.32, 0.11, 0.04), 0.035, 'paint', 2 if res else 1))
+    o.body.extend(rbox((-0.31, 0, zr + 0.017), (0.02, 0.085, 0.022), 0.01, 'grille', 1))
+    # Engine cover: vents across it.
+    if res:
+        flat(o, pr, 'top', rounded([(-1.0, -0.42), (-1.0, 0.42), (-1.85, 0.36), (-1.85, -0.36)], 1), 'grille', 0.004, bezel=(0.014, 'gloss', 0.003), res=res, rings=1)
+        louvres(o, pr, 'top', -1.0, -1.85, -0.36, 0.36, 9, 'paint', 0.03, 0.01, along_x=False)
+    # Tail: thin lamp blades at the corners, a mesh panel between, the diffuser and the exhausts.
+    tf = aim((x0 + 0.12, 0.7, k['deck'] - 0.06), math.pi - 0.6, 0.0)
+    lamp(o, pr, tf, [(0.22, -0.012), (0.22, 0.012), (-0.2, 0.03), (-0.22, 0.01)], 'tail', res, 'gloss', 0.003, 0.006, bw=0.01)
+    lamp(o, pr, tf, [(0.18, -0.05), (0.2, -0.035), (-0.16, -0.02), (-0.18, -0.035)], 'tail', res, None, 0.002, 0.006)
+    flat(o, pr, 'rear', rounded([(-0.42, 0.58), (0.42, 0.58), (0.46, 0.66), (0.42, 0.76), (-0.42, 0.76), (-0.46, 0.66)], 1), 'grille', 0.004, bezel=(0.012, 'gloss', 0.003), res=res, rings=2)
+    flat(o, pr, 'rear', [(-0.66, 0.36), (0.66, 0.36), (0.6, 0.18), (-0.6, 0.18)], 'black', 0.004, res=res, rings=2)
+    if res:
+        for y in (-0.6, -0.42, -0.24, 0.24, 0.42, 0.6):
+            o.body.extend(rbox((x0 + 0.2, y, 0.2), (0.22, 0.005, 0.05), 0.003, 'gloss', 1))
+        for y in (-0.09, 0.09):
+            o.body.extend(cyl((x0 + 0.2, y, 0.3), (x0 - 0.02, y, 0.3), 0.055, 'chrome', 14, caps=False))
+            o.body.extend(cyl((x0 - 0.015, y, 0.3), (x0 - 0.008, y, 0.3), 0.05, 'gap', 12))
+    big_wing(o, x0 + 0.24, k['deck'] + 0.27, 0.32, 0.86, 0.32, hull.surface_z(x0 + 0.24, 0.32))
+
+
+def super_car(res):
+    k = dict(
+        L=4.6, W=2.02, xf=1.38, xr=-1.27, R=0.335, Rr=0.355, track=1.7, track_r=1.66, color=0xf2c230,
+        ws=0.82, bl=-0.95, nose=0.42, cowl=0.74, belt=0.8, hip=0.92, deck=0.96, wingf=0.79, dip=0.08,
+        roof=[(-0.95, 1.0), (-0.7, 1.08), (-0.45, 1.12), (-0.2, 1.125), (0.02, 1.1), (0.3, 1.0), (0.55, 0.88), (0.82, 0.76)],
+        hdr=0.02, rwin=-0.78, qx=-0.6, qxr=-0.45, sail='black',
+        wf=0.99, wd=0.95, wr=1.01, rw=(0.5, 0.56, 0.72), bw=(0.62, 0.74, 0.78),
+        hip_x=-0.18, hip_up=0.18, eye_up=0.64, tumble=C((-2.3, 0.14), (-1.2, 0.14), (0.0, 0.16), (1.4, 0.09), (2.3, 0.1)), rs=const(0.035),
+        rim='multi', spokes=5, lock=True, ratio=0.75, tw=0.255, twr=0.335,
+        cutters=lambda res, hull: side_intake(-0.42, -0.86, 0.3, 0.74, 0.78, 0.66),
+        decor=super_decor, plate_f=0.25, plate_r=0.45, door=(0.76, -0.5),
+    )
+    return fast_car(res, mid_params(k))
+
+
+super_car.__name__ = 'super'
+car(super_car)
