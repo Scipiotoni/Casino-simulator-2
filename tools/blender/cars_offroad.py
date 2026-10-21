@@ -434,3 +434,115 @@ def hilux(res):
     o = closed_car(res, crew_params(c))
     o.meta['dims'][0] = 5.33
     return o
+
+
+# ------------------------------------------------------------------ Edison Cyberwedge
+
+CT_PTS = [(-2.84, 1.2), (-2.2, 1.346), (-1.5, 1.505), (-0.9, 1.642), (-0.55, 1.722), (-0.25, 1.79), (0.1, 1.707), (0.6, 1.59),
+          (1.2, 1.448), (2.0, 1.26), (2.84, 1.06)]
+CT_ROOF = C(*CT_PTS)
+CT_RAIL = C(*[(x, z - 0.012) for (x, z) in CT_PTS])
+STEEL = 'rim'
+
+
+def ct_glass(i):
+    seg, xb, xr, k = i['seg'], i['xb'], i['xr'], i['k']
+    if seg == 'side':
+        if i['zone'] != 'mid' or k == 0:
+            return STEEL
+        if -1.1 < xb < -0.12 or 0.04 < xb < 1.1:
+            return 'glass'
+        return STEEL
+    if seg == 'top' and i['zone'] == 'mid' and -0.75 < xr < 1.2:
+        return 'glass'
+    return STEEL
+
+
+def cyber_params():
+    L, W = 5.68, 2.03
+    x0, x1 = -L / 2, L / 2
+    xf, xr = 1.78, -1.855
+    R = 0.43
+    p = dict(
+        L=L, W=W, xf=xf, xr=xr, R=R, tyre_w=0.285, track=1.71, arch_gap=0.07, arch_flat=1.0,
+        rim='turbine', spokes=8, rim_ratio=0.62, tyre='road', color=0xb8bcc4,
+        bottom=C((x0, 0.62), (x0 + 0.3, 0.52), (xr, 0.47), (xf, 0.47), (x1 - 0.35, 0.52), (x1, 0.64)),
+        shoulder=C((x0, 1.0), (x1, 1.0)),
+        top=C((x0, 1.01), (x1, 1.01)),
+        width=const(1.015),
+        tuck=const(0.03), tumble=const(0.0), cfrac=const(0.55),
+        rb=const(0.03), rs=const(0.012),
+        front=(0.05, 4.0), rear=(0.05, 4.0),
+        flares=[],
+        open=[(-1.25, 1.2, 0.56)],
+        keys=[x0 + 0.1, x1 - 0.1, -1.1, 1.1],
+        bl_base=-1.25, ws_base=1.2, inset=0.025, glass=False,
+        driver_y=0.4, hip_f=(0.05, 0.94), benches=[(-0.85, 1.4, 0.9)], seats=4,
+        dash=(1.25, 0.82, 0.86, 0.85, 1.12), wheel_c=(0.48, 1.12), wheel_tilt=0.5,
+        height=1.79,
+    )
+
+    def hull_region(i, hull):
+        seg = i['seg']
+        if seg == 'bot':
+            return 'black'
+        if seg == 'in':
+            return 'interior'
+        if seg == 'top' and -1.25 < i['x'] < 1.2:
+            return 'interior'
+        return STEEL
+
+    p['hull_region'] = hull_region
+    p['decor'] = cyber_decor
+    return p
+
+
+def cyber_decor(o, res, pr, prg_unused, hull, p):
+    L = p['L']
+    x0, x1 = -L / 2, L / 2
+    xf, xr, R = p['xf'], p['xr'], p['R']
+    cab = Cab(hull, x0, x1, C((x0, 0.92), (-1.3, 0.82), (-0.25, 0.7), (1.2, 0.84), (x1, 0.96)), CT_RAIL, CT_ROOF, corner=const(0.01),
+              inset=const(0.025), lines=[(-2.2, -2.2), (-1.6, -1.6), (-1.1, -1.1), (-0.6, -0.6), (-0.25, -0.25), (-0.12, -0.12),
+                                         (0.04, 0.04), (0.6, 0.6), (1.1, 1.1), (1.6, 1.6), (2.2, 2.2)],
+              front=(0.05, 4.0), rear=(0.05, 4.0), region=ct_glass, side_s=(0.0, 0.4), taper=False, between=0, base_drop=0.02, nt=2)
+    cm = cab.build(res, shell=bool(res))
+    o.body.extend(cm)
+    pa = Projector(o.body)
+
+    # Light bars full across the nose and the tail.
+    flat(o, pa, 'front', rrect_pts((0.0, 1.03), 1.84, 0.05, 0.01, 1), 'gloss', 0.003, res=res, rings=1)
+    flat(o, pa, 'front', rrect_pts((0.0, 1.03), 1.8, 0.025, 0.008, 1), 'head', 0.007, res=res, rings=1)
+    flat(o, pa, 'rear', rrect_pts((0.0, 1.165), 1.7, 0.035, 0.01, 1), 'tail', 0.004, res=res, rings=1)
+    # A black lower nose and tail, the plate, black sills and square black arch flares.
+    line(o, pr, 'front', [(-0.98, 0.7), (0.98, 0.7)], 0.1, 'black', 0.003)
+    line(o, pr, 'rear', [(-0.98, 0.68), (0.98, 0.68)], 0.1, 'black', 0.003)
+    plate(o, pr, 'rear', (0.0, 0.86), 0.3, 0.15)
+    line(o, pr, 'side', [(xf - R - 0.17, 0.52), (xr + R + 0.17, 0.52)], 0.1, 'black', 0.004, both=True)
+    for x in (xf, xr):
+        path = [(x - 0.57, 0.5), (x - 0.45, 0.91), (x + 0.45, 0.91), (x + 0.57, 0.5)]
+        sec = [(0.99, 0.0), (1.05, 0.0), (1.05, 0.1), (1.03, 0.1), (0.99, 0.02)]
+        o.body.extend(sweep_xz(path, sec, 'black', centre=(x, R)).both())
+    if res:
+        # Doors, the vault cover's slats, the bonnet's front edge.
+        gaps(o, pa, [[(1.12, 1.4), (1.12, 0.6)], [(-0.06, 1.68), (-0.06, 0.6)], [(-1.12, 1.6), (-1.12, 0.6)], [(1.12, 0.6), (-1.12, 0.6)]])
+        for x in (-1.5, -1.85, -2.2, -2.55):
+            line(o, pa, 'top', [(x, -0.85), (x, 0.85)], 0.006, 'gap', 0.002)
+        line(o, pa, 'top', [(1.7, -0.9), (1.7, 0.9)], 0.006, 'gap', 0.002)
+        gaps(o, pa, [[(-0.9, 1.15), (-0.9, 0.62), (0.9, 0.62), (0.9, 1.15)]], frame='rear', both=False)
+        # A single long wiper.
+        z = CT_ROOF(1.15) + 0.015
+        o.body.extend(tube([Vector((1.15, 0.7, z)), Vector((0.95, -0.4, CT_ROOF(0.95) + 0.015))], 0.008, 'black', 4))
+        # Camera pods for mirrors.
+        for s in (1, -1):
+            o.body.extend(rbox((1.05, s * 0.95, 1.18), (0.07, 0.05, 0.03), 0.015, 'black', 1))
+
+
+@car
+def cybertruck(res):
+    o = closed_car(res, cyber_params())
+    # Dark aero covers over the wheels.
+    for w in (o.wheel.values() if res else [o.body]):
+        w.recolor('rim2', only='rim') if res else None
+        if res:
+            w.recolor('rim2', only='chrome')
+    return o
