@@ -1,0 +1,105 @@
+/* Car radio: the station card and the round button on touch screens. */
+.radio-card {
+  --accent: #ffd23d;
+  --beat: 0.5s;
+  position: absolute;
+  left: 50%;
+  bottom: 9%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 240px;
+  max-width: calc(100vw - 32px);
+  padding: 9px 22px 10px;
+  border-radius: 14px;
+  border-bottom: 4px solid var(--accent);
+  background: linear-gradient(180deg, rgba(12, 26, 70, 0.93), rgba(8, 16, 44, 0.93));
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4);
+  color: #fff;
+  font-family: var(--ui-font);
+  text-align: center;
+  pointer-events: none;
+  z-index: 9;
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-50%, 12px) scale(0.96);
+  transition: opacity 0.4s, transform 0.4s, visibility 0s 0.4s;
+}
+.radio-card.on {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+  transition: opacity 0.18s, transform 0.28s cubic-bezier(0.2, 1.4, 0.4, 1), visibility 0s;
+}
+.rdc-top { display: flex; align-items: center; gap: 9px; font-size: 12px; letter-spacing: 0.14em; color: var(--accent); }
+.rdc-eq { display: flex; align-items: flex-end; gap: 2px; height: 13px; }
+.rdc-eq i {
+  width: 3px;
+  height: 100%;
+  border-radius: 1px;
+  background: var(--accent);
+  transform-origin: bottom;
+  animation: rdcEq var(--beat) ease-in-out infinite alternate;
+}
+.rdc-eq i:nth-child(2) { animation-duration: calc(var(--beat) * 0.5); animation-delay: calc(var(--beat) * -0.3); }
+.rdc-eq i:nth-child(3) { animation-duration: calc(var(--beat) * 0.75); animation-delay: calc(var(--beat) * -0.6); }
+.rdc-eq i:nth-child(4) { animation-duration: calc(var(--beat) * 0.5); animation-delay: calc(var(--beat) * -0.1); }
+.rdc-eq i:nth-child(5) { animation-duration: calc(var(--beat) * 1.5); animation-delay: calc(var(--beat) * -0.9); }
+@keyframes rdcEq { from { transform: scaleY(0.18); } to { transform: scaleY(1); } }
+.radio-card:not(.on) .rdc-eq i { animation-play-state: paused; }
+.radio-card.off .rdc-eq i { animation: none; transform: scaleY(0.15); }
+.rdc-name { margin-top: 2px; font-size: 28px; line-height: 1.05; white-space: nowrap; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35); }
+.radio-card.off .rdc-name { color: #c9d1e2; }
+.rdc-genre { margin-top: 2px; font-family: var(--body-font); font-weight: 800; font-size: 13px; color: #c9d6f2; white-space: nowrap; }
+.rdc-dots { display: flex; gap: 6px; margin-top: 7px; }
+.rdc-dots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255, 255, 255, 0.22); }
+.rdc-dots i.on { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+.rdc-dots i.x { border-radius: 1px; transform: scale(0.85); }
+.rdc-hint { margin-top: 6px; font-family: var(--body-font); font-weight: 800; font-size: 11px; letter-spacing: 0.03em; color: rgba(255, 255, 255, 0.55); }
+.rdc-hint b {
+  display: inline-grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 3px;
+  margin-right: 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #0b1530;
+  font-family: var(--ui-font);
+  font-weight: 400;
+  font-size: 11px;
+}
+
+.radio-btn {
+  --accent: #ffd23d;
+  position: absolute;
+  right: 16px;
+  bottom: max(96px, 27%);
+  display: none;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: rgba(10, 22, 60, 0.78);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  z-index: 9;
+  transition: transform 0.1s;
+}
+.radio-btn.on { display: grid; }
+.radio-btn:active { transform: scale(0.9); }
+.radio-btn.off { border-color: rgba(255, 255, 255, 0.35); color: rgba(255, 255, 255, 0.6); }
+
+@media (max-width: 700px), (max-height: 500px) {
+  .radio-card { bottom: 12px; min-width: 200px; padding: 7px 16px 8px; border-radius: 12px; }
+  .rdc-name { font-size: 22px; }
+  .rdc-genre { font-size: 12px; }
+  .rdc-dots { margin-top: 5px; }
+  .radio-btn { right: 12px; width: 44px; height: 44px; }
+}

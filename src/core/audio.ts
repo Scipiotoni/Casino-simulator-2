@@ -1172,6 +1172,16 @@ class AudioEngine {
 
   // ---------------------------------------------------------------- music
 
+  /** The music bus (under the music and master volume), for other music such as the car radio. */
+  get musicOut(): AudioNode | null {
+    return this.ctx ? this.musicBus : null;
+  }
+
+  /** Whether the lounge loop is switched on. */
+  get musicPlaying(): boolean {
+    return this.musicOn;
+  }
+
   setMusic(on: boolean): void {
     this.musicOn = on;
     if (!this.ctx) return;
