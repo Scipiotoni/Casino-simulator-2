@@ -684,3 +684,146 @@ def wrangler(res):
     o.meta['dims'][0] = 4.33
     o.meta['dims'][1] = 1.88
     return o
+
+
+# ------------------------------------------------------------------ Hammer H1
+
+HM_RAIL = C((-2.3, 1.875), (0.1, 1.88), (0.18, 1.86), (0.55, 1.41))
+HM_ROOF = C((-2.3, 1.89), (-2.2, 1.905), (0.08, 1.91), (0.17, 1.885), (0.55, 1.425))
+
+
+def hm_glass(i):
+    seg, xb, xr, k = i['seg'], i['xb'], i['xr'], i['k']
+    if seg == 'side':
+        if i['zone'] == 'rear':
+            return 'glass' if (k >= 1 and i['th'] > 0.5) else 'paint'
+        if k == 0 or xb > 0.17:
+            return 'paint'
+        if -0.45 < xb < 0.17 or -1.45 < xb < -0.57 or -2.05 < xb < -1.6:
+            return 'glass'
+        return 'paint'
+    if seg == 'corner':
+        return 'paint'
+    if i['zone'] == 'mid' and xr > 0.17:
+        return 'glass'
+    return 'paint'
+
+
+def hummer_params():
+    L, W = 4.6, 2.16
+    x0, x1 = -L / 2, L / 2
+    xf, xr = 1.65, -1.65
+    R = 0.47
+    gx1 = 0.55
+    p = dict(
+        L=L, W=W, xf=xf, xr=xr, R=R, tyre_w=0.32, track=1.82, arch_gap=0.1, arch_flat=1.0,
+        rim='military', rim_ratio=0.47, tyre='knobby', color=0xc8b48a,
+        bottom=C((x0, 0.68), (x0 + 0.2, 0.64), (xr, 0.62), (xf, 0.62), (x1 - 0.2, 0.64), (x1, 0.7)),
+        shoulder=C((x0, 1.38), (x0 + 0.04, 1.4), (gx1, 1.4), (x1 - 0.05, 1.19), (x1, 1.17)),
+        top=C((x0, 1.39), (x0 + 0.04, 1.41), (gx1, 1.415), (x1 - 0.05, 1.205), (x1, 1.18)),
+        width=const(1.08),
+        tuck=const(0.02), tumble=const(0.005), cfrac=const(0.5),
+        rb=const(0.03), rs=const(0.02),
+        front=(0.05, 4.0), rear=(0.05, 4.0),
+        open=[(-2.0, 0.42, 0.75)],
+        keys=[gx1, x0 + 0.12, x1 - 0.12],
+        bl_base=x0, ws_base=gx1, inset=0.03, glass=False,
+        driver_y=0.5, hip_f=(-0.12, 1.11), benches=[(-1.15, 1.7, 1.12)], seats=4, seat_w=0.52,
+        dash=(0.53, 0.2, 0.95, 1.0, 1.42), wheel_c=(0.26, 1.33), wheel_tilt=0.5,
+        mirror=(0.42, 1.0, 1.42), mirror_region='black', mirror_out=0.2,
+        height=1.95,
+    )
+
+    def hull_region(i, hull):
+        if i['seg'] == 'top' and x0 + 0.05 < i['x'] < gx1 - 0.01 and abs(i['c'].y) < hull.edge_y(i['x']) - 0.04:
+            return 'interior'
+        return None
+
+    p['hull_region'] = hull_region
+    p['decor'] = hummer_decor
+    return p
+
+
+def hummer_decor(o, res, pr, prg_unused, hull, p):
+    L = p['L']
+    x0, x1 = -L / 2, L / 2
+    xf, xr, R = p['xf'], p['xr'], p['R']
+    gx1 = p['ws_base']
+    cab = Cab(hull, x0, gx1, C((x0, 0.74), (gx1, 0.76)), HM_RAIL, HM_ROOF, corner=const(0.03), inset=const(0.03),
+              lines=[(-2.05, -2.05), (-1.6, -1.6), (-1.45, -1.45), (-0.57, -0.57), (-0.45, -0.45), (-0.1, -0.1), (0.17, 0.15), (0.35, 0.33)],
+              rear=(0.05, 4.0), region=hm_glass, side_s=(0.0, 0.08), taper=False, between=1, base_drop=0.03)
+    o.body.extend(cab.build(res, shell=bool(res)))
+    # The split windscreen's centre post.
+    o.body.extend(tube([Vector((gx1 - 0.01, 0.0, HM_ROOF(gx1) - 0.02)), Vector((0.15, 0.0, HM_ROOF(0.15) + 0.004))], 0.03, 'paint', 6 if res else 4))
+
+    # Front: a grille of vertical slots, headlamps in square black bezels at the outer edges.
+    for k in range(10 if res else 0):
+        y = -0.405 + k * 0.09
+        flat(o, pr, 'front', rrect_pts((y, 0.96), 0.045, 0.24, 0.015, 2), 'gloss', 0.004, res=res, rings=1)
+    if not res:
+        flat(o, pr, 'front', rrect_pts((0.0, 0.96), 0.86, 0.24, 0.015, 1), 'gloss', 0.004, res=res, rings=1)
+    for s in (1, -1):
+        flat(o, pr, 'front', rrect_pts((s * 0.7, 0.96), 0.26, 0.24, 0.02, 2), 'gloss', 0.004, res=res, rings=1)
+        lamp(o, pr, 'front', circle_pts((s * 0.7, 0.98), 0.085, 16 if res else 8), 'head', res, 'chrome', 0.012, 0.01, both=False, bw=0.01)
+        flat(o, pr, 'front', rrect_pts((s * 0.7, 0.865), 0.12, 0.035, 0.01, 1), 'amber', 0.01, res=res)
+    # The winch bumper: a steel beam, the winch drum and its hook, tow shackles.
+    o.body.extend(rbox((x1 + 0.1, 0, 0.72), (0.09, 1.02, 0.1), 0.02, 'black', 2 if res else 1))
+    o.body.extend(rbox((x1 + 0.14, 0, 0.87), (0.07, 0.3, 0.06), 0.02, 'black', 1))
+    o.body.extend(cyl((x1 + 0.14, -0.22, 0.87), (x1 + 0.14, 0.22, 0.87), 0.065, 'metal', 12 if res else 6))
+    if res:
+        o.body.extend(tube([Vector((x1 + 0.2, 0.0, 0.86)), Vector((x1 + 0.27, 0.0, 0.8)), Vector((x1 + 0.26, 0.0, 0.72))], 0.012, 'metal', 4))
+        for s in (1, -1):
+            o.body.extend(tube([Vector((x1 + 0.19, s * 0.7, 0.67)), Vector((x1 + 0.26, s * 0.7, 0.67)), Vector((x1 + 0.26, s * 0.7, 0.77)), Vector((x1 + 0.19, s * 0.7, 0.77))], 0.018, 'red', 5))
+        # Bonnet: shut lines, a vent by the windscreen, the plate.
+        gaps(o, pr, [[(gx1 + 0.06, 1.0), (x1 - 0.02, 1.0)]], frame='top')
+        flat(o, pr, 'top', rrect_pts((gx1 + 0.3, 0.0), 0.3, 0.9, 0.03, 2), 'grille', 0.004, res=res, rings=1)
+        line(o, pr, 'front', [(-1.0, 1.12), (1.0, 1.12)], 0.006, 'gap', 0.002)
+    cowl(o, res, pr, gx1 - 0.03, 0.8, HM_ROOF)
+    plate(o, Projector(o.body), 'front', (-0.55, 0.72), 0.3, 0.12)
+
+    # Sides: four flat doors, handles, a fuel cap.
+    if res:
+        gaps(o, pr, [[(0.52, 1.39), (0.52, 0.66)], [(-0.51, 1.4), (-0.51, 0.66)], [(-1.5, 1.4), (-1.5, 0.66)], [(0.52, 0.66), (-1.5, 0.66)]])
+        for x in (-0.38, -1.38):
+            handle(o, pr, x, 1.28, 'black', 0.14, 0.04)
+        flat(o, pr, 'side', circle_pts((-1.9, 1.2), 0.06, 12), 'black', 0.005, both=True, res=res)
+
+    # Underneath: the frame, a central drivetrain, portal hubs and the half-shafts you can see.
+    seg = 8 if res else 5
+    for s in (1, -1):
+        o.body.extend(box((0.0, s * 0.42, 0.58), (x1 - 0.1, 0.04, 0.06), 'black'))
+    o.body.extend(rbox((0.0, 0.0, 0.62), (1.2, 0.2, 0.1), 0.05, 'black', 1))
+    for x in (xf, xr):
+        o.body.extend(rbox((x, 0.0, R + 0.06), (0.16, 0.18, 0.13), 0.05, 'black', 1))
+        for s in (1, -1):
+            if res:
+                o.body.extend(cyl((x, s * 0.16, R + 0.06), (x, s * 0.7, R + 0.01), 0.04, 'metal', seg))
+            o.body.extend(rbox((x, s * 0.72, R + 0.06), (0.11, 0.05, 0.14), 0.03, 'black', 1))
+            if res:
+                o.body.extend(cyl((x + 0.05, s * 0.6, R + 0.2), (x + 0.05, s * 0.6, 0.66), 0.035, 'red' if False else 'metal', 6))
+    o.body.extend(cyl((xr - 0.3, -0.85, 0.55), (x0 - 0.02, -0.85, 0.6), 0.04, 'metal', seg))
+
+    # Rear: tailgate, small square lamps, a black bumper with a hitch.
+    if res:
+        gaps(o, pr, [[(-0.85, 1.39), (-0.85, 0.75), (0.85, 0.75), (0.85, 1.39)]], frame='rear', both=False)
+    for s in (1, -1):
+        lamp(o, pr, 'rear', rrect_pts((s * 0.96, 1.08), 0.1, 0.14, 0.012, 1), 'tail', res, 'gloss', 0.006, 0.006, both=False, bw=0.01)
+        if res:
+            lamp(o, pr, 'rear', rrect_pts((s * 0.96, 0.95), 0.1, 0.08, 0.01, 1), 'amber', res, 'gloss', 0.004, 0.006, both=False, bw=0.008)
+    o.body.extend(rbox((x0 - 0.06, 0, 0.72), (0.08, 1.02, 0.09), 0.02, 'black', 2 if res else 1))
+    o.body.extend(box((x0 - 0.16, 0, 0.7), (0.06, 0.05, 0.04), 'metal'))
+    plate(o, pr, 'rear', (0.0, 0.95), 0.3, 0.15)
+    if res:
+        # Marker lamps along the roof's front edge.
+        for y in (-0.15, 0.0, 0.15):
+            o.body.extend(rbox((0.1, y, HM_ROOF(0.1) + 0.01), (0.025, 0.03, 0.012), 0.008, 'amber', 1))
+
+
+@car
+def hummer(res):
+    o = closed_car(res, hummer_params())
+    o.meta['dims'][0] = 4.69
+    o.meta['dims'][1] = 2.2
+    for w in (o.wheel.values() if res else [o.body]):
+        w.recolor('rim2', only='rim') if res else None
+    return o
