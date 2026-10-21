@@ -546,3 +546,141 @@ def cybertruck(res):
         if res:
             w.recolor('rim2', only='chrome')
     return o
+
+
+# ------------------------------------------------------------------ Trail Rambler
+
+WR_RAIL = C((-2.05, 1.785), (0.2, 1.79), (0.29, 1.77), (0.62, 1.2))
+WR_ROOF = C((-2.05, 1.82), (-1.9, 1.84), (0.18, 1.845), (0.27, 1.825), (0.62, 1.215))
+
+
+def wrangler_params():
+    L, W = 4.1, 1.68
+    x0, x1 = -L / 2, L / 2
+    xf, xr = 1.3, -1.16
+    R = 0.4
+    gx1 = 0.62
+    p = dict(
+        L=L, W=W, xf=xf, xr=xr, R=R, tyre_w=0.255, track=1.6, arch_gap=0.07, arch_flat=0.5,
+        rim='alloy', spokes=5, rim_ratio=0.6, tyre='knobby', color=0xffd23d,
+        bottom=C((x0, 0.56), (x0 + 0.2, 0.52), (xr, 0.5), (xf, 0.5), (x1 - 0.1, 0.54), (x1, 0.58)),
+        shoulder=C((x0, 1.15), (x0 + 0.04, 1.17), (0.4, 1.18), (gx1, 1.18), (0.75, 1.165), (x1 - 0.05, 1.12), (x1, 1.1)),
+        top=C((x0, 1.16), (x0 + 0.04, 1.18), (0.4, 1.19), (gx1, 1.195), (0.75, 1.185), (x1 - 0.05, 1.145), (x1, 1.12)),
+        width=C((x0, 0.835), (0.56, 0.84), (0.68, 0.72), (x1, 0.72)),
+        tuck=const(0.02), tumble=const(0.015), cfrac=const(0.55),
+        rb=const(0.03), rs=const(0.03),
+        front=(0.05, 4.0), rear=(0.06, 4.0),
+        open=[(-1.9, 0.5, 0.58)],
+        keys=[0.56, 0.6, 0.64, 0.68, 0.72, x0 + 0.12, x1 - 0.12],
+        bl_base=x0, ws_base=gx1, inset=0.03, glass=False,
+        driver_y=0.38, hip_f=(-0.22, 0.97), benches=[(-1.2, 1.3, 0.99)], seats=4,
+        dash=(0.6, 0.28, 0.78, 0.86, 1.21), wheel_c=(0.12, 1.18), wheel_tilt=0.45,
+        mirror=(0.5, 0.82, 1.2), mirror_region='black', mirror_out=0.18,
+        height=1.84,
+    )
+
+    def hull_region(i, hull):
+        if i['seg'] == 'top' and x0 + 0.05 < i['x'] < gx1 - 0.01 and abs(i['c'].y) < hull.edge_y(i['x']) - 0.04:
+            return 'interior'
+        return None
+
+    p['hull_region'] = hull_region
+    p['decor'] = wrangler_decor
+    return p
+
+
+def wr_glass(i):
+    seg, xb, xr, k = i['seg'], i['xb'], i['xr'], i['k']
+    if seg == 'side':
+        if i['zone'] == 'rear':
+            return 'glass' if (k >= 1 and i['th'] > 0.4) else 'black'
+        if xb > 0.27:
+            return 'paint'
+        if k == 0:
+            return 'black'
+        if -0.6 < xb < 0.27 or -1.9 < xb < -0.72:
+            return 'glass'
+        return 'black'
+    if seg == 'corner':
+        return 'paint' if xr > 0.2 else 'black'
+    if i['zone'] == 'mid' and xr > 0.27:
+        return 'glass'
+    return 'paint' if xr > 0.18 else 'black'
+
+
+def wrangler_decor(o, res, pr, prg_unused, hull, p):
+    L = p['L']
+    x0, x1 = -L / 2, L / 2
+    xf, xr, R = p['xf'], p['xr'], p['R']
+    gx1 = p['ws_base']
+    cab = Cab(hull, x0, gx1, C((x0, 0.77), (gx1, 0.79)), WR_RAIL, WR_ROOF, corner=const(0.04), inset=const(0.03),
+              lines=[(-1.9, -1.9), (-1.3, -1.3), (-0.72, -0.72), (-0.6, -0.6), (-0.15, -0.15), (0.27, 0.24), (0.45, 0.4)],
+              rear=(0.06, 4.0), region=wr_glass, side_s=(0.0, 0.07), taper=False, between=1, base_drop=0.03)
+    o.body.extend(cab.build(res, shell=bool(res)))
+    # The hard top's seam over the doors.
+    if res:
+        for s in (1, -1):
+            o.body.extend(box((0.2, s * 0.79, 1.78), (0.03, 0.012, 0.012), 'black'))
+
+    # Front fenders: body-colour tops arching over the wheels, wide flat black flares outside.
+    path = [(xf + 0.66, 0.62), (xf + 0.6, 0.88), (xf + 0.4, 1.05), (xf - 0.1, 1.07), (xf - 0.45, 1.0), (xf - 0.6, 0.78), (xf - 0.62, 0.62)]
+    if not res:
+        path = path[::2] + [path[-1]]
+    if res:
+        o.body.extend(sweep_xz(path, [(0.69, 0.0), (0.86, 0.0), (0.86, 0.035), (0.69, 0.035)], 'paint', centre=(xf, R - 0.1)).both())
+    o.body.extend(sweep_xz(path, [(0.85, -0.02), (0.94, -0.02), (0.94, 0.07), (0.85, 0.05)], 'black', centre=(xf, R - 0.1)).both())
+    arch_flare(o, res, xr, R, R + p['arch_gap'] + 0.01, 0.11, 0.11, 0.82, a0=-10, a1=190)
+    for s in (1, -1):
+        o.body.extend(rbox((xr, s * 0.7, 0.75), (R + 0.08, 0.13, 0.17), 0.04, 'interior', 1) if res else box((xr, s * 0.7, 0.75), (R + 0.08, 0.13, 0.17), 'interior'))
+
+    # The seven-slot grille, round headlamps cutting into the outer slots, amber lamps below.
+    for k in range(7):
+        y = -0.42 + k * 0.14
+        flat(o, pr, 'front', rrect_pts((y, 0.89), 0.075, 0.34, 0.03, 2), 'gloss', 0.004, res=res, rings=1)
+    for s in (1, -1):
+        hc = (s * 0.565, 0.9)
+        flat(o, pr, 'front', circle_pts(hc, 0.13, 18 if res else 8), 'gloss', 0.006, res=res, rings=1)
+        lamp(o, pr, 'front', circle_pts(hc, 0.105, 18 if res else 8), 'head', res, 'chrome', 0.014, 0.01, both=False, bw=0.012)
+        if res:
+            lamp(o, pr, 'front', circle_pts((hc[0] * 0.98, hc[1]), 0.04, 10), 'white', res, None, 0.004, 0.026, both=False)
+            flat(o, pr, 'front', rrect_pts((s * 0.6, 0.68), 0.12, 0.05, 0.015, 2), 'amber', 0.006, res=res)
+            # The bonnet's exposed rubber latches.
+            o.body.extend(rbox((x1 - 0.3, s * 0.725, 1.08), (0.03, 0.012, 0.06), 0.008, 'black', 1))
+    # A black steel bumper with tow hooks, the plate.
+    fb = rbox((x1 + 0.08, 0, 0.56), (0.09, 0.9, 0.1), 0.02, 'black', 2 if res else 1)
+    o.body.extend(fb)
+    plate(o, Projector(fb), 'front', (0.0, 0.56), 0.3, 0.12)
+    if res:
+        for s in (1, -1):
+            o.body.extend(tube([Vector((x1 + 0.17, s * 0.45, 0.5)), Vector((x1 + 0.24, s * 0.45, 0.52)), Vector((x1 + 0.24, s * 0.45, 0.6)), Vector((x1 + 0.17, s * 0.45, 0.62))], 0.016, 'red', 5))
+        gaps(o, pr, [[(gx1 + 0.06, 0.7), (x1 - 0.02, 0.7)]], frame='top')
+        line(o, pr, 'front', [(-0.7, 1.08), (0.7, 1.08)], 0.006, 'gap', 0.002)
+    cowl(o, res, pr, gx1 - 0.03, 0.72, WR_ROOF)
+
+    # Sides: one door each side with exposed hinges, a handle, black rock rails.
+    if res:
+        gaps(o, pr, [[(0.6, 1.17), (0.6, 0.55)], [(-0.6, 1.18), (-0.6, 0.55)], [(0.6, 0.55), (-0.6, 0.55)]])
+        for z in (1.06, 0.72):
+            hinge(o, 0.58, z, 0.845)
+        handle(o, pr, -0.45, 1.08, 'black', 0.13, 0.035)
+    side_board(o, xr + R + 0.13, xf - R - 0.12, 0.84, 0.47, 0.1, 'black', res)
+
+    # Rear: the spare on the side-hinged tailgate, corner tail lamps, a black bumper.
+    if res:
+        gaps(o, pr, [[(-0.7, 1.17), (-0.7, 0.58), (0.74, 0.58), (0.74, 1.17)]], frame='rear', both=False)
+    for s in (1, -1):
+        lamp(o, pr, 'rear', rrect_pts((s * 0.77, 0.9), 0.08, 0.26, 0.015, 2), 'tail', res, 'gloss', 0.006, 0.006, both=False, bw=0.01)
+    spare = P.wheel(R, 0.255, 'alloy', 'knobby', 0.6, 20 if res else 8, res, 5)
+    spare.transform(Matrix.Rotation(-math.pi / 2, 4, 'Z'))
+    spare.transform(Matrix.Translation((x0 - 0.15, 0.0, 1.02)))
+    o.body.extend(spare)
+    o.body.extend(rbox((x0 - 0.05, 0, 0.58), (0.08, 0.86, 0.08), 0.02, 'black', 2 if res else 1))
+    plate(o, pr, 'rear', (-0.45, 0.72), 0.3, 0.13)
+
+
+@car
+def wrangler(res):
+    o = closed_car(res, wrangler_params())
+    o.meta['dims'][0] = 4.33
+    o.meta['dims'][1] = 1.88
+    return o
