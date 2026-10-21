@@ -960,3 +960,121 @@ def tank_build(res):
 @car
 def tank(res):
     return tank_build(res)
+
+
+# ------------------------------------------------------------------ the minivan
+
+def minivan_params():
+    L, W = 5.16, 1.99
+    x0, x1 = -L / 2, L / 2
+    xf, xr = 1.6, -1.4
+    R = 0.36
+    p = dict(
+        L=L, W=W, xf=xf, xr=xr, R=R, tyre_w=0.235, track=1.7, arch_gap=0.055, rim='twin', spokes=5, color=0x9aa0ab,
+        bottom=C((x0, 0.45), (x0 + 0.15, 0.36), (x0 + 0.5, 0.28), (xr, 0.21), (xf, 0.21), (xf + 0.5, 0.26), (x1 - 0.1, 0.33), (x1, 0.4)),
+        shoulder=C((x0, 0.92), (x0 + 0.06, 0.96), (x0 + 0.3, 0.97), (-1.3, 0.965), (-1.05, 1.045), (0.4, 1.045), (1.6, 1.0), (2.1, 0.95), (x1 - 0.15, 0.89), (x1, 0.82)),
+        top=C((x0, 0.94), (x0 + 0.06, 0.98), (x0 + 0.3, 1.0), (-1.3, 0.99), (-1.05, 1.065), (0.4, 1.065), (1.6, 1.02), (2.1, 0.975), (x1 - 0.15, 0.915), (x1, 0.84)),
+        width=C((x0, 0.95), (-1.8, 0.99), (1.6, 0.995), (x1, 0.95)),
+        tuck=const(0.07), tumble=const(0.06), cfrac=C((x0, 0.7), (0.0, 0.66), (x1, 0.72)),
+        rb=const(0.07), rs=C((x0, 0.04), (x0 + 0.3, 0.05), (1.2, 0.05), (x1 - 0.3, 0.04), (x1, 0.03)),
+        front=(0.45, 2.4), rear=(0.26, 3.0),
+        flares=[(xf, 0.55, 0.012, 0.62, 0.26), (xr, 0.55, 0.012, 0.62, 0.26)],
+        open=[(-2.3, 1.57, 0.32)],
+        bl_base=-2.48, ws_base=1.6, inset=0.035,
+        roof_z=C((-2.48, 1.0), (-2.42, 1.35), (-2.32, 1.62), (-2.1, 1.72), (-1.0, 1.74), (0.35, 1.73), (0.65, 1.66), (1.05, 1.4), (1.35, 1.18), (1.6, 1.0)),
+        rail_z=C((-2.48, 0.99), (-2.42, 1.32), (-2.32, 1.58), (-2.1, 1.67), (-1.0, 1.69), (0.35, 1.68), (0.65, 1.61), (1.05, 1.36), (1.35, 1.15), (1.6, 0.985)),
+        rail_w=C((-2.48, 0.78), (-2.1, 0.8), (0.0, 0.81), (1.6, 0.88)),
+        corner=C((-2.2, 0.08), (0.5, 0.08), (1.0, 0.05)),
+        lines=[(-2.3, -2.25), (-2.1, -2.06), (-1.2, -1.24), (-1.1, -1.14), (-0.06, -0.1), (0.04, 0.0), (1.3, 0.54)],
+        driver_y=0.42, hip_f=(0.42, 0.64), seats=7,
+        dash=(1.62, 1.12, 0.82, 0.66, 1.0), wheel_c=(0.9, 0.98),
+        mirror=(1.42, 0.9, 1.06),
+        benches=[(-0.75, 1.3, 0.64), (-1.75, 1.45, 0.65)],
+        more_seats=[(-1.75, 0.0, 0.65)],
+    )
+
+    def glass_region(i):
+        seg, xb, xr_ = i['seg'], i['xb'], i['xr']
+        if seg == 'side':
+            if i['zone'] == 'front' or xb > 1.3:
+                return 'black'
+            for (a, b) in ((-0.06, 0.04), (-1.2, -1.1)):
+                if a < xb < b:
+                    return 'gloss'
+            if xb < -2.1:
+                return 'gloss'
+            return 'glass'
+        if seg == 'corner':
+            return 'paint'
+        if xr_ > 0.54 or xr_ < -2.25:
+            return 'glass'
+        return 'paint'
+
+    p['glass_region'] = glass_region
+    p['decor'] = minivan_decor
+    return p
+
+
+def minivan_decor(o, res, pr, prg, hull, p):
+    L = p['L']
+    x0, x1 = -L / 2, L / 2
+    xf, xr, R = p['xf'], p['xr'], p['R']
+    # Slim headlamps swept back into the wings, a thick chrome wing across the nose over the grille.
+    hf = aim((x1 - 0.22, 0.66, 0.79), 0.75, 0.2)
+    head = rounded([(-0.3, -0.035), (0.12, -0.03), (0.26, 0.0), (0.3, 0.04), (0.2, 0.05), (-0.3, 0.035)], 2)
+    lamp(o, pr, hf, head, 'head', res, 'gloss', 0.008, 0.006, bw=0.012)
+    if res:
+        line(o, pr, hf, [(-0.28, -0.02), (0.12, -0.015), (0.27, 0.03)], 0.01, 'white', 0.018, both=True)
+    flat(o, pr, 'front', rounded([(-0.5, 0.62), (0.5, 0.62), (0.56, 0.74), (-0.56, 0.74)], 1), 'grille', 0.004, bezel=(0.01, 'gloss', 0.003), res=res, rings=1)
+    line(o, pr, 'front', [(-0.62, 0.765), (-0.45, 0.755), (0.45, 0.755), (0.62, 0.765)], 0.04, 'chrome', 0.008)
+    low = rounded([(-0.6, 0.48), (0.6, 0.48), (0.72, 0.3), (-0.72, 0.3)], 2)
+    flat(o, pr, 'front', low, 'grille', 0.004, bezel=(0.014, 'gloss', 0.003), res=res, rings=1)
+    if res:
+        for z in (0.44, 0.39, 0.34):
+            line(o, pr, 'front', [(-0.62, z), (0.62, z)], 0.01, 'gloss', 0.007)
+    plate(o, pr, 'front', (0.0, 0.4))
+    fv = aim((x1 - 0.22, 0.75, 0.38), 0.6, 0.0)
+    lamp(o, pr, fv, rrect_pts((0, 0), 0.14, 0.04, 0.015, 1), 'head', res, 'gloss', 0.004, 0.008, bw=0.008)
+    line(o, pr, 'front', [(-0.75, 0.28), (0.75, 0.28)], 0.03, 'black', 0.003)
+    # Tail lamps along the bottom of the back window, wrapping round; chrome across the tailgate.
+    tf = aim((x0 + 0.1, 0.74, 1.02), math.pi - 0.75, 0.05)
+    tail = rounded([(0.3, -0.07), (0.3, 0.08), (-0.25, 0.07), (-0.36, 0.03), (-0.36, -0.05)], 2)
+    lamp(o, pr, tf, tail, 'tail', res, 'gloss', 0.006, 0.006, bw=0.008)
+    line(o, pr, 'rear', [(-0.48, 1.0), (0.48, 1.0)], 0.03, 'chrome', 0.006)
+    if res:
+        line(o, pr, 'rear', [(-0.5, 1.035), (0.5, 1.035)], 0.012, 'red', 0.008)
+    plate(o, pr, 'rear', (0.0, 0.78))
+    line(o, pr, 'rear', [(-0.8, 0.42), (0.8, 0.42)], 0.1, 'black', 0.003)
+    if res:
+        # Doors: the front one, the sliding one with its rail running back under the rear quarter
+        # glass, the sills; bonnet and tailgate; handles; fuel flap.
+        rear_arch = arch_pts(xr, R, R + 0.1, 62, 6, 6)
+        gaps(o, pr, [
+            [(1.45, 1.0), (1.47, 0.75), (1.42, 0.5), (1.38, 0.36)],
+            [(0.0, 1.04), (0.0, 0.36)],
+            [(-1.12, 1.03), (-1.12, 0.76)] + rear_arch,
+            [(1.38, 0.36), (xr + R + 0.1, 0.36)],
+        ])
+        line(o, pr, 'side', [(-1.1, 0.94), (-2.25, 0.93)], 0.03, 'black', 0.004, both=True)
+        line(o, pr, 'side', [(-1.1, 0.94), (-2.25, 0.93)], 0.008, 'chrome', 0.007, both=True)
+        gaps(o, pr, [[(1.6, 0.8), (2.1, 0.74), (2.45, 0.56)]], frame='top')
+        gaps(o, pr, [[(-0.72, 1.3), (-0.72, 0.62), (0.72, 0.62), (0.72, 1.3)]], frame='rear', both=False)
+        for (x, z) in ((0.2, 0.93), (-0.25, 0.93)):
+            handle(o, pr, x, z, 'chrome')
+        line(o, pr, 'side', rounded(rrect_pts((-1.95, 0.82), 0.17, 0.12, 0.03, 2), 1), 0.006, 'gap', 0.0015, closed=True)
+        line(o, pr, 'side', [(1.1, 0.42), (xr + R + 0.12, 0.42)], 0.05, 'black', 0.004, both=True)
+        # Chrome along the bottom of the glass, roof rails.
+        line(o, prg, 'side', along(p['shoulder'], 1.25, -1.1, 12, -0.004), 0.014, 'chrome', 0.004, both=True)
+        for s in (1, -1):
+            o.body.extend(rbox((-0.9, s * 0.62, (p['roof_z'](-0.9) + p['rail_z'](-0.9)) / 2 + 0.03), (1.0, 0.025, 0.02), 0.012, 'black', 1))
+    cx = p['ws_base'] - 0.03
+    line(o, pr, 'top', [(cx, -0.82), (cx, 0.82)], 0.08, 'black', 0.003)
+    if res:
+        for (a, b) in ((0.6, -0.05), (0.0, -0.66)):
+            o.body.extend(tube([Vector((cx - 0.03, a, p['roof_z'](cx - 0.03) + 0.01)), Vector((cx - 0.09, b, p['roof_z'](cx - 0.09) + 0.012))], 0.007, 'black', 4))
+        o.body.extend(rbox((-2.16, 0, p['roof_z'](-2.16) + 0.0), (0.12, 0.6, 0.014), 0.008, 'paint', 1))
+
+
+@car
+def minivan(res):
+    return closed_car(res, minivan_params())
