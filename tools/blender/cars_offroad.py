@@ -381,3 +381,56 @@ def f150(res):
     o = closed_car(res, crew_params(c))
     o.meta['dims'][0] = 5.89
     return o
+
+
+def hilux_front(o, res, pr, p):
+    x1 = p['L'] / 2
+    # A trapezoid grille in a chrome surround, a thick chrome bar across its top that runs
+    # on into the swept-back headlamps.
+    flat(o, pr, 'front', rounded([(-0.44, 0.67), (0.44, 0.67), (0.56, 0.955), (-0.56, 0.955)], 1), 'grille', 0.005,
+         bezel=(0.025, 'chrome', 0.006), res=res, rings=1)
+    if res:
+        for z in (0.76, 0.86):
+            line(o, pr, 'front', [(-0.5, z), (0.5, z)], 0.012, 'gloss', 0.009)
+    hf = aim((x1 - 0.17, 0.7, 0.995), 0.5, 0.05)
+    head = rounded([(-0.25, -0.065), (0.17, -0.05), (0.3, 0.0), (0.32, 0.055), (0.19, 0.075), (-0.22, 0.06), (-0.3, 0.0)], 2)
+    lamp(o, pr, hf, head, 'head', res, 'gloss', 0.008, 0.006, bw=0.012)
+    if res:
+        line(o, pr, hf, [(-0.24, -0.03), (0.13, -0.022), (0.24, 0.008)], 0.01, 'white', 0.016, both=True)
+        lamp(o, pr, hf, circle_pts((0.02, 0.015), 0.035, 12), 'chrome', res, 'gloss', 0.004, 0.018, bw=0.006, rings=2)
+    line(o, pr, 'front', [(-0.66, 0.99), (-0.56, 0.978), (0.56, 0.978), (0.66, 0.99)], 0.05, 'chrome', 0.01)
+    # The bumper: body colour with a black lower intake, fog lamps, a silver skid plate.
+    flat(o, pr, 'front', rounded([(-0.55, 0.63), (0.55, 0.63), (0.6, 0.52), (-0.6, 0.52)], 1), 'grille', 0.004, res=res, rings=1)
+    for s in (1, -1):
+        fv = aim((x1 - 0.15, s * 0.7, 0.6), s * 0.55, 0.0)
+        flat(o, pr, fv, rrect_pts((0.0, 0.0), 0.16, 0.08, 0.02, 2), 'gloss', 0.004, res=res, rings=1)
+        if res:
+            lamp(o, pr, fv, circle_pts((0.0, 0.0), 0.033, 10), 'head', res, 'chrome', 0.004, 0.008, both=False, bw=0.006, rings=2)
+    if res:
+        flat(o, pr, 'front', rounded([(-0.45, 0.5), (0.45, 0.5), (0.4, 0.45), (-0.4, 0.45)], 1), 'rim', 0.006, res=res, rings=1)
+        plate(o, pr, 'front', (0.0, 0.69), 0.3, 0.11)
+        line(o, pr, 'front', [(-0.7, 1.065), (0.7, 1.065)], 0.006, 'gap', 0.002)
+        gaps(o, pr, [[(p['ws_base'] + 0.08, 0.8), (x1 - 0.05, 0.78)]], frame='top')
+
+
+def hilux_extra(o, res, pr, p):
+    """Black flares round the arches."""
+    R = p['R']
+    for x in (p['xf'], p['xr']):
+        arch_flare(o, res, x, R, R + p['arch_gap'] + 0.005, 0.075, 0.035, p['W'] / 2 - 0.03)
+
+
+@car
+def hilux(res):
+    c = dict(
+        L=5.25, W=1.86, xf=1.72, xr=-1.365, R=0.385, tyre_w=0.265, track=1.54, rim='alloy', spokes=6, rim_ratio=0.6,
+        tyre='knobby', color=0xe8e8ea, zb=0.5, belt=1.19, cowl_z=1.18, hood_z=1.07, crown=0.035,
+        gx0=-1.08, gx1=1.0, a_x=0.3, rail=1.75, roof=1.815, bed=(-2.53, -1.16, 0.84), cabfloor=0.56,
+        door_f=0.97, b_pillar=(-0.06, 0.05), door_r=-0.98, front_end=(0.3, 2.6), arch_gap=0.07, arch_flat=0.2,
+        hip=(0.02, 0.95), dy=0.38, bench=(-0.74, 1.36, 0.97), dash=(0.86, 0.5, 0.8, 0.85, 1.2), wheel_c=(0.42, 1.18),
+        height=1.82, front=hilux_front, extra=hilux_extra, tail_z=1.0, tail_h=0.3, tail_bot=0.7, rbump_z=0.6, rbump_h=0.17,
+        step_region='black',
+    )
+    o = closed_car(res, crew_params(c))
+    o.meta['dims'][0] = 5.33
+    return o
