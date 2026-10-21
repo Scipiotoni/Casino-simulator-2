@@ -7,9 +7,9 @@ import math
 from mathutils import Matrix, Vector
 
 from carkit import C, Mesh, const, rbox, cyl, tube, rrect_pts, circle_pts, ccw, _fnormal
-from carbody import aim, patch, strip, Projector, FRAMES
+from carbody import aim, patch, strip, Projector, FRAMES, Hull
 import carparts as P
-from carcommon import Out, car, closed_car, lamp, flat, line, gaps, handle, plate, rounded, arch_pts, along, arches, wheels_into, cabin_meta
+from carcommon import G, Out, car, closed_car, lamp, flat, line, gaps, handle, plate, rounded, arch_pts, along, arches, wheels_into, cabin_meta
 
 
 # ------------------------------------------------------------------ the limo
@@ -1078,3 +1078,228 @@ def minivan_decor(o, res, pr, prg, hull, p):
 @car
 def minivan(res):
     return closed_car(res, minivan_params())
+
+
+# ------------------------------------------------------------------ the long-nose semi tractor
+
+def fender(xc, zc, r, y0, y1, a0, a1, region='paint', res=1, crown=0.05):
+    """A wheel fender: a crowned shell round the wheel in side view (angles from the front, degrees)."""
+    m = Mesh()
+    na = 16 if res else 7
+    ns = 6 if res else 3
+    out, inn = [], []
+    for i in range(na + 1):
+        a = math.radians(a0 + (a1 - a0) * i / na)
+        d = Vector((math.cos(a), 0, math.sin(a)))
+        ro, ri = [], []
+        for j in range(ns + 1):
+            s = j / ns
+            y = y0 + (y1 - y0) * s
+            edge = math.sin(math.pi * s) ** 0.5
+            rr = r + crown * edge - 0.04 * (1 - edge)
+            ro.append(m.vert(Vector((xc, y, zc)) + d * rr))
+            ri.append(m.vert(Vector((xc, y, zc)) + d * (rr - 0.025)))
+        out.append(ro)
+        inn.append(ri)
+    cy = (y0 + y1) / 2
+
+    def add(q, reg, want):
+        if _fnormal(m, q).dot(want) < 0:
+            q = tuple(reversed(q))
+        m.face(q, reg)
+
+    def radial(i):
+        a = math.radians(a0 + (a1 - a0) * (i + 0.5) / na)
+        return Vector((math.cos(a), 0, math.sin(a)))
+
+    for i in range(na):
+        for j in range(ns):
+            add((out[i][j], out[i + 1][j], out[i + 1][j + 1], out[i][j + 1]), region, radial(i))
+            add((inn[i][j], inn[i][j + 1], inn[i + 1][j + 1], inn[i + 1][j]), 'liner', -radial(i))
+        for j in (0, ns):
+            add((out[i][j], inn[i][j], inn[i + 1][j], out[i + 1][j]), region, Vector((0, -1 if j == 0 else 1, 0)) * (1 if y1 > y0 else -1))
+    for i in (0, na):
+        a = math.radians(a0 + (a1 - a0) * i / na)
+        tang = Vector((-math.sin(a), 0, math.cos(a))) * (1 if i == na else -1)
+        for j in range(ns):
+            add((out[i][j], out[i][j + 1], inn[i][j + 1], inn[i][j]), region, tang)
+    return m
+
+
+RIG = dict(L=7.8, W=2.5, xf=2.85, xr=(-2.35, -3.67), R=0.52, tyre_w=0.28, track=2.04, track_r=1.86, dual=0.31)
+
+
+def bigrig_cab(res):
+    """The cab: a boxy loft with a split, slightly raked windscreen and door windows."""
+    S1, S0 = 0.74, -0.52
+    LOW, SCR, TOP, BACK = (0.2, 0.2, 2), (0.1, 0.3, 1.0), (0.2, 0.25, 2), (0.2, 0.2, 2)
+    rows = [(1.12, 0.0, 0.9, -0.6, LOW, BACK), (1.122, 0.96, 0.91, -0.61, LOW, BACK), (1.16, 1.03, 0.92, -0.62, LOW, BACK),
+            (1.25, 1.05, 0.925, -0.62, LOW, BACK), (1.9, 1.05, 0.93, -0.62, LOW, BACK, True), (2.02, 1.05, 0.93, -0.62, LOW, BACK),
+            (2.08, 1.045, 0.925, -0.62, SCR, BACK), (2.45, 1.035, 0.86, -0.62, SCR, BACK, True), (2.78, 1.02, 0.8, -0.62, SCR, BACK),
+            (2.85, 1.015, 0.79, -0.62, TOP, BACK, True), (2.88, 1.01, 0.785, -0.62, TOP, BACK)]
+    sl = []
+    for r in rows:
+        d = dict(z=r[0], hw=r[1], xf=r[2], xr=r[3], fs=r[4], rs=r[5])
+        if len(r) > 6:
+            d['hi'] = r[6]
+        sl.append(d)
+    sl += roof_rows(sl[-1], 0.07, 0.03, 0.03, 0.02, 2 if res else 1)
+    if not res:
+        sl = [s for s in sl if not s.get('hi')]
+
+    def region(i):
+        z, zone, k = i['z'], i['zone'], i['k']
+        if z < 1.13:
+            return 'black'
+        if 2.1 < z < 2.76:
+            if zone == 'front' and 1 <= k <= (3 if res else 2):
+                return 'glass'
+            if zone == 'side' and 0.66 > i['x'] > 0.0:
+                return 'glass'
+        return 'paint'
+
+    vb = VanBody(S0, S1, [0.66, 0.0, -0.3] if res else [0.66, 0.0], sl, region,
+                 [0.0, 0.04, 0.5, 1.0] if res else [0.0, 0.5, 1.0], 3 if res else 2, [0.0, 0.5, 1.0], 3 if res else 2)
+    return vb.build(1.3 if res else None)
+
+
+def dual_wheel(R, w, gap, res):
+    seg = 20 if res else 8
+    one = P.wheel(R, w, 'steel', 'road', 0.55, seg, res, 5)
+    m = one.copy().transform(Matrix.Translation((0, -gap / 2, 0)))
+    m.extend(one.copy().transform(Matrix.Translation((0, gap / 2, 0))))
+    return m
+
+
+def bigrig_build(res):
+    T = RIG
+    o = Out()
+    b = o.body
+    L = T['L']
+    x0, x1 = -L / 2, L / 2
+    R = T['R']
+    xf, (xa, xb) = T['xf'], T['xr']
+    # Chassis: two frame rails, the cross members, the fifth-wheel plate over the tandem.
+    for s in (1, -1):
+        b.extend(box_at((-0.1, s * 0.43, 0.86), (3.82, 0.05, 0.15), 'black'))
+    for x in (3.3, 1.0, -1.2, -3.0, -3.85):
+        b.extend(box_at((x, 0, 0.86), (0.05, 0.43, 0.1), 'black'))
+    b.extend(rbox((-2.95, 0, 1.12), (0.55, 0.55, 0.05), 0.04, 'metal', 1))
+    b.extend(box_at((-3.27, 0, 1.175), (0.24, 0.07, 0.006), 'gap'))
+    for s in (1, -1):
+        b.extend(box_at((-2.75, s * 0.5, 1.04), (0.14, 0.05, 0.05), 'black'))
+        b.extend(box_at((-3.75, s * 0.7, 0.4), (0.04, 0.34, 0.35), 'black'))
+        b.extend(box_at((-3.88, s * 0.62, 0.96), (0.02, 0.07, 0.04), 'tail'))
+    # The long bonnet, crowned and narrow, with the big chrome grille at its nose.
+    hood = Hull(0.9, 3.52, const(1.12), C((0.9, 1.8), (3.52, 1.74)), C((0.9, 1.99), (3.52, 1.92)), const(0.62),
+                tuck=const(0.0), tumble=const(0.05), cfrac=const(0.5), rb=const(0.03), rs=const(0.12),
+                front=(0.06, 4.0), rear=(0.05, 4.0), keys=[2.0])
+    hm = hood.build(res)
+    b.extend(hm)
+    ph = Projector(hm)
+    b.extend(rbox((3.56, 0, 1.47), (0.05, 0.6, 0.46), 0.03, 'chrome', 2 if res else 1))
+    b.extend(box_at((3.6, 0, 1.47), (0.012, 0.5, 0.38), 'grille'))
+    if res:
+        for k in range(17):
+            y = -0.48 + 0.96 * k / 16
+            b.extend(box_at((3.615, y, 1.47), (0.01, 0.012, 0.38), 'chrome'))
+        b.extend(box_at((3.615, 0, 1.47), (0.012, 0.5, 0.012), 'chrome'))
+        for k in range(5):
+            m = strip(ph, 'side', [(2.6 + k * 0.1, 1.35), (2.6 + k * 0.1, 1.62)], 0.03, 'chrome', 0.004)
+            b.extend(m.both())
+    # Front fenders sweeping over the wheels, down to the steps; the bumper; round headlamps.
+    for s in (1, -1):
+        y0, y1 = sorted((s * 0.6, s * 1.27))
+        b.extend(fender(xf, R, R + 0.16, y0, y1, 8, 172, 'paint', res))
+        b.extend(box_at((xf - 0.78, s * 0.95, 0.72), (0.12, 0.3, 0.02), 'black'))
+    b.extend(rbox((3.78, 0, 0.82), (0.12, 1.25, 0.17), 0.06, 'chrome', 2 if res else 1))
+    if res:
+        b.extend(box_at((3.9, 0, 0.82), (0.008, 0.3, 0.07), 'plate'))
+    for s in (1, -1):
+        c = Vector((3.25, s * 0.86, 1.46))
+        b.extend(box_at((3.1, s * 0.72, 1.4), (0.18, 0.04, 0.03), 'chrome'))
+        b.extend(cyl(c - Vector((0.12, 0, 0)), c + Vector((0.08, 0, 0)), 0.13, 'chrome', 16 if res else 8))
+        b.extend(cyl(c + Vector((0.08, 0, 0)), c + Vector((0.095, 0, 0)), 0.11, 'head', 16 if res else 8))
+        b.extend(rbox((xf + 0.1, s * 1.1, R + 0.71), (0.06, 0.04, 0.03), 0.015, 'amber', 1))
+        # The air cleaners standing beside the cowl.
+        b.extend(cyl((1.15, s * 0.95, 1.25), (1.15, s * 0.95, 2.2), 0.2, 'chrome', 16 if res else 8))
+        b.extend(cyl((1.15, s * 0.95, 2.2), (1.15, s * 0.95, 2.26), 0.17, 'chrome', 16 if res else 8))
+    # The cab, then the sleeper box behind it.
+    outer, inner = bigrig_cab(res)
+    b.extend(outer)
+    if res:
+        b.extend(inner)
+    pc = Projector(outer)
+    b.extend(rbox((-1.45, 0, 2.23), (0.84, 1.06, 1.13), 0.12, 'paint', 2 if res else 1))
+    if res:
+        for s in (1, -1):
+            b.extend(box_at((-1.3, s * 1.062, 2.75), (0.22, 0.004, 0.13), 'gloss'))
+            b.extend(box_at((-1.45, s * 1.062, 1.32), (0.62, 0.004, 0.006), 'gap'))
+        # Sun visor, roof marker lamps, air horns.
+        b.extend(box_at((0.9, 0, 2.86), (0.12, 0.95, 0.02), 'paint'))
+        for k in range(5):
+            b.extend(rbox((0.75, -0.4 + 0.2 * k, 2.94), (0.03, 0.04, 0.025), 0.012, 'amber', 1))
+        for s in (0.3, -0.3):
+            b.extend(cyl((0.3, s, 2.95), (0.85, s, 2.98), 0.025, 'chrome', 8, r1=0.06))
+        # Wipers, the windscreen's centre post, door handles and gaps.
+        for s in (1, -1):
+            b.extend(tube([Vector((0.94, s * 0.1, 2.12)), Vector((0.9, s * 0.75, 2.2))], 0.008, 'black', 4))
+        gaps(o, pc, [[(0.72, 2.84), (0.72, 1.18), (-0.45, 1.18), (-0.45, 2.84)]])
+        handle(o, pc, -0.3, 1.98, 'chrome')
+        gaps(o, pc, [[(0.66, 2.1), (0.66, 2.76), (0.0, 2.76), (0.0, 2.1), (0.66, 2.1)]], width=0.02)
+    # West-coast mirrors on chrome arms.
+    for s in (1, -1):
+        b.extend(rbox((0.62, s * 1.38, 2.3), (0.06, 0.07, 0.24), 0.03, 'black', 1))
+        b.extend(box_at((0.555, s * 1.38, 2.3), (0.004, 0.055, 0.21), 'mirror'))
+        for z in (2.1, 2.5):
+            b.extend(cyl((0.66, s * 1.04, z), (0.64, s * 1.33, z), 0.012, 'chrome', 6))
+    # Chrome fuel tanks under the doors with steps, battery boxes, the exhaust stacks.
+    for s in (1, -1):
+        y = s * 0.88
+        b.extend(cyl((0.75, y, 0.78), (-0.6, y, 0.78), 0.3, 'chrome', 18 if res else 8))
+        for x in (0.68, -0.53):
+            b.extend(cyl((x, y, 0.78), (x - 0.04, y, 0.78), 0.312, 'black', 18 if res else 8))
+        b.extend(box_at((0.05, s * 1.2, 0.6), (0.3, 0.08, 0.015), 'metal'))
+        b.extend(box_at((-1.25, s * 0.9, 0.78), (0.5, 0.28, 0.24), 'black'))
+        sx, sy = -0.72, s * 1.16
+        b.extend(cyl((sx, sy, 1.05), (sx, sy, 3.95), 0.075, 'chrome', 12 if res else 6))
+        b.extend(cyl((sx, sy, 1.7), (sx, sy, 3.0), 0.095, 'chrome', 12 if res else 6))
+        b.extend(cyl((sx, sy, 3.95), (sx, sy, 3.97), 0.072, 'gap', 12 if res else 6))
+        for z in (1.8, 2.9):
+            b.extend(cyl((sx + 0.08, sy, z), (sx + 0.16, s * 1.06, z), 0.015, 'chrome', 4))
+        # Quarter fenders over the tandem and mudflaps behind it.
+        y0, y1 = sorted((s * 0.6, s * 1.25))
+        for x in (xa, xb):
+            b.extend(fender(x, R, R + 0.1, y0, y1, 35, 145, 'chrome', res, 0.02))
+        b.extend(box_at((xb - 0.65, s * 0.95, 0.5), (0.01, 0.3, 0.32), 'black'))
+    # Interior: dash, wheel, seats.
+    if res:
+        b.extend(rbox((0.75, 0, 2.0), (0.14, 0.98, 0.12), 0.04, 'interior', 2))
+        b.extend(P.steering_wheel((0.42, 0.5, 2.08), 0.75, 0.24, region='black'))
+        for s in (1, -1):
+            b.extend(P.seat(0.04, s * 0.5, 1.72, 0.52, 0.5, 0.72, 0.25, 'seat'))
+        b.extend(box_at((-0.1, 0, 1.31), (0.8, 0.98, 0.012), 'interior'))
+    # Wheels: steering front pair, two axles of duals behind.
+    wf = P.wheel(R, T['tyre_w'], 'steel', 'road', 0.55, 20 if res else 8, res, 5)
+    wr = dual_wheel(R, T['tyre_w'], T['dual'], res)
+    yf, yr = T['track'] / 2, T['track_r'] / 2 + 0.06
+    o.meta['wheels'] = [G((x, s * yr, R)) + ['r'] for x in (xa, xb) for s in (1, -1)] + [G((xf, s * yf, R)) + ['f'] for s in (1, -1)]
+    o.meta['wheelR'] = [R, R]
+    if res:
+        o.wheel['f'] = wf
+        o.wheel['r'] = wr
+    else:
+        b.extend(P.wheel_pair(wf, xf, yf, R))
+        for x in (xa, xb):
+            b.extend(P.wheel_pair(wr, x, yr, R))
+    cabin_meta(o, [(0.06, 0.5, 1.84), (0.06, -0.5, 1.84)], (0.14, 0.5, 2.5))
+    o.meta['dims'] = [L, T['W'], 3.36]
+    o.meta['color'] = 0xc8202f
+    if not res:
+        b.recolor('gloss', only='glass')
+    return o
+
+
+@car
+def bigrig(res):
+    return bigrig_build(res)
