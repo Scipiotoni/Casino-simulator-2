@@ -27,7 +27,10 @@ export const MAX_HP = 100;
  * hospital (or, with the police after you, to a cell and a fine).
  */
 export class Combat {
-  owned: string[] = [];
+  /** The weapons you own: the armory's list (one source of truth). */
+  get owned(): string[] {
+    return this.game.armory.owned;
+  }
   current: string | null = null;
   ammo: Record<string, number> = {};
   hp = MAX_HP;
@@ -76,7 +79,7 @@ export class Combat {
   // ---------------------------------------------------------------- inventory
 
   give(id: string): void {
-    if (!this.owned.includes(id)) this.owned.push(id);
+    this.game.armory.give(id);
     this.ammo[id] = gunDef(id).mag;
     this.draw(id);
   }
@@ -124,7 +127,7 @@ export class Combat {
     const inp = g.input;
     const p = g.player;
     const onFoot = p.mode === 'walk';
-    const indoors = !!g.world.venueAt(p.pos.x, p.pos.z);
+    const indoors = !!g.world.venueAt(p.pos.x, p.pos.z) || g.gunStores.noGuns(p.pos.x, p.pos.z);
     if (inputOn && onFoot) {
       for (let i = 0; i < Math.min(7, this.owned.length); i++) {
         if (inp.pressed(`Digit${i + 1}`)) {

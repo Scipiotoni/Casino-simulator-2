@@ -44,6 +44,9 @@ import { createActivities } from '../activities';
 import { Multiplayer } from '../net/multiplayer';
 import { Chat } from '../ui/chat';
 import { LoadingScreen } from '../ui/loading';
+import { Armory } from '../weapons/armory';
+import { GunStores } from '../world/gunStores';
+import { WeaponWheel } from '../ui/wheel';
 
 export type GameMode = 'loading' | 'title' | 'play' | 'cutscene' | 'seated' | 'menu' | 'build';
 
@@ -71,6 +74,11 @@ export class Game {
   map!: IslandMap;
   minimap!: Minimap;
   shops: ShopSite[] = [];
+  /** Your weapons, parts and builds (combat reads what you own from here). */
+  readonly armory = new Armory();
+  /** The gun stores you walk into (buy at the counter, gunsmith at the workbench). */
+  gunStores!: GunStores;
+  wheel!: WeaponWheel;
   /** Side activities (shoplifting, docks, collectibles, jobs…). */
   activities: Activity[] = [];
   /** Multiplayer hooks for shared lots (not used yet). */
@@ -153,6 +161,8 @@ export class Game {
     this.business = new BusinessSystem(this);
     this.floorEditor = new FloorEditor(this);
     this.combat = new Combat(this, this.uiRoot);
+    this.gunStores = new GunStores(this);
+    this.wheel = new WeaponWheel(this, this.uiRoot);
     await step(0.92, 'Posting guards at Fort Hammerhead');
     this.world.base = new FortHammerhead(this);
     this.world.base.spawnVehicles();
@@ -277,7 +287,8 @@ export class Game {
       pos,
       businesses: this.business.serialize(),
       vehicles: this.vehicles.list.filter((c) => c.owned).map((c) => ({ id: c.id, def: c.def.id, color: c.color, x: c.pos.x, z: c.pos.z, heading: c.heading })),
-      weapons: [...this.combat.owned],
+      weapons: [...this.armory.owned],
+      armory: this.armory.state(),
       stats: this.stats,
       activities: Object.fromEntries(this.activities.filter((a) => a.save).map((a) => [a.id, a.save!()])),
       looks: this.looks,
@@ -306,8 +317,8 @@ export class Game {
     this.applyAudio();
     for (const c of s.vehicles) this.vehicles.spawn(c.def, c.x, c.z, c.heading, { owned: true, color: c.color, id: c.id });
     this.business.load(s.businesses);
-    for (const w of s.weapons) if (!this.combat.owned.includes(w)) this.combat.owned.push(w);
-    for (const w of this.combat.owned) this.combat.ammo[w] = 999;
+    // Old saves only had a list of weapon ids: they keep their guns.
+    this.armory.load(s.armory, s.weapons);
     this.combat.ammo = Object.fromEntries(this.combat.owned.map((w) => [w, 99]));
     for (const a of this.activities) if (a.load && s.activities?.[a.id] !== undefined) a.load(s.activities[a.id]);
     if ((this.stats.goldenChip ?? 0) > 0) this.world.base.takeChip(false);
@@ -381,6 +392,7 @@ export class Game {
       out.push({ x: v.door.x, z: v.door.z, icon: '🎰', color: '#b23cff', label: v.opts.name, big: full });
     }
     for (const s of this.shops) out.push({ x: s.door.x, z: s.door.z, icon: s.icon, color: '#2a6ad8', label: s.name, big: full && isDealer(s.key) });
+    for (const s of this.gunStores.sites) out.push({ x: s.door.x, z: s.door.z, icon: '🔫', color: '#c8202f', label: s.store.name, big: full });
     if (this.ownsFlat) out.push({ x: this.flat.door.x, z: this.flat.door.z, icon: '🏠', color: '#1f9a4c', label: 'Your flat', big: true });
     else if (full) out.push({ x: this.flat.door.x, z: this.flat.door.z, icon: '🏠', color: '#c89a12', label: `Flat for sale · ${fmtMoney(FLAT_PRICE)}`, big: true });
     for (const b of this.business.owned) {
@@ -744,6 +756,7 @@ export class Game {
       this.player.eyePosition(this.tmpE);
       this.camera.update(dt, this.world, this.tmpV.copy(this.player.pos), this.tmpE, this.renderer.settings.fov, this.session.cursor());
     } else if (driving && this.mode !== 'cutscene') {
+      this.wheel.update();
       this.camera.look(inp, this.mode === 'play');
       this.vehicles.update(dt, this.canMove);
       this.player.update(dt, null, this.camera.yaw, this.world, false);
@@ -754,6 +767,8 @@ export class Game {
       }
       this.hud.setPrompt(this.mode === 'play' && this.vehicles.driving ? null : null);
     } else {
+      // The weapon wheel takes the mouse while it's open.
+      this.wheel.update();
       this.camera.look(inp, this.mode === 'play');
       if (inp.pressed('KeyV') && this.mode === 'play') this.toggleFirstPerson();
       if (this.mode === 'cutscene') this.vehicles.update(dt, false);
@@ -770,6 +785,7 @@ export class Game {
     if (this.mode !== 'title') {
       this.combat.update(dt, this.canMove);
       this.flat.update();
+      this.gunStores.update(dt);
       this.business.update(dt);
       this.world.base.update(dt);
       this.crowd.update(dt);
@@ -797,6 +813,9 @@ export class Game {
     this.hud.setClock(this.day, this.hours);
     this.hud.setMoney(this.money);
     this.hud.update(dt);
+    // The crosshair opens with the weapon's spread (a fixed one until combat reports it).
+    const spread = (this.combat as unknown as { spread?: number }).spread;
+    this.hud.updateCrosshair(this.armory.crosshair, typeof spread === 'number' ? spread : 0.012, this.renderer.camera.fov);
     // Autosave.
     this.saveT -= dt;
     if (this.saveT <= 0) {

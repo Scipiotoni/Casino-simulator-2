@@ -1,5 +1,6 @@
 import { loadJSON, saveJSON, removeKey } from '../core/storage';
 import { appearanceFromSkin, sanitizeAppearance, type Appearance } from '../chars/skins';
+import type { ArmorySave } from '../weapons/loadout';
 
 /**
  * Everything that persists. Everyone starts the same way (some cash, no home, no car): this
@@ -68,7 +69,10 @@ export interface SaveData {
   pos: { x: number; y: number; z: number; yaw: number };
   businesses: BusinessSave[];
   vehicles: OwnedVehicle[];
+  /** Weapon ids you own (older saves had only this; kept as a copy of `armory.owned`). */
   weapons: string[];
+  /** Your weapons, parts, builds, knockouts and crosshair (src/weapons/armory.ts). */
+  armory?: ArmorySave;
   stats: Record<string, number>;
   /** Side-activity state, by activity id. */
   activities?: Record<string, unknown>;

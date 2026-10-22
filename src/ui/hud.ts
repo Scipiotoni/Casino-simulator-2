@@ -1,4 +1,6 @@
 import { el, esc, money } from './dom';
+import { drawCrosshair } from '../weapons/art';
+import type { CrosshairSettings } from '../weapons/loadout';
 
 export interface Objective {
   text: string;
@@ -22,6 +24,8 @@ export class Hud {
   private dialogEl: HTMLDivElement;
   private bannerEl: HTMLDivElement;
   private crossEl: HTMLDivElement;
+  private crossCv: HTMLCanvasElement;
+  private crossKey = '';
   private shownMoney = 0;
   private targetMoney = 0;
   onPromptTap: (() => void) | null = null;
@@ -43,6 +47,8 @@ export class Hud {
     this.dialogEl.addEventListener('click', () => this.advanceDialog());
     this.bannerEl = el('div', 'hud-banner');
     this.crossEl = el('div', 'hud-cross');
+    this.crossCv = document.createElement('canvas');
+    this.crossEl.appendChild(this.crossCv);
     this.root.append(tl, this.promptEl, this.toastEl, this.dialogEl, this.bannerEl, this.crossEl);
   }
 
@@ -105,6 +111,24 @@ export class Hud {
 
   setCrosshair(v: boolean): void {
     this.crossEl.style.display = v ? 'block' : 'none';
+  }
+
+  /** Draw the crosshair in your chosen style, opened by the weapon's spread (radians) at this field of view. */
+  updateCrosshair(c: CrosshairSettings, spread: number, fovDeg: number): void {
+    if (this.crossEl.style.display === 'none') return;
+    const px = Math.min(60, (Math.tan(spread) / Math.tan((fovDeg * Math.PI) / 360)) * (window.innerHeight / 2));
+    const key = `${c.style}|${c.color}|${c.size}|${c.gap}|${Math.round(px)}`;
+    if (key === this.crossKey) return;
+    this.crossKey = key;
+    const S = 160;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    if (this.crossCv.width !== S * dpr) {
+      this.crossCv.width = this.crossCv.height = S * dpr;
+    }
+    const ctx = this.crossCv.getContext('2d')!;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, S, S);
+    drawCrosshair(ctx, c, S / 2, S / 2, Math.round(px));
   }
 
   /** Show a line of dialogue and wait for it to be read (click, E, Space or Enter). */
