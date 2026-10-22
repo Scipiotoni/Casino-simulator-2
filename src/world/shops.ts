@@ -7,7 +7,7 @@ import { Vehicle } from '../vehicles/vehicle';
 import { DEALERS, dealer, isDealer } from './dealers';
 
 /**
- * The shops and services on their fixed lots: Bullseye Guns, the car dealers (with cars on
+ * The shops and services on their fixed lots (the gun stores are in gunStores.ts): the car dealers (with cars on
  * their forecourts, see dealers.ts), Paradise Realty, the Drip Locker clothing store, Mercy Island
  * Hospital and the police station. Each is a storefront building with a lit sign and a
  * counter you walk up to (no interior: the menu is the shop).
@@ -27,7 +27,6 @@ interface ShopDef {
 }
 
 const DEFS: ShopDef[] = [
-  { key: 'gunShop', name: 'Bullseye Guns', sign: 'BULLSEYE GUNS', color: 0x4a3a2a, neon: '#ff5a6a', floors: 1, icon: '🔫', label: 'Browse Bullseye Guns', sub: 'Pistols, rifles, shotguns', action: (g) => g.ui.gunShop() },
   ...DEALERS.map((d): ShopDef => ({ key: d.key, name: d.name, sign: d.sign, color: d.color, neon: d.neon, floors: 1, icon: '🚗', label: `Browse ${d.name}`, sub: d.tagline, action: (g) => g.ui.carDealer(d.key) })),
   { key: 'realEstate', name: 'Paradise Realty', sign: 'PARADISE REALTY', color: 0xf4efe2, neon: '#3ddc84', floors: 2, icon: '🏢', label: 'Browse Paradise Realty', sub: 'Every lot for sale on the island', action: (g) => g.ui.realtyPanel() },
   { key: 'clothing', name: 'Drip Locker', sign: 'DRIP LOCKER', color: 0x2a1a3a, neon: '#d68bff', floors: 1, icon: '👕', label: 'Shop at Drip Locker', sub: 'Outfits', action: (g) => g.ui.wardrobe(true) },

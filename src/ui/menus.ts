@@ -4,7 +4,11 @@ import { el, esc, money } from './dom';
 import { type Lot } from '../world/layout';
 import { BIZ, bizDef, buildCost, upgradeCost, hourlyIncome, lotArea, casinoHourly, casinoLevel, dealersNeeded, MAX_LEVEL, type BizType } from '../business/catalog';
 import { districtName, defaultName, type Business } from '../business/business';
-import { GUNS } from '../combat/guns';
+import { GUN_STORES, gunStore, storeStock } from '../weapons/stores';
+import { CLASS_NAMES, type WeaponClass } from '../weapons/catalog';
+import { keyBars } from '../weapons/fitting';
+import { getStudio } from '../weapons/studio';
+import { Gunsmith } from './gunsmith';
 import type { VehicleClass } from '../vehicles/models';
 import { DEALERS, dealer, dealerStock } from '../world/dealers';
 import { SKINS, RARITY_COLORS, appearanceFromSkin, lockPieces, skinById, type Appearance } from '../chars/skins';
@@ -288,33 +292,95 @@ export class GameUI {
 
   // ---------------------------------------------------------------- shops
 
-  gunShop(): void {
+  /** A gun store's counter: its stock by class, with the headline stats; teleports to the other stores. */
+  gunShop(key = 'gunShop'): void {
     const g = this.g;
-    const p = this.panel({ title: 'Bullseye Guns', subtitle: 'Licensed, legal, no questions asked', wide: true, accent: '#ff5a6a' });
-    const grid = el('div', 'pgrid');
-    const render = () => {
-      grid.innerHTML = '';
-      for (const gun of GUNS.filter((x) => !x.secret)) {
-        const owned = g.combat.owned.includes(gun.id);
-        grid.appendChild(card({
-          icon: gun.twoHand ? '🔫' : '🔫',
-          title: gun.name,
-          sub: `${gun.blurb}\nDamage ${gun.dmg}${gun.pellets > 1 ? `×${gun.pellets}` : ''} · ${gun.auto ? 'auto' : 'semi'} · ${gun.mag} rounds`,
-          price: owned ? 'Owned' : money(gun.price),
-          color: owned ? '#3ddc84' : g.money >= gun.price ? '#ff5a6a' : '#8e9aaf',
-          disabled: owned || g.money < gun.price,
-          onClick: () => {
-            g.addMoney(-gun.price, `for the ${gun.name}`);
-            g.combat.give(gun.id);
-            audio.play('purchase');
-            render();
-            g.save();
-          },
+    const store = gunStore(key) ?? GUN_STORES[0];
+    const p = this.panel({ title: store.name, subtitle: `${store.tagline}. Fit parts at the workbench in the back.`, wide: true, accent: store.look.neon });
+    const stock = storeStock(store);
+    const classes = [...new Set(stock.map((w) => w.cls))];
+    let cls: WeaponClass | 'all' = 'all';
+    const tabs = el('div', 'pfilters gs-shoptabs');
+    const grid = el('div', 'gshop');
+    const studio = getStudio();
+    const drawTabs = () => {
+      tabs.innerHTML = '';
+      for (const c of ['all', ...classes] as (WeaponClass | 'all')[]) {
+        tabs.appendChild(btn(c === 'all' ? `All (${stock.length})` : `${CLASS_NAMES[c]} (${stock.filter((w) => w.cls === c).length})`, `sm ${c === cls ? 'primary' : ''}`, () => {
+          cls = c;
+          drawTabs();
+          render();
         }));
       }
     };
+    const render = () => {
+      grid.innerHTML = '';
+      for (const w of stock) {
+        if (cls !== 'all' && w.cls !== cls) continue;
+        const owned = g.armory.owns(w.id);
+        const can = g.money >= w.price;
+        const c = el('div', `gcard ${owned ? 'own' : ''} ${!owned && !can ? 'poor' : ''}`);
+        c.style.setProperty('--c', store.look.neon);
+        const pic = el('div', 'gc-pic');
+        pic.appendChild(studio.iconImg(w.id));
+        const bars = keyBars(w.stats).map((b) => `<div class="gc-bar"><span>${b.label}</span><i><b style="width:${Math.round(b.v * 100)}%"></b></i></div>`).join('');
+        const info = el('div', 'gc-info', `<div class="gc-brand">${esc(w.brand)} · ${esc(CLASS_NAMES[w.cls])}</div><div class="gc-name">${esc(w.name)}</div><div class="gc-blurb">${esc(w.blurb)}</div><div class="gc-bars">${bars}</div>`);
+        const foot = el('div', 'gc-foot');
+        if (owned) foot.appendChild(el('div', 'gc-owned', 'Owned: open the workbench'));
+        else foot.appendChild(btn(can ? `Buy · ${money(w.price)}` : money(w.price), can ? 'primary sm' : 'sm', () => {
+          g.addMoney(-w.price, `for the ${w.name}`);
+          g.armory.give(w.id);
+          g.combat.ammo[w.id] ??= 99;
+          audio.play('purchase');
+          g.hud.toast(`${w.name} is yours. Hold Tab for the weapon wheel; fit parts at the workbench.`, 'money', 4200);
+          render();
+          g.save();
+        }, !can));
+        c.append(pic, info, foot);
+        grid.appendChild(c);
+      }
+    };
+    drawTabs();
     render();
-    p.body.append(grid, el('div', 'ptext dim', 'Press 1–7 to draw a gun, Q to holster. Right mouse aims, left fires, R reloads. Guns only fire outdoors.'));
+    p.body.append(tabs, grid, el('div', 'ptext dim', 'Hold Tab (or tap 🔫) for the weapon wheel, Q to holster. Right mouse aims, left fires, R reloads. Guns stay holstered indoors, except on a store’s range lane.'));
+    // The other gun stores, a teleport away.
+    const others = el('div', 'pfilters');
+    others.appendChild(el('span', 'ptext dim', 'Other gun stores:'));
+    for (const o of GUN_STORES) {
+      if (o === store) continue;
+      const s = g.gunStores.site(o.key);
+      if (!s) continue;
+      others.appendChild(btn(`📍 ${o.name}`, 'sm', () => {
+        p.close();
+        g.fastTravel(s.door.x + Math.sin(s.yaw) * 3, s.door.z + Math.cos(s.yaw) * 3, s.yaw + Math.PI, o.name);
+      }, !!g.vehicles.driving));
+    }
+    p.body.appendChild(others);
+  }
+
+  /** The gunsmith at a gun store's workbench (for any weapon you own). */
+  gunsmith(key = 'gunShop', weapon?: string): void {
+    const g = this.g;
+    if (g.editingLook || g.vehicles.driving) return;
+    if (!g.armory.owned.length) {
+      g.hud.toast('Buy a weapon at the counter first', 'bad');
+      return;
+    }
+    const store = gunStore(key) ?? GUN_STORES[0];
+    g.combat.draw(null);
+    g.editingLook = true;
+    g.enterMenu();
+    g.hud.setVisible(false);
+    const close = () => {
+      gs.destroy();
+      g.onEditEscape = null;
+      g.editingLook = false;
+      g.hud.setVisible(true);
+      g.save();
+      g.leaveMenu();
+    };
+    const gs = new Gunsmith(g, store.name, close, weapon);
+    g.onEditEscape = close;
   }
 
   carDealer(key = 'carDealer'): void {

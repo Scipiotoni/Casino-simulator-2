@@ -4,6 +4,7 @@ import '@fontsource/nunito/latin-700.css';
 import '@fontsource/nunito/latin-900.css';
 import '@fontsource/bungee/latin-400.css';
 import './styles/main.css';
+import './styles/gunsmith.css';
 import { Game } from './game/game';
 
 const app = document.getElementById('app')!;

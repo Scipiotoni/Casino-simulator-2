@@ -453,6 +453,11 @@ export const SPECIAL_SITES: { key: string; x: number; z: number }[] = [
   { key: 'royalFlush', x: 2450, z: 800 },
   { key: 'driftwood', x: -1250, z: 2720 },
   { key: 'gunShop', x: 1900, z: -150 },
+  // The other gun stores: by the Strip, in Dustwater and in Halibut Bay (all on lots the city
+  // owned, so no save ever bought one).
+  { key: 'gunStrip', x: 2467, z: -213 },
+  { key: 'gunDesert', x: 1111, z: -5961 },
+  { key: 'gunBay', x: 480, z: -8723 },
   { key: 'carDealer', x: 2900, z: 1300 },
   // The other car dealers: used cars by Palm Court, exotics on the Strip, 4x4s in Dustwater,
   // classics in Halibut Bay (all on lots the city owned, so no save ever bought one).
