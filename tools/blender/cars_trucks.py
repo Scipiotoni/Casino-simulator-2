@@ -627,7 +627,7 @@ def sweep_xz(path, section, region, centre=None):
     return m
 
 
-JP_TUB = (-1.52, 0.44, 0.56)  # the open tub: x from, x to, floor
+JP_TUB = (-1.52, 0.44, 0.5)  # the open tub: x from, x to, floor
 
 
 def jeep_params():
@@ -638,7 +638,7 @@ def jeep_params():
     p = dict(
         L=L, W=W, xf=xf, xr=xr, R=R, tyre_w=0.165, track=1.25, arch_gap=0.06, arch_flat=0.9,
         rim='military', rim_ratio=0.57, tyre='knobby', color=0x5d6b3a,
-        bottom=C((x0, 0.47), (x1, 0.48)),
+        bottom=C((x0, 0.43), (x1, 0.46)),
         shoulder=C((x0, 0.96), (x0 + 0.05, 0.98), (-0.66, 0.985), (-0.56, 0.95), (-0.48, 0.82), (-0.38, 0.75), (0.2, 0.75),
                    (0.3, 0.83), (0.38, 0.97), (0.44, 1.0), (0.62, 1.0), (1.0, 0.985), (x1 - 0.04, 0.975), (x1, 0.95)),
         top=C((x0, 0.97), (x0 + 0.05, 0.99), (-0.66, 0.995), (0.44, 1.012), (0.62, 1.015), (1.0, 1.0), (x1 - 0.04, 0.99), (x1, 0.96)),
@@ -651,9 +651,9 @@ def jeep_params():
         lip=0.03,
         keys=[0.5, 0.52, 0.55, 0.58, 0.62, x0 + 0.1],
         bl_base=0.5, ws_base=0.52, inset=0.03, glass=False,
-        driver_y=0.3, hip_f=(-0.2, 0.84), benches=[(-1.1, 1.05, 0.86)], seats=4,
+        driver_y=0.3, hip_f=(-0.2, 0.93), benches=[(-1.1, 1.05, 0.95)], seats=4,
         seat_w=0.44, seat_back=0.5, headrests=False, console=False, seat_region='canvas',
-        dash=(0.44, 0.4, 0.68, 0.8, 0.97), dash_region='paint', wheel_c=(0.2, 1.04), wheel_tilt=0.6, wheel_r=0.2,
+        dash=(0.44, 0.4, 0.68, 0.8, 0.97), dash_region='paint', wheel_c=(0.2, 1.09), wheel_tilt=0.6, wheel_r=0.2,
         height=1.65,
     )
 
