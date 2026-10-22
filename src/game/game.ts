@@ -756,7 +756,6 @@ export class Game {
       this.player.eyePosition(this.tmpE);
       this.camera.update(dt, this.world, this.tmpV.copy(this.player.pos), this.tmpE, this.renderer.settings.fov, this.session.cursor());
     } else if (driving && this.mode !== 'cutscene') {
-      // The weapon wheel takes the mouse while it's open.
       this.wheel.update();
       this.camera.look(inp, this.mode === 'play');
       this.vehicles.update(dt, this.canMove);
@@ -768,6 +767,8 @@ export class Game {
       }
       this.hud.setPrompt(this.mode === 'play' && this.vehicles.driving ? null : null);
     } else {
+      // The weapon wheel takes the mouse while it's open.
+      this.wheel.update();
       this.camera.look(inp, this.mode === 'play');
       if (inp.pressed('KeyV') && this.mode === 'play') this.toggleFirstPerson();
       if (this.mode === 'cutscene') this.vehicles.update(dt, false);

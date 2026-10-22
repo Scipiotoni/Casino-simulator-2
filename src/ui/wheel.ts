@@ -66,6 +66,7 @@ export class WeaponWheel {
     this.root.append(this.ring, this.pager);
     this.button = el('button', 'ww-btn', '🔫');
     this.button.title = 'Weapons (hold Tab)';
+    this.button.style.display = 'none';
     this.button.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
       if (this.open) this.close(false);

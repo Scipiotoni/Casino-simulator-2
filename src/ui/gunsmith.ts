@@ -27,8 +27,8 @@ const RETICLE_NAMES: Record<Reticle, string> = { dot: 'Dot', circleDot: 'Circle 
 
 /** Where on the weapon the camera looks for each slot, as fractions of its bounding box (x, y, z from min to max). */
 const FOCUS: Partial<Record<Slot | Tab, [number, number, number, number]>> = {
-  optic: [0.5, 0.95, 0.45, 0.42], muzzle: [0.5, 0.6, 0.0, 0.4], barrel: [0.5, 0.6, 0.2, 0.55], underbarrel: [0.5, 0.2, 0.3, 0.5],
-  laser: [0.9, 0.5, 0.3, 0.45], magazine: [0.5, 0.15, 0.5, 0.5], stock: [0.5, 0.5, 0.92, 0.5], charm: [0.6, 0.3, 0.7, 0.45], reticle: [0.5, 0.95, 0.45, 0.42],
+  optic: [0.5, 0.9, 0.45, 0.65], muzzle: [0.5, 0.6, 0.08, 0.6], barrel: [0.5, 0.6, 0.25, 0.75], underbarrel: [0.5, 0.25, 0.35, 0.7],
+  laser: [0.8, 0.5, 0.35, 0.65], magazine: [0.5, 0.25, 0.5, 0.7], stock: [0.5, 0.5, 0.85, 0.7], charm: [0.6, 0.35, 0.7, 0.65], reticle: [0.5, 0.9, 0.45, 0.65],
 };
 
 export class Gunsmith {
@@ -150,6 +150,7 @@ export class Gunsmith {
       const b = el('button', `gs-tab ${t === this.tab ? 'on' : ''}`, name);
       b.addEventListener('click', () => {
         this.tab = t;
+        this.body.scrollTop = 0;
         this.preview = null;
         this.selected = null;
         audio.play('click');

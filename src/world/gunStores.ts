@@ -301,8 +301,8 @@ export class GunStoreBuilding {
     glow.box(0.3, 0.12, 0.01, 0x7fd8ff, { x: -1.0, y: fy + 1.3, z: COUNTER.z + 0.08, rx: -0.3 }, 'glow');
     k.box(0.6, 0.01, 0.4, 0x2a5a3a, { x: -3.6, y: fy + 1.13, z: COUNTER.z + 0.05 });
     // Back wall: slatwall for long guns.
-    k.box(10.6, 2.9, 0.05, 0x3a3630, { x: -5.3, y: fy + 2.05, z: iz1 + 0.04 });
-    for (let h = 0.75; h < 3.5; h += 0.15) k.box(10.6, 0.012, 0.02, 0x2a2620, { x: -5.3, y: fy + h, z: iz1 + 0.07 });
+    k.box(10.6, 2.9, 0.05, 0xb0a48c, { x: -5.3, y: fy + 2.05, z: iz1 + 0.04 });
+    for (let h = 0.75; h < 3.5; h += 0.15) k.box(10.6, 0.012, 0.02, 0x7a705c, { x: -5.3, y: fy + h, z: iz1 + 0.07 });
     // Left wall: pegboard for handguns and SMGs, ammo shelves by the front.
     const peg = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 2.2), new THREE.MeshLambertMaterial({ map: pegboardTexture(s.style === 'boutique' ? '#2a2630' : '#b89a6a') }));
     peg.position.set(ix0 + 0.04, fy + 2.0, -9.8);

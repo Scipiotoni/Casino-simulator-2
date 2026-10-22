@@ -22,7 +22,7 @@ export interface GunStore {
 export const GUN_STORES: GunStore[] = [
   {
     key: 'gunShop', name: 'Bullseye Guns', sign: 'BULLSEYE GUNS', tagline: 'Handguns, SMGs and rifles, downtown',
-    look: { wall: 0x8a3a2a, trim: 0x1e1e22, floor: 0x6a6a70, inner: 0xd8d2c4, counter: 0x2a2a30, neon: '#ff5a6a', awning: 0xc8202f, style: 'brick' },
+    look: { wall: 0x8a3a2a, trim: 0x1e1e22, floor: 0x6a6a70, inner: 0xd8d2c4, counter: 0x5a4a3a, neon: '#ff5a6a', awning: 0xc8202f, style: 'brick' },
     stock: ['pistol', 'm9', 'm1911', 'fiveseven', 'revolver', 'smg', 'uzi', 'mp7', 'vector', 'rifle', 'g36c', 'famas', 'ak47', 'shotgun', 'benelli'],
   },
   {

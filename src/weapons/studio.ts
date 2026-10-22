@@ -27,11 +27,12 @@ export class Studio {
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.5;
     this.renderer.setClearColor(0x000000, 0);
-    this.scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x3a3020, 2.2));
-    const key = new THREE.DirectionalLight(0xffffff, 2.6);
+    this.scene.add(new THREE.HemisphereLight(0xeef2ff, 0x5a5040, 4.5));
+    const key = new THREE.DirectionalLight(0xffffff, 4.5);
     key.position.set(2, 3, 1.5);
-    const rim = new THREE.DirectionalLight(0x9ac8ff, 1.4);
+    const rim = new THREE.DirectionalLight(0x9ac8ff, 2.5);
     rim.position.set(-2, 1, -2);
     this.scene.add(key, rim);
   }
@@ -98,7 +99,7 @@ export class Studio {
   private renderIcon(id: string, W = 256, H = 112): string {
     const b = buildWeapon(id, DEFAULT_LOADOUT);
     this.scene.add(b.root);
-    this.frame(b.root, W / H, 1.04, new THREE.Vector3(1, 0, 0));
+    this.frame(b.root, W / H, 1.25, new THREE.Vector3(1, 0, 0));
     const rt = new THREE.WebGLRenderTarget(W, H, { colorSpace: THREE.SRGBColorSpace });
     this.renderer.setRenderTarget(rt);
     this.renderer.setClearColor(0x000000, 0);
