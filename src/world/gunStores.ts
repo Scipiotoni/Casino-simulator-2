@@ -70,7 +70,6 @@ export class GunStoreBuilding {
   private targets: Target[] = [];
   private bounds = { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
 
-
   constructor(private g: Game, readonly store: GunStore, lot: Lot) {
     const y = g.world.terrain.lotY.get(lot.id) ?? 6;
     this.floorY = y + 0.15;
